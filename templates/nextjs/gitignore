@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build output
+.next/
+out/
+dist/
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Generated — regenerate with /api-sync
+# DO NOT add api.generated.ts here — it should be committed
+# so TypeScript errors are caught in CI without running /api-sync
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+.nyc_output
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Vercel
+.vercel

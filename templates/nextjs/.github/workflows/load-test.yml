@@ -1,0 +1,54 @@
+name: Load Test
+
+# Manual only — never runs on push or PR. Trigger from the Actions tab
+# (GitHub → Actions → Load Test → Run workflow) and point it at any reachable URL.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Target base URL (e.g. https://staging.example.com)'
+        required: true
+        type: string
+      test:
+        description: 'Which test to run'
+        required: true
+        type: choice
+        default: smoke
+        options:
+          - smoke
+          - stress
+          - soak
+      auth_token:
+        description: 'Bearer token for authenticated endpoints (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    name: k6 ${{ inputs.test }} → ${{ inputs.base_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The k6 scripts are written by /infra-setup (tests/load/*.js). Fail loudly with
+      # a fix hint if they are missing, instead of a cryptic k6 "file not found".
+      - name: Verify load script exists
+        run: |
+          script="tests/load/${{ inputs.test }}.js"
+          if [ ! -f "$script" ]; then
+            echo "::error::$script not found. Run /infra-setup to scaffold tests/load/, or add the script."
+            exit 1
+          fi
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 ${{ inputs.test }}
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          AUTH_TOKEN: ${{ inputs.auth_token }}
+        run: k6 run tests/load/${{ inputs.test }}.js

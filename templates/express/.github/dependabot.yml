@@ -1,0 +1,48 @@
+# Dependabot keeps the (deliberately unpinned) dependency tree from drifting
+# silently. Because /infra-setup installs "latest LTS" with no lockfile in the
+# template, every product needs an automated way to surface updates + CVEs once
+# its lockfile exists. Grouped to keep PR noise low.
+version: 2
+updates:
+  # Application dependencies (npm). Active once a product's package-lock.json exists.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    groups:
+      # Peer-coupled set — must move together or the decorator layer breaks.
+      sequelize:
+        patterns:
+          - sequelize
+          - sequelize-typescript
+          - sequelize-cli
+      # OpenTelemetry shares a release line; bump as one unit.
+      opentelemetry:
+        patterns:
+          - '@opentelemetry/*'
+      types:
+        patterns:
+          - '@types/*'
+        update-types:
+          - minor
+          - patch
+      dev-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+
+  # GitHub Actions — keep pinned action versions current (security-relevant).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - ci

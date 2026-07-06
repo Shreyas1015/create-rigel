@@ -1,0 +1,114 @@
+# The top-level `version:` key is obsolete in Compose v2 and emits a warning — omitted.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/myapp
+      REDIS_URL: redis://redis:6379
+      # Dev-only placeholder (≥32 chars to satisfy env validation). NEVER use in prod.
+      JWT_SECRET: dev-only-secret-change-me-min-32-characters
+      CORS_ORIGINS: http://localhost:3000
+      LOG_LEVEL: debug
+      SERVICE_NAME: myapp
+      # Traces + metrics → otel-lgtm collector (OTLP/HTTP). Defaults to the lgtm service;
+      # export an empty OTEL_EXPORTER_OTLP_ENDPOINT to disable (e.g. CI runs the app without LGTM).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT-http://lgtm:4318}
+      OTEL_SERVICE_NAME: myapp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_started # don't block app boot; OTLP exporter retries until collector is up
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: myapp
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # All-in-one OpenTelemetry backend: Collector + Prometheus (metrics) + Tempo (traces)
+  # + Loki (logs) + Grafana UI. Receives OTLP on 4317 (gRPC) / 4318 (HTTP).
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - '3001:3000' # Grafana UI (remapped off 3000 to avoid clashing with the app)
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    volumes:
+      - lgtm-data:/data
+    healthcheck:
+      # otel-lgtm writes this readiness marker once all bundled services are up.
+      test: ['CMD-SHELL', 'test -f /tmp/ready || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Log shipper: tails container stdout JSON and pushes to Loki inside otel-lgtm.
+  # (Traces + metrics go straight to the collector via OTLP; only logs use Alloy.)
+  alloy:
+    image: grafana/alloy:latest
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+    volumes:
+      - ./infra/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  lgtm-data:
+
+networks:
+  app-network:
+    driver: bridge

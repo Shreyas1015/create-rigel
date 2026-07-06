@@ -1,0 +1,59 @@
+// Grafana Alloy — ship container stdout (pino JSON) to Loki inside otel-lgtm.
+//
+// The app writes structured JSON logs carrying trace_id / span_id (via the pino mixin in
+// src/config/logger.ts). Alloy tails every container's stdout, parses the JSON to surface
+// `level` and `trace_id`, and pushes to Loki. In Grafana you can then jump log ↔ trace.
+//
+// Traces and metrics do NOT pass through here — the app exports those straight to the
+// collector over OTLP. Only logs use this path (it sidesteps the known ESM pino→OTLP bug).
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Turn the Docker container name (e.g. "/harness-app-1") into a clean `service_name` label.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service_name"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  labels     = { job = "docker" }
+  forward_to = [loki.process.pino.receiver]
+}
+
+// Parse pino JSON so `level` becomes a label and `trace_id` is queryable.
+loki.process "pino" {
+  stage.json {
+    expressions = {
+      level    = "level",
+      trace_id = "trace_id",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://lgtm:3100/loki/api/v1/push"
+  }
+}

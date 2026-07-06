@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.pyc
+.Python
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml

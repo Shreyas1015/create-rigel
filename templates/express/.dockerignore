@@ -1,0 +1,43 @@
+# Build context hygiene — keep the Docker context small and free of secrets.
+# Without this, `COPY . .` in the builder stage ships node_modules, .git, the
+# .claude harness, docs, and tests into the image layers.
+
+# Dependencies (reinstalled inside the image via npm ci)
+node_modules/
+npm-debug.log*
+
+# Build output (rebuilt inside the image)
+dist/
+coverage/
+
+# Version control + CI
+.git/
+.gitignore
+.github/
+
+# Agent harness (never needed at runtime)
+.claude/
+
+# Docs, specs, plans
+docs/
+*.md
+
+# Local env + secrets — NEVER bake these into an image
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Tests + load scripts
+tests/
+infra/
+
+# Local compose overrides + k6 output
+docker-compose.override.yml
+k6-results/

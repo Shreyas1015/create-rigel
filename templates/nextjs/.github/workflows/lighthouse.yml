@@ -1,0 +1,54 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: Core Web Vitals budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Skip until /infra-setup has generated the app.
+      - name: Detect app
+        id: app
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No package.json yet (bare harness) — skipping Lighthouse."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.exists == 'true'
+        with:
+          node-version: 'lts/*'
+          cache: npm
+
+      - name: Install
+        if: steps.app.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.app.outputs.exists == 'true'
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
+
+      - name: Lighthouse CI
+        if: steps.app.outputs.exists == 'true'
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npx --yes @lhci/cli@latest autorun --config=lighthouserc.js

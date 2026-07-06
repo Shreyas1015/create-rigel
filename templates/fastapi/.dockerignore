@@ -1,0 +1,30 @@
+# Keep the Docker build context small and free of secrets.
+.git
+.github
+.gitignore
+.venv
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Secrets / local env — NEVER ship into an image
+.env
+.env.*
+!.env.example
+
+# Docs, tests, tooling — not needed at runtime
+docs/
+tests/
+infra/
+scripts/
+*.md
+Makefile
+.pre-commit-config.yaml
+.claude/

@@ -1,0 +1,47 @@
+{
+  "name": "create-rigel",
+  "version": "0.1.0",
+  "description": "Scaffold an agent-first, gate-enforced starter project — Next.js, Express+TypeScript, NestJS, or FastAPI — wired for Claude Code.",
+  "type": "module",
+  "bin": {
+    "create-rigel": "cli.js"
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs"
+  },
+  "files": [
+    "cli.js",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "rigel",
+    "create",
+    "harness",
+    "template",
+    "scaffold",
+    "starter",
+    "nextjs",
+    "express",
+    "nestjs",
+    "fastapi",
+    "claude-code",
+    "agentic"
+  ],
+  "author": "Shreyas1015",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shreyas1015/create-rigel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Shreyas1015/create-rigel/issues"
+  },
+  "homepage": "https://github.com/Shreyas1015/create-rigel#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

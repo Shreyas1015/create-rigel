@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(bandit *)",
+      "Bash(mypy *)",
+      "Bash(alembic *)",
+      "Bash(git *)",
+      "Bash(bash *)",
+      "Bash(sh *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(k6 *)",
+      "Bash(pre-commit *)",
+      "Read(//Users/shreyasss15/Projects-Clean/shreyas/voice-guard/harness-template-fastapi/**)",
+      "Read(//Users/shreyasss15/Projects-Clean/shreyas/voice-guard/**)",
+      "Bash(git add *)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/01-write-spec",
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/02-write-plan",
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/01-write-roadmap",
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/docs/product-specs",
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude",
+      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs"
+    ]
+  },
+  "model": "claude-opus-4-8",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-write.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

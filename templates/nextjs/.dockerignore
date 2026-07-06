@@ -1,0 +1,25 @@
+# Keep the build context small and secret-free.
+node_modules
+.next
+.git
+.github
+.husky
+.claude
+.harness-hold
+coverage
+playwright-report
+test-results
+tests
+docs
+*.md
+.env
+.env.*
+!.env.example
+npm-debug.log*
+yarn-error.log*
+Dockerfile
+.dockerignore
+.prettierrc
+.prettierignore
+.lintstagedrc.json
+lighthouserc.js

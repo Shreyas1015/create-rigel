@@ -1,0 +1,45 @@
+{
+  "name": "harness-typescript-template",
+  "version": "0.0.1",
+  "description": "Express + TypeScript + Sequelize harness template",
+  "type": "module",
+  "engines": {
+    "node": ">=24",
+    "npm": ">=11"
+  },
+  "scripts": {
+    "dev": "tsx watch src/runtime/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/runtime/server.js",
+    "test": "jest",
+    "test:arch": "jest tests/architecture/",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "load:smoke": "k6 run tests/load/smoke.js",
+    "load:stress": "k6 run tests/load/stress.js",
+    "load:soak": "k6 run tests/load/soak.js",
+    "lint": "eslint src/ --max-warnings=0",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "check:circular": "madge --circular src/ --extensions ts",
+    "gate": "npm run typecheck && npm run lint && npm run check:circular && npm run test:arch",
+    "audit": "npm audit --omit=dev --audit-level=high",
+    "openapi:export": "tsx scripts/openapi.export.ts",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:seed": "sequelize-cli db:seed:all",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "express",
+    "typescript",
+    "sequelize",
+    "harness"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

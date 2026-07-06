@@ -1,0 +1,10 @@
+# Normalise line endings. Shell scripts and git hooks MUST be LF or they break
+# on Linux (husky / CI: "bad interpreter"). Let Git decide for everything else.
+* text=auto
+
+*.sh        text eol=lf
+.husky/*    text eol=lf
+*.ps1       text eol=crlf
+
+# Treat the generated API contract as generated (better diffs, not hand-edited).
+src/types/api.generated.ts linguist-generated=true
