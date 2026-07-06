@@ -1,0 +1,10 @@
+# Code owners are automatically requested for review on every pull request.
+# Required by the "Require review from Code Owners" branch rule on `main`.
+# Docs: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything in the repo:
+*       @Shreyas1015
+
+# (Add more specific rules below if you add collaborators, e.g.:)
+# /templates/fastapi/   @Shreyas1015
+# /.github/             @Shreyas1015

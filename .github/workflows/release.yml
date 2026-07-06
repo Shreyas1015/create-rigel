@@ -15,6 +15,9 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Protected environment: holds NPM_TOKEN, requires your approval, and is
+    # restricted to v* tags — so a publish can't be triggered from a random ref.
+    environment: npm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
