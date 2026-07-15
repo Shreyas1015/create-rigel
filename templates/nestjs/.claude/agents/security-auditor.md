@@ -1,7 +1,7 @@
 ---
 name: security-auditor
 description: OWASP Top 10 security review for NestJS. Run before any PR touching auth, guards, or sensitive data.
-model: claude-sonnet-4-5
+model: opus
 tools: [Read, Bash]
 color: red
 ---

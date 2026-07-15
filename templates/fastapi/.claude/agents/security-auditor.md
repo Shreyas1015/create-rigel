@@ -1,7 +1,7 @@
 ---
 name: security-auditor
 description: OWASP Top 10 security review for FastAPI. Run before any PR touching auth, payments, or external data.
-model: claude-sonnet-4-6
+model: opus
 tools: [Read, Bash]
 color: red
 ---

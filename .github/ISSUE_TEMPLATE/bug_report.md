@@ -17,7 +17,7 @@ npm create rigel@latest my-app -- --template <stack>
 What you expected instead.
 
 **Environment**
-- create-harness version:
+- create-rigel version:
 - Node version (`node -v`):
 - OS:
 - Template: nextjs / express / nestjs / fastapi

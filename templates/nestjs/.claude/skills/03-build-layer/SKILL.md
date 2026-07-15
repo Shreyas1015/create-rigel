@@ -227,6 +227,15 @@ Then add to `AppModule.imports`.
 ## Step 4 — Gate
 Call `gate-checker` agent. Auto-fix failures. Re-run up to 3 times.
 
+**Role escalation** (see `.claude/model-routing.json`) — track the gate FAIL count for THIS layer:
+- Attempts 1–2 (same layer): run fix-and-re-gate as a **worker**-role subagent (`sonnet`).
+- Attempt 3 (2 worker attempts already failed): **escalate** to an **orchestrator**-role subagent (`opus`), then append one line to `docs/exec-plans/lessons.log` (create if absent), verbatim:
+  ```
+  PLAN-<id> layer=<layer> escalated to orchestrator after 2 worker attempts failed gate
+  ```
+  One greppable line per escalation — episodic input for a later memory phase; do not reshape it.
+- If the orchestrator attempt still fails → stop and present the exact blocker to the human.
+
 ## Step 5 — ADR if needed
 `docs/design-docs/decisions/ADR-XXX-{slug}.md`
 

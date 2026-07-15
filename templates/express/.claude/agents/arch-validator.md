@@ -1,7 +1,7 @@
 ---
 name: arch-validator
 description: Deep architecture compliance scan. More thorough than gate-checker. Use when you suspect drift or before a major refactor.
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: orange
 ---

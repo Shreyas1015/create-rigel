@@ -1,7 +1,7 @@
 ---
 name: db-optimizer
 description: Audits repo layer for N+1 queries, missing indexes, and offset pagination. Run before shipping any feature that adds DB queries.
-model: claude-opus-4-8
+model: sonnet
 tools: [Read, Bash]
 color: orange
 ---

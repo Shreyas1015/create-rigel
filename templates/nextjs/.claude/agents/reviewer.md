@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Full harness review before opening a PR. Run with "Use the reviewer agent to review current changes."
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: blue
 ---

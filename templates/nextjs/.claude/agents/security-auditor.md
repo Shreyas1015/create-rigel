@@ -1,7 +1,7 @@
 ---
 name: security-auditor
 description: Security review for Next.js frontend. Run before any auth, token, or data-exposure PR.
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: red
 ---

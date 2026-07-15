@@ -1,7 +1,7 @@
 ---
 name: doc-gardener
 description: Scans documentation for staleness and fixes it. Called by /doc-garden skill. Use when docs feel out of sync with reality.
-model: claude-opus-4-8
+model: sonnet
 tools: [Read, Write, Bash]
 color: green
 ---

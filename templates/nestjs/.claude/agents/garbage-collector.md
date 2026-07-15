@@ -1,7 +1,7 @@
 ---
 name: garbage-collector
 description: End-of-feature cleanup. Called by /garbage-collect after all layers complete.
-model: claude-sonnet-4-5
+model: sonnet
 tools: [Read, Write, Bash]
 color: green
 ---

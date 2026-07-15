@@ -1,7 +1,7 @@
 ---
 name: contract-checker
 description: Detects API contract drift. Run when the OpenAPI spec changes or before any PR that touches hooks.
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: orange
 ---

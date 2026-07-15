@@ -1,7 +1,7 @@
 ---
 name: gate-checker
 description: Runs the layer gate after every /build-layer. Outputs PASS or FAIL. Called automatically — not by human.
-model: claude-opus-4-8
+model: opus
 tools: [Bash, Read]
 color: red
 ---

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// create-harness — scaffold an agent-first, gate-enforced starter project.
+// create-rigel — scaffold an agent-first, gate-enforced starter project.
 // Zero runtime dependencies (Node builtins only), so it publishes with no build step.
 
 import { readdir, cp, rename, mkdir, stat } from "node:fs/promises";
@@ -102,6 +102,11 @@ async function main() {
     await mkdir(target, { recursive: true });
     await cp(source, target, { recursive: true });
     await restoreDotfiles(target);
+
+    // Stamp the canonical model-routing table into the project's .claude/ so
+    // /build-layer role escalation can resolve worker/orchestrator roles at runtime.
+    // One source of truth (repo root) — never a per-template copy that can drift.
+    await cp(join(HERE, "model-routing.json"), join(target, ".claude", "model-routing.json"));
 
     const rel = name === "." ? "." : name;
     console.log(`\n  ✓ Scaffolded a "${stack}" project into ${rel}\n`);

@@ -12,6 +12,7 @@
   "files": [
     "cli.js",
     "templates",
+    "model-routing.json",
     "README.md"
   ],
   "engines": {

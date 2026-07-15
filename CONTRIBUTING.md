@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `create-harness`.
+Thanks for helping improve `create-rigel`.
 
 ## Repo layout
 

@@ -1,7 +1,7 @@
 ---
 name: garbage-collector
 description: End-of-feature cleanup. Called by /garbage-collect. Scans for violations, updates quality scores, closes the plan.
-model: claude-opus-4-8
+model: sonnet
 tools: [Read, Write, Bash]
 color: green
 ---

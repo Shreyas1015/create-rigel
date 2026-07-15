@@ -1,7 +1,7 @@
 ---
 name: arch-validator
 description: Deep architecture compliance scan for the entire frontend codebase. Use before major refactors.
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: orange
 ---

@@ -1,7 +1,7 @@
 ---
 name: perf-auditor
 description: Core Web Vitals and bundle size gatekeeper. Run before any feature PR that adds new components or routes.
-model: claude-opus-4-8
+model: sonnet
 tools: [Read, Bash]
 color: orange
 ---

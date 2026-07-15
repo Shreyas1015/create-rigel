@@ -1,7 +1,7 @@
 ---
 name: security-auditor
 description: OWASP Top 10 security review. Run before any PR touching auth, payments, file uploads, or external data. Use with "Use the security-auditor agent to review current changes."
-model: claude-opus-4-8
+model: opus
 tools: [Read, Bash]
 color: red
 ---

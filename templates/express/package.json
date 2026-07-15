@@ -1,7 +1,7 @@
 {
-  "name": "harness-typescript-template",
+  "name": "rigel-typescript-template",
   "version": "0.0.1",
-  "description": "Express + TypeScript + Sequelize harness template",
+  "description": "Express + TypeScript + Sequelize Rigel template",
   "type": "module",
   "engines": {
     "node": ">=24",
@@ -36,7 +36,7 @@
     "express",
     "typescript",
     "sequelize",
-    "harness"
+    "rigel"
   ],
   "author": "",
   "license": "MIT",

@@ -1,0 +1,25 @@
+{
+  "$comment": "Single source of truth for per-agent model routing. Every agent's YAML `model:` frontmatter is GENERATED from / CHECKED against this file by scripts/check-model-routing.js (run in CI). Do not hand-edit an agent's `model:` field — change its role here instead. The CLI stamps this file into each scaffolded project's .claude/ so /build-layer escalation can resolve roles at runtime.",
+  "roles": {
+    "orchestrator": {
+      "model": "opus",
+      "used_by": ["arch-validator"]
+    },
+    "worker": {
+      "model": "sonnet",
+      "used_by": ["db-optimizer", "doc-gardener", "garbage-collector", "perf-auditor"]
+    },
+    "grader": {
+      "model": "opus",
+      "used_by": ["contract-checker", "gate-checker", "reviewer", "security-auditor"]
+    }
+  },
+  "escalation": {
+    "trigger": "same-layer gate FAIL count >= 2",
+    "from": "worker",
+    "to": "orchestrator",
+    "log": true,
+    "log_path": "docs/exec-plans/lessons.log",
+    "log_format": "PLAN-<id> layer=<layer> escalated to orchestrator after 2 worker attempts failed gate"
+  }
+}

@@ -13,13 +13,17 @@ const STACKS = ["nextjs", "express", "nestjs", "fastapi"];
 
 let failures = 0;
 for (const stack of STACKS) {
-  const dir = mkdtempSync(join(tmpdir(), `create-harness-${stack}-`));
+  const dir = mkdtempSync(join(tmpdir(), `create-rigel-${stack}-`));
   try {
     execFileSync("node", [CLI, dir, "--template", stack], { stdio: "pipe" });
     const entries = readdirSync(dir);
     assert.ok(entries.length > 0, `${stack}: target dir is empty`);
     assert.ok(existsSync(join(dir, ".gitignore")), `${stack}: .gitignore was not restored`);
     assert.ok(existsSync(join(dir, ".claude")), `${stack}: .claude workflow missing`);
+    assert.ok(
+      existsSync(join(dir, ".claude", "model-routing.json")),
+      `${stack}: .claude/model-routing.json was not stamped`
+    );
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);
   } catch (err) {
     failures++;

@@ -1,7 +1,7 @@
 # gitleaks config — extends the default ruleset and allowlists the template's known,
 # non-secret dev/test placeholders so the CI secret-scan job doesn't false-positive on
 # them. Real secrets anywhere else are still detected. Used by .github/workflows/ci.yml.
-title = "harness-template gitleaks config"
+title = "rigel-template gitleaks config"
 
 [extend]
 useDefault = true

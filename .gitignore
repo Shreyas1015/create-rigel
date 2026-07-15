@@ -19,3 +19,8 @@ yarn-error.log*
 *.swp
 .idea/
 .vscode/
+
+# maintainer-local Claude Code dev config for working on the scaffolder repo
+# itself (gh/git-push permissions). Intentionally never committed — a shipped
+# .claude/ belongs to the *templates*, not to this repo root. See PLAN-001 AC-2.
+/.claude/

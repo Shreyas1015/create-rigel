@@ -1,7 +1,7 @@
 ---
 name: db-optimizer
 description: Audits repo layer for N+1, missing indexes, offset pagination, missing model_validate. Run before shipping any feature with DB queries.
-model: claude-sonnet-4-6
+model: sonnet
 tools: [Read, Bash]
 color: orange
 ---

@@ -134,8 +134,21 @@ Call the `gate-checker` agent with the layer name.
 - Read each ITEM from the gate report
 - Fix it automatically (no asking the human)
 - Log: `[Auto-fix] item description → fix applied`
-- Re-run gate (max 3 attempts)
-- If still failing after 3 attempts → present to human with specific blocker
+- Re-run gate (max 3 attempts), following the role-escalation rule below
+
+### Gate escalation — role routing (see `.claude/model-routing.json`)
+
+Track the gate FAIL count for THIS layer across re-runs:
+
+- **Attempts 1–2** (same layer): run each fix-and-re-gate cycle with a **worker**-role subagent (`sonnet`).
+- **Attempt 3** (same layer — i.e. 2 worker attempts have already failed the gate): **escalate**. Run the fix-and-re-gate cycle with an **orchestrator**-role subagent (`opus`), then append **one** structured lesson record to `docs/exec-plans/lessons.log` (create the file if absent), verbatim in this shape:
+
+  ```
+  PLAN-<id> layer=<layer> escalated to orchestrator after 2 worker attempts failed gate
+  ```
+
+  One line per escalation, kept greppable — this is the episodic input a later memory phase consumes; do not reshape it.
+- If the escalated (orchestrator) attempt still fails → stop and present the exact blocker to the human.
 
 **If PASS:**
 - Tick the checkbox in the plan:

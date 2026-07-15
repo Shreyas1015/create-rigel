@@ -1,0 +1,55 @@
+name: Repo Integrity
+
+# Guards the framework's cardinal rule ("if it isn't in this repository, it doesn't
+# exist"): no leaked local paths in shipped config, no model-routing drift, and no
+# dead-brand identifiers left over from the create-harness → create-rigel rename.
+# See docs plan PLAN-001 (AC-8).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: No leaked local paths in shipped settings
+        run: |
+          if grep -rnE "(/Users/|/home/)" templates/*/.claude/settings.json; then
+            echo "::error::Absolute local filesystem path found in a shipped settings.json"
+            exit 1
+          fi
+          echo "OK — no absolute local paths in any shipped settings.json"
+
+      - name: Model routing drift check
+        run: node scripts/check-model-routing.js
+
+      - name: Rename completeness (no dead-brand identifiers)
+        # Only the OLD PACKAGE IDENTITY is banned — the npm name `create-harness` and any
+        # `harness-*-template` package name. The common noun "harness" is intentional
+        # product vocabulary (README tagline, the Rigel naming story, "harness family",
+        # etc.) and is deliberately NOT matched here. Exclude CHANGELOG.md (records the
+        # old name in history) and this workflow file (contains the pattern literally).
+        run: |
+          if grep -rniE "create-harness|harness[a-z0-9-]*-template" \
+              --exclude=CHANGELOG.md \
+              --exclude=repo-integrity.yml \
+              --exclude-dir=.git \
+              --exclude-dir=node_modules \
+              .; then
+            echo "::error::Dead brand identifier found — the create-harness → create-rigel rename is incomplete"
+            exit 1
+          fi
+          echo "OK — no create-harness / harness-*-template identifiers outside CHANGELOG.md"

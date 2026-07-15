@@ -1,7 +1,7 @@
 ---
 name: arch-validator
 description: Deep architecture compliance scan for the entire codebase. Use before major refactors.
-model: claude-sonnet-4-6
+model: opus
 tools: [Read, Bash]
 color: orange
 ---

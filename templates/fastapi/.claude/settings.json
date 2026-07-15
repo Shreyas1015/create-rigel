@@ -1,4 +1,5 @@
 {
+  "model": "claude-opus-4-8",
   "permissions": {
     "allow": [
       "Bash(uv *)",
@@ -18,22 +19,10 @@
       "Bash(find *)",
       "Bash(wc *)",
       "Bash(k6 *)",
-      "Bash(pre-commit *)",
-      "Read(//Users/shreyasss15/Projects-Clean/shreyas/voice-guard/harness-template-fastapi/**)",
-      "Read(//Users/shreyasss15/Projects-Clean/shreyas/voice-guard/**)",
-      "Bash(git add *)"
+      "Bash(pre-commit *)"
     ],
-    "deny": [],
-    "additionalDirectories": [
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/01-write-spec",
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/02-write-plan",
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude/skills/01-write-roadmap",
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/docs/product-specs",
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs/.claude",
-      "/Users/shreyasss15/Projects-Clean/shreyas/harness-template/harness-nextjs"
-    ]
+    "deny": []
   },
-  "model": "claude-opus-4-8",
   "hooks": {
     "PostToolUse": [
       {
