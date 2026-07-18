@@ -23,18 +23,25 @@ plan" rule is visible on every PR.
 policy=.rigel/git-policy.json
 trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 integ=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+drop=$(sed -n 's/.*"deploy_trigger"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
 ## Step 2 — Choose base + merge method (from merge_strategy)
 
-| Branch | Base | Merge method | Why |
-|---|---|---|---|
-| `feat\|fix\|chore/PLAN-*` | `$integ` (staging) | **squash** | one clean commit per feature |
-| `$integ` → promote a release | `$trunk` (main) | **merge** (real) | keep per-feature history on main |
-| `hotfix/PLAN-*` | `$trunk` (main) | **merge**, then also open a second PR into `$integ` | fix prod, keep staging in sync |
+`main` is the source of truth. A feature is cut from `main`, tested on the stage server via
+`drop`, and lands on `main` by one of two explicit paths — **never** by merging `staging`
+into a feature or a feature carrying staging's other work into `main`.
 
-Never squash a `staging → main` promotion — that collapses a whole release to one commit.
+| Intent | Head | Base | Merge method | Why |
+|---|---|---|---|---|
+| **Deploy to stage for testing** | `feat\|fix\|chore/PLAN-*` | `$drop` | **squash** | Merging into the disposable deploy-trigger branch deploys the feature to the stage server. `drop` never merges upward. |
+| **Urgent go-live** (one feature) | `feat\|fix\|chore/PLAN-*` | `$trunk` (main) | **merge** | Ship this one verified feature immediately, isolated from staging's other in-flight work. **Guards:** the full CI gate must pass on this PR, and a post-deploy canary/smoke is required (`promotion.urgent` in the policy). |
+| **Batch release** | `$integ` (staging) | `$trunk` (main) | **merge** (real) | Promote the whole verified stage release; keep per-feature history on main. |
+| **Hotfix** | `hotfix/PLAN-*` | `$trunk` (main) | **merge**, then also open a PR into `$integ` | Fix prod, keep staging in sync. |
+
+Never squash a `staging → main` or `feat → main` promotion — squashing collapses history and,
+for the batch path, a whole release to one commit.
 
 ## Step 3 — Require a PLAN reference
 
@@ -67,6 +74,9 @@ layers are done), and the **Decision log**. Shape:
 Closes: <issue if any>
 ```
 
+For an **urgent `feat → main`** PR, also state in the body: what it was tested against on the
+stage server, and the canary/smoke plan for after it deploys (the `promotion.urgent` guards).
+
 ## Step 5 — Create the PR
 
 ```bash
@@ -79,6 +89,9 @@ For a hotfix, after the `main` PR, open the sync PR too:
 ```bash
 gh pr create --base "$integ" --head "$branch" --title "hotfix sync: <slug>" --body "Mirror of the main hotfix into $integ."
 ```
+
+> Deploying to the stage server (`feat → drop`) is usually a direct merge/push, since `drop`
+> is unprotected — it does not need a review PR. `/open-pr` is for the PRs that land on `main`.
 
 ## Step 6 — Report
 

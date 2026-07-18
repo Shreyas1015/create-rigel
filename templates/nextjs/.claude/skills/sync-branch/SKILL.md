@@ -11,9 +11,11 @@ note: Process skill — git operations only. Reads .rigel/git-policy.json for th
 
 Triggered by: `/sync-branch`
 
-Keeps a feature branch up to date by **rebasing** (never merging) onto its base, so
-history stays linear and the eventual squash into `staging` is clean. The rebase-not-merge
-rule lives here, not in an onboarding doc.
+Keeps a feature branch up to date by **rebasing** (never merging) onto **`main`**, so the
+branch stays clean and can promote to `main` carrying only its own changes. **Feature branches
+rebase on `main`, never on `staging` or `drop`** — that is what keeps the eventual `feat → main`
+promotion isolated from staging's other in-flight work. The rebase-not-merge rule lives here,
+not in an onboarding doc.
 
 ---
 
@@ -23,20 +25,24 @@ rule lives here, not in an onboarding doc.
 policy=.rigel/git-policy.json
 trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 integ=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+drop=$(sed -n 's/.*"deploy_trigger"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
 ## Step 2 — Pick the base
 
-- `hotfix/*` → base is **`$trunk`** (main) — hotfixes cut from and return to main.
-- every other feature branch → base is **`$integ`** (staging).
-- If you're *on* `$trunk` or `$integ`, there is nothing to sync — stop.
+Every feature/fix/chore/hotfix branch is cut from **`$trunk`** (main) and rebases on it.
+`main` is the source of truth; `staging` and `drop` are downstream deploy/test targets and are
+**never** a rebase base.
+
+- If you're *on* `$trunk`, `$integ`, or `$drop`, there is nothing to sync — stop.
+- Otherwise → base is **`$trunk`** (main).
 
 ```bash
 case "$branch" in
-  hotfix/*) base="$trunk" ;;
-  *)        base="$integ" ;;
+  "$trunk"|"$integ"|"$drop") echo "On a workflow branch — nothing to sync."; exit 0 ;;
 esac
+base="$trunk"
 ```
 
 ## Step 3 — Fetch and rebase

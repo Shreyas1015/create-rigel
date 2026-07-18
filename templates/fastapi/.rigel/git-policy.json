@@ -1,21 +1,39 @@
 {
   "_comment": "Single source of truth for this repo's git workflow. Read by .githooks/* (commit-msg, pre-push), the /sync-branch and /open-pr skills, scripts/protect-branch.sh, scripts/check-protection-drift.sh, and CI (.github/workflows/git-policy.yml). Byte-identical across every Rigel template. Never encode any of these rules a second time anywhere else. Patterns are POSIX ERE (grep -E / JS / python re / GitHub all accept them) so the shell hooks need no node, husky, jq, or python.",
+  "model": "main is the source of truth. Feature branches are cut from main and kept clean (rebased on main, NEVER on staging), so a feature can promote to main carrying only its own changes. 'drop' is a disposable deploy-trigger branch: merging a feature into drop deploys it to the stage server for testing. Once the stage tests pass, the deploy pipeline advances 'staging' to the validated commit. Two promotion paths land on main: urgent (feature -> main, ship one verified feature immediately, isolated from staging's other in-flight work) and batch (staging -> main, promote the whole verified release). Nothing ever merges upward from drop or staging into a feature branch or into main except via these two explicit paths.",
   "branches": {
     "trunk": "main",
-    "integration": "staging"
+    "integration": "staging",
+    "deploy_trigger": "drop"
   },
+  "base_branch": "main",
   "protected": ["main", "staging"],
   "branch_pattern": "^(feat|fix|chore|hotfix)/PLAN-[0-9]{3}-[a-z0-9-]+$",
   "commit_pattern": "^(feat|fix|chore|docs|refactor|test)([(][a-z0-9_-]+[)])?!?: .+",
   "merge_strategy": {
-    "feature_to_staging": "squash",
+    "feature_to_drop": "squash",
+    "drop_to_staging": "fast-forward",
+    "feature_to_main": "merge",
     "staging_to_main": "merge",
     "hotfix": "merge_to_both"
   },
-  "protection": {
-    "main":    { "linear_history": false, "allowed_merges": ["merge"],  "require_pull_request": true, "require_codeowner_review": true },
-    "staging": { "linear_history": true,  "allowed_merges": ["squash"], "require_pull_request": true, "require_codeowner_review": true }
+  "promotion": {
+    "urgent": {
+      "path": "feature -> main",
+      "when": "a verified feature must ship immediately, isolated from staging's other in-flight work",
+      "require_full_gate": true,
+      "require_canary": true
+    },
+    "batch": {
+      "path": "staging -> main",
+      "when": "the whole staging release is verified green on the stage server"
+    }
   },
+  "protection": {
+    "main":    { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "require_codeowner_review": true },
+    "staging": { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "require_codeowner_review": true }
+  },
+  "unprotected_note": "'drop' is intentionally NOT protected — it is a disposable deploy-trigger branch that the pipeline (and developers) reset and force-update freely. It never merges into main or staging directly; the pipeline advances staging to the validated commit after stage tests pass.",
   "require_plan_reference": true,
   "auto_delete_head": true,
   "versioning": "semver"

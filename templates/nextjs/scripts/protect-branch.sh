@@ -7,13 +7,16 @@
 #
 # Requires: gh (authenticated). Reads the policy with sed/grep only — no jq needed.
 #
+# Applies to the `protected` branches (main + staging). `drop` is intentionally NOT
+# protected — it is a disposable deploy-trigger branch.
 # What GitHub can and cannot enforce per branch:
-#   - required_linear_history is PER BRANCH: staging=true (squash-only inbound),
-#     main=false (so staging→main promotion can be a real merge commit).
+#   - required_linear_history is PER BRANCH, read from policy.protection.<branch>.
+#     Both main and staging allow real merge commits here (the two promotion paths that
+#     land on main — urgent feat→main and batch staging→main — are real merges).
 #   - Allowed merge BUTTONS (squash/merge/rebase) are a REPO-WIDE setting, not per
-#     branch. We enable squash (for feature→staging) + merge (for staging→main) and
-#     disable rebase; which one is used per PR is chosen by /open-pr per the policy's
-#     merge_strategy, and linear_history keeps a merge commit out of staging.
+#     branch. We enable squash (for feature→drop deploys) + merge (for the →main
+#     promotions) and disable rebase; which one is used per PR is chosen by /open-pr
+#     per the policy's merge_strategy.
 set -euo pipefail
 
 policy=".rigel/git-policy.json"

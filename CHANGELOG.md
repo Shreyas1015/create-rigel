@@ -6,7 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-07-18
+## [0.4.0] - 2026-07-18
+
+### Changed
+
+- **Reworked the branch model to keep `main` the source of truth with isolated feature
+  promotion.** Replaces the previous `feature → staging → main` promotion flow. Every
+  template's `.rigel/git-policy.json` (and the hooks, skills, CI, and docs that read it) now
+  encodes:
+  - Feature branches are **cut from and rebased on `main`** (never on `staging`/`drop`), so a
+    feature promotes to `main` carrying only its own changes.
+  - A new disposable **`drop`** deploy-trigger branch: merging a feature into `drop` deploys it
+    to the stage server for testing. `drop` never merges upward and is intentionally unprotected.
+  - **Two promotion paths onto `main`:** *urgent* (`feature → main`, to ship one verified
+    feature immediately, isolated from staging's other in-flight work — gated on a full CI pass
+    plus a documented canary/smoke) and *batch* (`staging → main`, to promote the whole verified
+    stage release). `staging` mirrors the last validated stage state.
+  - `/sync-branch` now rebases onto `main`; `/open-pr` chooses base + merge method for the
+    deploy/urgent/batch/hotfix flows; `pre-push` and the git-policy CI recognize `drop`;
+    `docs/git-workflow.md` documents the model, one-time `drop`+`staging` setup, and the
+    "test ≠ ship" caveat on the urgent path.
+
+  The deploy pipeline that advances `staging` after stage tests pass is intentionally left for
+  the consuming project to wire (it's environment-specific).
 
 ### Added
 
@@ -84,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Smoke test that scaffolds every template in CI (Node 18/20/22).
 - Publish-on-tag GitHub Actions workflow with npm provenance.
 
-[Unreleased]: https://github.com/Shreyas1015/create-rigel/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Shreyas1015/create-rigel/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Shreyas1015/create-rigel/releases/tag/v0.1.0

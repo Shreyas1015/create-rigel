@@ -2,8 +2,9 @@
 # pre-push — reject a feature branch whose name violates .rigel/git-policy.json.
 #
 # Toolchain-free: POSIX shell + sed + grep only. IDENTICAL across every Rigel
-# template. The protected branches (trunk/integration) are allowed through so a
-# release/promotion push isn't blocked; every other branch must match the pattern.
+# template. The workflow branches (trunk/integration/deploy-trigger) are allowed
+# through so a release/promotion/deploy push isn't blocked; every other branch must
+# match the pattern.
 # Activated by `git config core.hooksPath .githooks` (done for you at /infra-setup).
 set -eu
 
@@ -14,10 +15,11 @@ branch=$(git rev-parse --abbrev-ref HEAD)
 
 trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 integration=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+deploy_trigger=$(sed -n 's/.*"deploy_trigger"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
 pattern=$(sed -n 's/.*"branch_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
 
-# Protected branches are pushed via the PR/promotion flow, not feature naming.
-if [ "$branch" = "$trunk" ] || [ "$branch" = "$integration" ]; then
+# Workflow branches are pushed via the PR/promotion/deploy flow, not feature naming.
+if [ "$branch" = "$trunk" ] || [ "$branch" = "$integration" ] || [ "$branch" = "$deploy_trigger" ]; then
   exit 0
 fi
 

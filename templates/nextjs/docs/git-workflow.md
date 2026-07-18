@@ -6,24 +6,40 @@ protection script all read from it — no rule is written down twice.
 
 ## Branch model
 
+`main` is the **source of truth**. Features are cut from `main` and kept clean; a feature
+reaches `main` carrying **only its own changes**, never staging's other in-flight work.
+
 ```
-main    ──●──────────●──────────  production; tagged releases only
-             ↑            ↑
-staging ──●──●────●───●───●──────  integration + pre-prod; where features land
-          ↑ ↑     ↑
-feature  feat/PLAN-014-user-auth  cut from staging, one PLAN each, short-lived
+                        ┌── urgent: one verified feature ships now ──┐
+                        │                                            ▼
+main    ──●─────────────┼──────────────────────────────────────────●──  production; tagged releases
+  │                     │                                       ▲
+  │  feat/PLAN-014 ─────┤ (cut from main, rebased on main)      │ batch: whole verified release
+  │      │              └─► drop ─► [stage server] ─► test      │
+  │      └──────────────────────────────────────────────────  staging ──┘  (mirrors last-good stage)
 ```
 
-- **Feature branches** are cut from `staging`, named `feat|fix|chore/PLAN-XXX-slug`.
-- **Feature → `staging`:** squash merge (one clean commit; branch auto-deleted).
-- **`staging` → `main`:** real merge, *not* squash — `main`'s history keeps a commit per
-  feature that shipped in the release.
-- **`hotfix/PLAN-XXX-slug`:** the one exception — may cut from `main`, merges back to
-  **both** `main` and `staging`.
+- **Feature branches** are cut from `main`, named `feat|fix|chore/PLAN-XXX-slug`, and
+  **rebased on `main`** (never on `staging` or `drop`). That isolation is the whole point.
+- **`drop`** is a disposable **deploy-trigger** branch. Merging a feature into `drop` (squash)
+  deploys it to the **stage server** for testing. `drop` never merges upward; it can be reset
+  from `main` freely to clear the deck.
+- **`staging`** mirrors the last **validated** stage state. After the stage tests pass, the
+  deploy pipeline advances `staging` to the verified commit.
+- **Two paths land on `main`:**
+  - **Urgent** — `feat → main` (real merge): ship one verified feature immediately, isolated
+    from staging's other work. **Guards:** the full CI gate must pass on the PR **and** a
+    post-deploy canary/smoke is required.
+  - **Batch** — `staging → main` (real merge): promote the whole verified stage release.
+- **`hotfix/PLAN-XXX-slug`:** cut from `main`, merges back to **both** `main` and `staging`.
 
-`main` and `staging` are both protected: PR + CODEOWNERS review required, no direct pushes,
-no force-push. `staging` requires linear history (squash-only inbound); `main` does not
-(so a promotion can be a real merge commit).
+`main` and `staging` are protected: PR + CODEOWNERS review, no direct pushes, no force-push.
+`drop` is intentionally **unprotected** — it is a throwaway deploy target.
+
+> **On the urgent path — "test ≠ ship."** A feature is tested on the stage server *alongside*
+> whatever else is on `drop`, but an urgent `feat → main` ships it *alone*. The two guards
+> exist to close that gap: CI re-validates `main + feature` on the PR, and the canary/smoke
+> catches anything the shared-stage test masked. Don't skip them.
 
 ## What enforces what
 
@@ -44,27 +60,34 @@ The GitHub repo doesn't exist when the project is scaffolded, so branch protecti
 applied then. Run this **once**, after `git push`-ing to a new GitHub repo:
 
 ```bash
-gh auth login                       # if not already authenticated
+gh auth login                              # if not already authenticated
 bash scripts/protect-branch.sh --dry-run   # preview the API calls
 bash scripts/protect-branch.sh             # apply protection to main + staging
 ```
 
-Then create `staging` if it doesn't exist yet:
+Then create the workflow branches if they don't exist yet:
 
 ```bash
 git switch -c staging main && git push -u origin staging
+git switch -c drop main    && git push -u origin drop
+git switch main
 ```
 
-After that, CI's drift check will fail if anyone loosens the protection out from under the
-policy.
+Wire your CD so that a push to `drop` deploys to the stage server, and — once the stage
+tests pass — advances `staging` to the validated commit (this needs a token that can update
+the protected `staging` branch). After that, CI's drift check fails if anyone loosens the
+protection out from under the policy.
 
 ## Everyday flow (agent-driven)
 
 ```
-/build-layer          # build + gate a layer on your feature branch
-/sync-branch          # rebase onto staging, re-run the gate
-/open-pr              # PR into staging (squash), body auto-filled from the active PLAN
+/build-layer          # build + gate a layer on your feature branch (cut from main)
+/sync-branch          # rebase onto main, re-run the gate
+# deploy to stage for testing:
+git switch drop && git merge --squash feat/PLAN-XXX-slug && git commit && git push   # → stage server
+/open-pr              # land on main: urgent (feat→main) or batch (staging→main), body from the active PLAN
 ```
 
-Promotion (`staging → main`) and hotfixes use `/open-pr`, which picks the base and merge
-method from the policy.
+`/open-pr` picks the base and merge method from the policy — urgent `feat → main`, batch
+`staging → main`, or `hotfix`. Deploying to stage (`feat → drop`) is a direct push, since
+`drop` is unprotected.

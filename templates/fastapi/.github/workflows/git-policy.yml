@@ -25,9 +25,14 @@ jobs:
         run: |
           policy=.rigel/git-policy.json
           pattern=$(sed -n 's/.*"branch_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
+          trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
           integ=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+          drop=$(sed -n 's/.*"deploy_trigger"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
           head="${GITHUB_HEAD_REF}"
-          if [ "$head" = "$integ" ] || printf '%s' "$head" | grep -qE "$pattern"; then
+          # Workflow branches (trunk/integration/deploy-trigger) are valid PR heads for
+          # the promotion/deploy flows; every other head must match the feature pattern.
+          if [ "$head" = "$trunk" ] || [ "$head" = "$integ" ] || [ "$head" = "$drop" ] \
+             || printf '%s' "$head" | grep -qE "$pattern"; then
             echo "✓ branch '$head' ok"
           else
             echo "::error::branch '$head' violates git-policy pattern: $pattern"
