@@ -110,5 +110,5 @@ Tracing:    OpenTelemetry SDK
 Validation: zod
 Security:   helmet, cors, express-rate-limit + rate-limit-redis
 Testing:    jest, ts-jest, supertest
-Tooling:    tsx, ESLint, prettier, madge, husky
+Tooling:    tsx, ESLint, prettier, madge, lint-staged (git hooks via .githooks/)
 ```

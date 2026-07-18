@@ -52,7 +52,9 @@ The harness enforces these automatically; this is what runs and when:
 | When | What | How |
 |---|---|---|
 | On save (optional) | format + eslint | editor / `npm run format` |
-| On `git commit` | eslint --fix + prettier on staged files | Husky `pre-commit` → `lint-staged` |
+| On `git commit` | eslint --fix + prettier on staged files | `.githooks/pre-commit` → `lint-staged` |
+| On `git commit` | Conventional Commit message check | `.githooks/commit-msg` (reads `.rigel/git-policy.json`) |
+| On `git push` | branch-name policy check | `.githooks/pre-push` (reads `.rigel/git-policy.json`) |
 | On `/build-layer` | full layer gate (PASS/FAIL) | `gate-checker` agent |
 | On PR | typecheck, lint, format check, tests+coverage, build | `.github/workflows/ci.yml` |
 | On UI PR | Core Web Vitals budget | `.github/workflows/lighthouse.yml` |

@@ -1,0 +1,71 @@
+name: Git Policy
+
+# Enforces .rigel/git-policy.json on every PR: branch name, Conventional Commits over
+# the PR range, a required PLAN reference ("never code without a plan"), and drift between
+# live GitHub branch protection and the policy. Toolchain-free — pure shell + the policy
+# file — so it runs identically in every Rigel template. Steps degrade to a notice (not a
+# failure) when a check can't apply yet (e.g. drift check before the repo is protected).
+
+on:
+  pull_request:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  git-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so commitlint-over-range can see the base
+
+      - name: Branch name matches policy
+        run: |
+          policy=.rigel/git-policy.json
+          pattern=$(sed -n 's/.*"branch_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
+          integ=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+          head="${GITHUB_HEAD_REF}"
+          if [ "$head" = "$integ" ] || printf '%s' "$head" | grep -qE "$pattern"; then
+            echo "✓ branch '$head' ok"
+          else
+            echo "::error::branch '$head' violates git-policy pattern: $pattern"
+            exit 1
+          fi
+
+      - name: Commit messages (PR range) are Conventional Commits
+        run: |
+          policy=.rigel/git-policy.json
+          pattern=$(sed -n 's/.*"commit_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
+          base="origin/${GITHUB_BASE_REF}"
+          git fetch --quiet origin "${GITHUB_BASE_REF}"
+          bad=0
+          while IFS= read -r sha; do
+            subject=$(git log -1 --pretty=%s "$sha")
+            case "$subject" in
+              "Merge "*|"Revert "*|fixup!*|squash!*) continue ;;
+            esac
+            if ! printf '%s' "$subject" | grep -qE "$pattern"; then
+              echo "::error::non-conventional commit $sha: $subject"
+              bad=1
+            fi
+          done < <(git rev-list "$base..HEAD")
+          [ "$bad" -eq 0 ] && echo "✓ all commits conventional"
+          exit "$bad"
+
+      - name: PR references an active PLAN
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s%s' "$PR_BODY" "${GITHUB_HEAD_REF}" | grep -qE 'PLAN-[0-9]{3}'; then
+            echo "✓ PLAN reference found"
+          else
+            echo "::error::PR must reference an active PLAN (PLAN-XXX) in its body or branch name — never code without a plan"
+            exit 1
+          fi
+
+      - name: Branch-protection drift
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-protection-drift.sh

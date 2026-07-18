@@ -191,6 +191,36 @@ Loads DATABASE_URL from .env for sequelize-cli.
 
 ---
 
+## Step 5 — Activate Git Hooks + Branch Policy
+
+The git hooks ship committed under `.githooks/` (toolchain-free POSIX shell that reads
+`.rigel/git-policy.json`). Activate them and add the `lint-staged` pre-flight config — no
+husky, no `prepare` script:
+
+```bash
+npm install -D lint-staged
+git config core.hooksPath .githooks
+chmod +x .githooks/*
+```
+
+Write `.lintstagedrc.json`:
+```json
+{
+  "*.ts": ["eslint --fix", "prettier --write"]
+}
+```
+
+This turns on three hooks:
+- `commit-msg` — rejects non-Conventional-Commit messages (identical across every template).
+- `pre-push` — rejects a branch name that violates `.rigel/git-policy.json` (identical across templates).
+- `pre-commit` — this stack's fast pre-flight: `lint-staged` (ESLint + Prettier on staged TS).
+
+Branch protection is applied once, after the GitHub repo exists — see `docs/git-workflow.md`
+and `scripts/protect-branch.sh`. CI (`.github/workflows/git-policy.yml`, ships with the template)
+enforces branch name, Conventional Commits, the PLAN reference, and protection drift on every PR.
+
+---
+
 ## Gate Check
 ```bash
 npx tsc --noEmit

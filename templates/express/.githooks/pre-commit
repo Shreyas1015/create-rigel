@@ -1,0 +1,12 @@
+#!/bin/sh
+# pre-commit — fast local pre-flight for this stack (Express/TypeScript).
+#
+# STACK-SPECIFIC (unlike commit-msg/pre-push, which are identical across templates):
+# each template's pre-commit runs its own linters. Here: lint-staged (ESLint +
+# Prettier on staged TS, per .lintstagedrc.json) + an optional local secret scan.
+# The CI secret-scan job is the hard gate; gitleaks here is a best-effort pre-flight
+# that never blocks when it isn't installed.
+set -eu
+
+npx --no-install lint-staged
+command -v gitleaks >/dev/null 2>&1 && gitleaks protect --staged --redact || true

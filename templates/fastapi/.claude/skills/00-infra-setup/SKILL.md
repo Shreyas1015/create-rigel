@@ -246,12 +246,28 @@ Create `.github/workflows/load-test.yml` — k6 smoke on PR against ephemeral en
 Create `.github/dependabot.yml` — weekly `uv`/pip + GitHub Actions + Docker update PRs.
 Create `.gitleaks.toml` and add `gitleaks` + `trivy` notes; wire gitleaks as a pre-commit hook too (Step 12).
 
-## Step 12 — ruff + pre-commit
+## Step 12 — ruff + git hooks
 Create `ruff.toml` (or in pyproject.toml — already done in Step 1).
 Create `.pre-commit-config.yaml` — ruff-pre-commit + mypy + gitleaks + `bash scripts/gate.sh` (so the gate runs locally before every commit).
+
+Activate the git hooks. They ship committed under `.githooks/` (toolchain-free POSIX shell that
+reads `.rigel/git-policy.json`); the stack-specific `.githooks/pre-commit` reuses the
+`.pre-commit-config.yaml` toolchain via `pre-commit run`. Point git at `.githooks` **instead of**
+running `pre-commit install`, so the identical `commit-msg`/`pre-push` policy hooks and this
+stack's `pre-commit` all live in one place:
 ```bash
-uv run pre-commit install
+git config core.hooksPath .githooks
+chmod +x .githooks/*
 ```
+
+This turns on three hooks:
+- `commit-msg` — rejects non-Conventional-Commit messages (identical across every template).
+- `pre-push` — rejects a branch name that violates `.rigel/git-policy.json` (identical across templates).
+- `pre-commit` — runs `.pre-commit-config.yaml` (ruff + mypy + gitleaks + gate) on staged files.
+
+Branch protection is applied once, after the GitHub repo exists — see `docs/git-workflow.md`
+and `scripts/protect-branch.sh`. CI (`.github/workflows/git-policy.yml`, ships with the template)
+enforces branch name, Conventional Commits, the PLAN reference, and protection drift on every PR.
 
 ## Step 13 — Scaffold Docs
 Write `ADR-000-infrastructure.md` with today's date. Include sections:

@@ -1,0 +1,37 @@
+#!/bin/sh
+# commit-msg — enforce Conventional Commits from .rigel/git-policy.json.
+#
+# Toolchain-free: POSIX shell + sed + grep only. No node, husky, jq, or pre-commit.
+# IDENTICAL across every Rigel template — do not edit per-stack. Activated by
+# `git config core.hooksPath .githooks` (done for you at /infra-setup).
+set -eu
+
+policy=".rigel/git-policy.json"
+msg_file="$1"
+
+[ -f "$policy" ] || exit 0  # no policy in this repo → nothing to enforce
+
+# The stored pattern is plain POSIX ERE (no backslashes), so the raw JSON value
+# IS the regex — no unescaping needed.
+pattern=$(sed -n 's/.*"commit_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
+[ -n "$pattern" ] || exit 0
+
+# First non-comment, non-blank line is the subject.
+subject=$(grep -vE '^[[:space:]]*#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n1)
+
+# Let git's own generated messages through (merges, reverts, fixup/squash).
+case "$subject" in
+  "Merge "*|"Revert "*|fixup!*|squash!*) exit 0 ;;
+esac
+
+if ! printf '%s' "$subject" | grep -qE "$pattern"; then
+  echo "✗ Commit message does not follow Conventional Commits."
+  echo "  Required: <type>(optional-scope): <subject>"
+  echo "  Types:    feat, fix, chore, docs, refactor, test"
+  echo "  Pattern:  $pattern"
+  echo "  Got:      $subject"
+  echo ""
+  echo "  Examples: feat(auth): add refresh-token rotation"
+  echo "            fix: reject expired sessions"
+  exit 1
+fi

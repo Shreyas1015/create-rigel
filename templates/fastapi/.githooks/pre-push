@@ -1,0 +1,33 @@
+#!/bin/sh
+# pre-push — reject a feature branch whose name violates .rigel/git-policy.json.
+#
+# Toolchain-free: POSIX shell + sed + grep only. IDENTICAL across every Rigel
+# template. The protected branches (trunk/integration) are allowed through so a
+# release/promotion push isn't blocked; every other branch must match the pattern.
+# Activated by `git config core.hooksPath .githooks` (done for you at /infra-setup).
+set -eu
+
+policy=".rigel/git-policy.json"
+[ -f "$policy" ] || exit 0
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+integration=$(sed -n 's/.*"integration"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$policy")
+pattern=$(sed -n 's/.*"branch_pattern"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$policy")
+
+# Protected branches are pushed via the PR/promotion flow, not feature naming.
+if [ "$branch" = "$trunk" ] || [ "$branch" = "$integration" ]; then
+  exit 0
+fi
+
+if [ -n "$pattern" ] && ! printf '%s' "$branch" | grep -qE "$pattern"; then
+  echo "✗ Branch '$branch' does not match the required pattern:"
+  echo "    $pattern"
+  echo ""
+  echo "  Use: <type>/PLAN-XXX-slug   where type ∈ feat|fix|chore|hotfix"
+  echo "  e.g. feat/PLAN-014-user-auth"
+  echo ""
+  echo "  Rename it:  git branch -m feat/PLAN-XXX-your-slug"
+  exit 1
+fi

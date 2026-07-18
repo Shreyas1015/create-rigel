@@ -3,24 +3,20 @@
 #
 # Replace the placeholder team slugs with your real GitHub teams/usernames, then
 # enable "Require review from Code Owners" in branch protection
-# (see docs/design-docs/team-workflow.md). Until then these are inert placeholders.
+# (see docs/git-workflow.md). Until then these are inert placeholders. Paths below
+# are examples for the layered app — adjust to your actual structure.
 
 # Default — any engineer on the team can review
 *                               @your-team/engineers
 
 # Security-sensitive — leads must review
-/.claude/hooks/                 @your-team/leads
 /.githooks/                     @your-team/leads
 /.rigel/                        @your-team/leads
-/src/lib/env.ts                 @your-team/leads
-/src/lib/api-client.ts          @your-team/leads
-/src/features/auth/             @your-team/leads
-/app/api/                       @your-team/leads
-/next.config.ts                 @your-team/leads
-
-# API contract is generated — leads review any drift / accidental hand-edit
-/src/types/api.generated.ts     @your-team/leads
+/app/core/                      @your-team/leads
+/app/auth/                      @your-team/leads
+/alembic/                       @your-team/leads
 
 # Platform / infra — platform team owns build, containers, and CI
 /Dockerfile                     @your-team/platform
+/docker-compose.yml             @your-team/platform
 /.github/workflows/             @your-team/platform

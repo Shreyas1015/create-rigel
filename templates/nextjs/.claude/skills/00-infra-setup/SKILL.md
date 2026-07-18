@@ -21,7 +21,7 @@ the plain `npx create-next-app@latest .` into the now-empty root, then **restore
 Run this block directly — it cannot be a script, because any script under `.claude/`
 would be parked away mid-run.
 
-**Phase B — deterministic setup (Steps 2–4 + scripts + husky).** Once the app exists,
+**Phase B — deterministic setup (Steps 2–4 + scripts + git hooks).** Once the app exists,
 run the checked-in script — identical every time:
 
 ```bash
@@ -66,7 +66,7 @@ the harness on top of the generated app (our files win on the one overlap, `.git
 #    eslint.config.mjs is parked too — we restore OUR version on top so it wins over
 #    the one create-next-app generates (it carries the layer-boundary rules).
 HOLD=$(mktemp -d)
-for f in .claude .github .husky docs \
+for f in .claude .github .githooks .rigel scripts docs \
          .prettierrc .prettierignore .lintstagedrc.json .gitattributes .gitignore .mcp.json \
          eslint.config.mjs Dockerfile .dockerignore Makefile \
          lighthouserc.js AGENTS.md ARCHITECTURE.md QUICKSTART.md; do
@@ -87,7 +87,7 @@ rm -rf "$HOLD"
 > the `for f in …` list and re-run. `.git` is never parked (create-next-app tolerates it).
 
 ## Step 2 — Install All Dependencies
-> Steps 2–4 + package.json scripts + husky are performed by `bash .claude/scripts/infra-setup.sh`.
+> Steps 2–4 + package.json scripts + git-hook activation are performed by `bash .claude/scripts/infra-setup.sh`.
 > The detail below documents what that script runs.
 ```bash
 # Server state + API contract
@@ -412,20 +412,23 @@ is the single command `/push-layer` and `/validate-layer` run.
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gate": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
-    "analyze": "ANALYZE=true next build",
-    "prepare": "husky"
+    "analyze": "ANALYZE=true next build"
   }
 }
 ```
 
 ### Committed dev-experience tooling (already in the template — no authoring needed)
-These files ship with the template; the script installs their deps and activates husky:
+These files ship with the template; the script installs their deps and activates the git hooks
+(`git config core.hooksPath .githooks` — no husky, no `prepare` script):
 - `.prettierrc` + `.prettierignore` — Prettier (with `prettier-plugin-tailwindcss`)
-- `.lintstagedrc.json` + `.husky/pre-commit` — pre-commit runs `lint-staged`
+- `.lintstagedrc.json` + `.githooks/pre-commit` — pre-commit runs `lint-staged`
   (eslint --fix + prettier on staged files)
+- `.githooks/commit-msg` + `.githooks/pre-push` — Conventional Commits + branch-name
+  enforcement, toolchain-free and identical across every template (read from `.rigel/git-policy.json`)
 - `.github/workflows/ci.yml` — typecheck · lint · format · test · build on PR
+- `.github/workflows/git-policy.yml` — branch name · commit range · PLAN reference · protection drift
 - `.github/workflows/lighthouse.yml` + `lighthouserc.js` — Core Web Vitals budget
-- `docs/design-docs/team-workflow.md` — branch protection + review policy
+- `docs/design-docs/team-workflow.md` + `docs/git-workflow.md` — branch model + one-time protection setup
 
 ### .env.example
 ```

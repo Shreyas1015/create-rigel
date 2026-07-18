@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # .claude/scripts/infra-setup.sh
 # Deterministic POST-SCAFFOLD setup: deps + shadcn + dirs + package.json scripts +
-# gate-critical config/test/observability files + husky.
+# gate-critical config/test/observability files + git hooks.
 # Run via: bash .claude/scripts/infra-setup.sh
 #
 # PRECONDITION: the Next.js app is already scaffolded (Step 1 of the skill runs
@@ -51,7 +51,7 @@ npm install -D @next/bundle-analyzer
 # Linting (the committed eslint.config.mjs uses Next's native flat config — no FlatCompat)
 npm install -D @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-import
 # Formatting + pre-commit (config files are committed in the template)
-npm install -D prettier prettier-plugin-tailwindcss eslint-config-prettier husky lint-staged
+npm install -D prettier prettier-plugin-tailwindcss eslint-config-prettier lint-staged
 # Core Web Vitals budget (config/workflows committed in the template)
 npm install -D @lhci/cli
 
@@ -89,7 +89,6 @@ const harness = {
   'format:check': 'prettier --check .',
   'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage',
   'analyze': 'ANALYZE=true next build',
-  'prepare': 'husky',
 };
 p.scripts = Object.assign(defaults, p.scripts, harness);
 fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
@@ -528,8 +527,9 @@ write_if_absent .env.example <<'EOF'
 NEXT_PUBLIC_API_URL=http://localhost:8000
 EOF
 
-echo "▶ Step 8 — activate husky (pre-commit hook is committed at .husky/pre-commit)"
-npm run prepare
+echo "▶ Step 8 — activate git hooks (toolchain-free, committed under .githooks/)"
+git config core.hooksPath .githooks
+chmod +x .githooks/*
 
 echo "▶ Step 8b — format the scaffold so the first gate run is clean"
 # create-next-app emits double-quote/semicolon code; the harness Prettier config differs.

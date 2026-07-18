@@ -1,0 +1,22 @@
+{
+  "_comment": "Single source of truth for this repo's git workflow. Read by .githooks/* (commit-msg, pre-push), the /sync-branch and /open-pr skills, scripts/protect-branch.sh, scripts/check-protection-drift.sh, and CI (.github/workflows/git-policy.yml). Byte-identical across every Rigel template. Never encode any of these rules a second time anywhere else. Patterns are POSIX ERE (grep -E / JS / python re / GitHub all accept them) so the shell hooks need no node, husky, jq, or python.",
+  "branches": {
+    "trunk": "main",
+    "integration": "staging"
+  },
+  "protected": ["main", "staging"],
+  "branch_pattern": "^(feat|fix|chore|hotfix)/PLAN-[0-9]{3}-[a-z0-9-]+$",
+  "commit_pattern": "^(feat|fix|chore|docs|refactor|test)([(][a-z0-9_-]+[)])?!?: .+",
+  "merge_strategy": {
+    "feature_to_staging": "squash",
+    "staging_to_main": "merge",
+    "hotfix": "merge_to_both"
+  },
+  "protection": {
+    "main":    { "linear_history": false, "allowed_merges": ["merge"],  "require_pull_request": true, "require_codeowner_review": true },
+    "staging": { "linear_history": true,  "allowed_merges": ["squash"], "require_pull_request": true, "require_codeowner_review": true }
+  },
+  "require_plan_reference": true,
+  "auto_delete_head": true,
+  "versioning": "semver"
+}

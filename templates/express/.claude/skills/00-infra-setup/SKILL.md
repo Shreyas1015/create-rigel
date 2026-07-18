@@ -88,7 +88,6 @@ npm install -D \
   prettier \
   eslint-config-prettier \
   madge \
-  husky \
   lint-staged \
   pino-pretty \
   yaml \
@@ -385,15 +384,23 @@ generates no workflow files.**
 > `@opentelemetry/api` no-op (fast, no infra). Backends are only run locally in dev.
 
 ### Step 8 — Git Hooks
+The git hooks ship committed under `.githooks/` (toolchain-free POSIX shell that reads
+`.rigel/git-policy.json`). Activate them by pointing git at that directory — no husky, no
+`prepare` script:
 ```bash
-npm run prepare   # init husky
-# pre-commit: lint-staged + a local secret scan (gitleaks runs only if installed — the CI
-# secret-scan job is the hard gate; this is a fast local pre-flight, never a blocker if absent).
-npx husky add .husky/pre-commit 'npx lint-staged && (command -v gitleaks >/dev/null && gitleaks protect --staged --redact || true)'
-npx husky add .husky/pre-push "npm test"
+git config core.hooksPath .githooks
+chmod +x .githooks/*
 ```
+This turns on three hooks:
+- `commit-msg` — rejects non-Conventional-Commit messages (identical across every template).
+- `pre-push` — rejects a branch name that violates the policy pattern (identical across templates).
+- `pre-commit` — this stack's fast pre-flight: `lint-staged` (ESLint + Prettier on staged TS,
+  per `.lintstagedrc.json`) + an optional local gitleaks scan.
 
-**Note:** `.lintstagedrc.json` already exists in template (ESLint + Prettier on staged TS files).
+**Note:** `.githooks/` and `.lintstagedrc.json` already ship in the template; this step only
+activates them. The full test gate runs in CI and via `/validate-layer`, so it is no longer a
+pre-push hook. See `docs/git-workflow.md` for the branch model and one-time
+`scripts/protect-branch.sh` setup.
 
 ### Step 9 — Write ADRs
 Create `docs/design-docs/decisions/ADR-000-infrastructure.md`:

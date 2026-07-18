@@ -1,0 +1,17 @@
+#!/bin/sh
+# pre-commit — fast local pre-flight for this stack (FastAPI/Python).
+#
+# STACK-SPECIFIC (unlike commit-msg/pre-push, which are identical across templates):
+# this reuses the template's existing pre-commit toolchain (ruff + mypy + gitleaks +
+# scripts/gate.sh, configured in .pre-commit-config.yaml) via `pre-commit run`. It is
+# driven from .githooks (core.hooksPath) rather than `pre-commit install`, so the
+# identical commit-msg/pre-push policy hooks and this stack's pre-commit all live in
+# one place.
+set -eu
+
+if command -v uv >/dev/null 2>&1; then
+  exec uv run pre-commit run --hook-stage pre-commit
+elif command -v pre-commit >/dev/null 2>&1; then
+  exec pre-commit run --hook-stage pre-commit
+fi
+# pre-commit not installed yet (bare template before /infra-setup) — nothing to run.

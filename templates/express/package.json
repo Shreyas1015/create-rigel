@@ -29,8 +29,7 @@
     "openapi:export": "tsx scripts/openapi.export.ts",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
-    "db:seed": "sequelize-cli db:seed:all",
-    "prepare": "husky"
+    "db:seed": "sequelize-cli db:seed:all"
   },
   "keywords": [
     "express",

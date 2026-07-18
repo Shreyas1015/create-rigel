@@ -10,6 +10,8 @@
 
 # Security-sensitive — leads must review
 /.claude/hooks/                 @your-team/leads
+/.githooks/                     @your-team/leads
+/.rigel/                        @your-team/leads
 /src/providers/auth/            @your-team/leads
 /src/config/                    @your-team/leads
 
