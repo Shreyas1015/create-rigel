@@ -32,5 +32,12 @@ docker-compose.override.yml
 # k6 results
 k6-results/
 
+# Deterministic-eval transient artifacts (PLAN-003). The PROOF — .rigel/redgreen/ and
+# .rigel/ac-results/ — is committed; these are throwaway and must not be.
+.rigel/acceptance.unlock
+.rigel/.jest-*.json
+.rigel/mutation/
+reports/mutation/
+
 # Sequelize CLI
 .sequelizerc.local

@@ -94,6 +94,13 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
         run: npm run test:e2e
+      - name: Design-token conformance (AC-6)
+        # Deterministic: fails on rendered color/spacing/radius/font values not in
+        # DESIGN.md. Skips cleanly until the rigel-tokens block is filled in.
+        if: steps.app.outputs.exists == 'true'
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run test:design
 
   # Dependency vulnerabilities + leaked secrets. Runs on the bare harness too
   # (gitleaks scans history; audit no-ops without a lockfile).

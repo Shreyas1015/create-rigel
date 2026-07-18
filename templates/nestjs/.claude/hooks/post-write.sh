@@ -1,19 +1,55 @@
 #!/usr/bin/env bash
-# Fires after every Write/Edit on TypeScript files.
-# Catches NestJS-specific violations immediately.
+# Fires after every Write/Edit/MultiEdit tool call.
+# Two severities:
+#   BLOCKER (exit 2) — writing the holdout acceptance set (tests/acceptance/) outside the
+#     spec phase. Checked for ANY file (not just .ts) before the source-file filters.
+#   WARNINGS (exit 0) — advisory NestJS-specific lint (console.log, process.env, HttpException
+#     in services, @InjectModel in services, unsafe repo casts, controller logic, size, DTOs).
 
 set -euo pipefail
 
+# Claude Code's PostToolUse payload nests the edited path at .tool_input.file_path;
+# check that documented location first, then top-level fallbacks. (Reading only the
+# top-level keys meant the hook never saw the path on real payloads.)
 FILE=$(cat | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
-    print(data.get('file_path') or data.get('path') or '')
+    ti = data.get('tool_input') or {}
+    print(ti.get('file_path') or ti.get('path') or data.get('file_path') or data.get('path') or '')
 except:
     print('')
 " 2>/dev/null || echo "")
 
 [[ -z "$FILE" ]] && exit 0
+
+# Normalise backslashes → forward slashes for portable path matching.
+NORM="${FILE//\\//}"
+
+BLOCKERS=()
+
+# ── BLOCKER: tests/acceptance/ is a HOLDOUT — writable ONLY during the spec phase ──
+# /write-spec drops .rigel/acceptance.unlock while it scaffolds the failing acceptance
+# tests, then removes it. A write here without that marker is a build-phase edit to the
+# holdout set (test tampering) and must be reverted. Fail-closed: no marker → blocked.
+# This runs BEFORE the "-f" and ".ts" early-exits below, so non-.ts writes under
+# tests/acceptance/ (fixtures, JSON, snapshots) are caught too.
+if [[ "$NORM" =~ (^|/)tests/acceptance/ ]]; then
+  MARKER="${CLAUDE_PROJECT_DIR:-.}/.rigel/acceptance.unlock"
+  if [[ ! -f "$MARKER" ]]; then
+    BLOCKERS+=("🚫 [HOOK] $NORM is a HOLDOUT acceptance test — editable only during the spec phase (/write-spec). Revert this change. Acceptance tests encode the spec's success criteria and must not be altered while building.")
+  fi
+fi
+
+# Flush blockers to stderr and fail (exit 2) before the source-file filters, so non-.ts
+# holdout writes are caught too. Exit 2 tells Claude Code the change must be reverted.
+if [[ ${#BLOCKERS[@]} -gt 0 ]]; then
+  for b in "${BLOCKERS[@]}"; do
+    echo "$b" >&2
+  done
+  exit 2
+fi
+
 [[ ! -f "$FILE" ]] && exit 0
 [[ ! "$FILE" =~ \.ts$ ]] && exit 0
 
@@ -84,8 +120,13 @@ if [[ "$FILE" =~ \.dto\.ts$ ]]; then
   fi
 fi
 
-for w in "${WARNINGS[@]}"; do
-  echo "$w"
-done
+# Print all warnings (guard the empty array for bash 3.2 / set -u — an unguarded
+# "${WARNINGS[@]}" expansion crashes on an empty array under `set -u`).
+if [[ ${#WARNINGS[@]} -gt 0 ]]; then
+  for w in "${WARNINGS[@]}"; do
+    echo "$w"
+  done
+fi
 
+# Exit 0 — remaining severity is advisory; the holdout blocker above already exited 2.
 exit 0

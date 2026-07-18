@@ -1,0 +1,85 @@
+name: Mutation audit (nightly)
+
+# AC-7 — a NIGHTLY ALARM, not a merge gate. Mutation testing is too slow and flaky to
+# block PRs, but it is an excellent auditor of the acceptance-test holdout: mutmut mutates
+# src/ and checks whether tests/acceptance/ catch the mutants. A sustained score below the
+# floor (60%) opens an issue automatically; it never fails required checks.
+#
+# Skips cleanly when there is no src/ yet (bare template) or no acceptance tests.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write # open an issue on a floor breach
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: mutmut on tests/acceptance/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -z "$(find src -name '*.py' 2>/dev/null | head -1)" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No src/ yet — skipping."; exit 0
+          fi
+          if [ -z "$(find tests/acceptance -name 'test_*.py' 2>/dev/null | head -1)" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No acceptance tests yet — skipping."; exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v5
+        if: steps.detect.outputs.run == 'true'
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        if: steps.detect.outputs.run == 'true'
+        run: uv sync
+      - name: Run mutmut (acceptance holdout)
+        if: steps.detect.outputs.run == 'true'
+        run: |
+          mkdir -p reports/mutation
+          # mutmut reads [tool.mutmut] from pyproject.toml (paths_to_mutate=src/,
+          # tests_dir=tests/acceptance/). Never fail the job — this is an alarm.
+          uv run mutmut run || true
+          uv run mutmut junitxml > reports/mutation/mutation.junit.xml || true
+      - name: Summarize mutation score
+        if: steps.detect.outputs.run == 'true'
+        run: uv run python scripts/mutation_report.py
+      - name: Upload mutation report
+        if: steps.detect.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: |
+            reports/mutation/
+            .rigel/mutation/summary.json
+          if-no-files-found: ignore
+      - name: Open issue on floor breach
+        if: steps.detect.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SUMMARY=.rigel/mutation/summary.json
+          [ -f "$SUMMARY" ] || exit 0
+          BREACH=$(python3 -c "import json;print(json.load(open('$SUMMARY')).get('breach'))")
+          SCORE=$(python3 -c "import json;print(json.load(open('$SUMMARY')).get('overallScore'))")
+          if [ "$BREACH" = "True" ]; then
+            TITLE="Mutation score below floor: ${SCORE}%"
+            # Avoid duplicate spam — reuse an open issue with the same label if present.
+            EXISTING=$(gh issue list --label mutation-alarm --state open --json number --jq '.[0].number' || echo "")
+            BODY="Nightly mutation audit scored ${SCORE}% on tests/acceptance/, below the 60% floor (PLAN-003 falsifier #3). The acceptance holdout is not catching enough mutants — strengthen the acceptance tests. See the mutation-report artifact for detail."
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body "$BODY"
+            else
+              gh issue create --title "$TITLE" --label mutation-alarm --body "$BODY" || \
+              gh issue create --title "$TITLE" --body "$BODY"
+            fi
+          fi

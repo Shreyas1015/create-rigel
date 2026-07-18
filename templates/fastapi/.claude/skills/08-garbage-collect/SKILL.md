@@ -32,6 +32,16 @@ Update domain grades.
 
 ### 6. Close Plan
 - All `[x]` confirmed
+- **Grade the outcome, not the checkboxes** — run the AC vector, which runs the spec's
+  acceptance tests and asserts every `AC-N` is PASS (test exists, was proven red, now green):
+
+  ```bash
+  uv run python scripts/ac_vector.py   # exits non-zero unless every AC is PASS; appends the vector to the plan
+  ```
+
+  Do NOT close the plan while any AC is FAIL / MISSING / INVALID — those are unmet criteria,
+  not paperwork. Fix the code (or, if a criterion is genuinely dropped, remove its AC in the
+  spec and its acceptance test during a fresh spec phase) and re-run.
 - `Status: COMPLETE`, `Completed: YYYY-MM-DD`
 - Move `active/PLAN-XXX.md` → `completed/`
 

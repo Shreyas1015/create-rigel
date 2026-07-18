@@ -57,8 +57,79 @@ Save to: `docs/product-specs/draft/SPEC-XXX-{slug}.md`
 ## Out of Scope (v1)
 
 ## Acceptance Criteria
-- [ ] {testable, specific}
+- [ ] **AC-1:** {testable, specific — one observable user-facing behavior}
+- [ ] **AC-2:** {each criterion maps to exactly one acceptance test}
 ```
+
+Every criterion **must** carry a stable `AC-N` id (`AC-1`, `AC-2`, …). These ids are the
+traceability key: each becomes a failing acceptance test whose title contains the id, and the
+gate grades the spec by them. Number them sequentially; never renumber once written.
+
+## Step 3b — Scaffold Failing Acceptance Tests (the holdout)
+
+`tests/acceptance/` is a **holdout**: the post-write hook blocks edits there outside this spec
+phase, so it may only be written now, under the unlock marker. For the spec you just wrote:
+
+```bash
+mkdir -p .rigel
+touch .rigel/acceptance.unlock          # unlock the holdout for scaffolding
+mkdir -p tests/acceptance/SPEC-XXX
+```
+
+For **every** `AC-N` in the spec, write one test file
+`tests/acceptance/SPEC-XXX/AC-N.test.tsx` whose test title **starts with the AC-id**. Use the
+frontend testing stack (Vitest + Testing Library + MSW) and assert the REAL intended behavior,
+so it fails for the RIGHT reason before the feature exists — never a placeholder like
+`expect(false)` or `expect(true).toBe(true)` (the assertion-integrity gate rejects those):
+
+```tsx
+// tests/acceptance/SPEC-XXX/AC-1.test.tsx
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../mocks/server'
+import { createWrapper } from '../../utils/create-wrapper'
+// The feature component does not exist yet — this import (or the behavior below) is what
+// makes the test RED pre-implementation. Point it at where the feature WILL live.
+import { ApplicationForm } from '@/features/applications/application-form'
+
+describe('AC-1: user can create an application', () => {
+  it('AC-1: submitting the form shows the created application', async () => {
+    server.use(
+      http.post('*/api/v1/applications', () =>
+        HttpResponse.json({ data: { id: 'app_1', company: 'Acme' } }, { status: 201 }),
+      ),
+    )
+    render(<ApplicationForm />, { wrapper: createWrapper() })
+    await userEvent.type(screen.getByLabelText(/company/i), 'Acme')
+    await userEvent.click(screen.getByRole('button', { name: /create/i }))
+    // Assert the real success behavior — the created record surfaces in the UI.
+    expect(await screen.findByText('Acme')).toBeInTheDocument()
+  })
+})
+```
+
+Rules for each scaffolded test:
+- The title contains the `AC-N` id (this is how the gate maps test→AC).
+- It asserts the **real** behavior the AC describes (rendered output, a11y role/label, MSW-backed
+  data), so it fails pre-implementation — not `expect(false)`, not a snapshot, not
+  `expect(true).toBe(true)`.
+
+Then close the holdout and record the red-green proof:
+
+```bash
+rm -f .rigel/acceptance.unlock          # re-lock the holdout
+npm run redgreen:record -- SPEC-XXX     # requires ALL acceptance tests to fail now
+```
+
+`redgreen:record` runs the acceptance suite via `vitest.acceptance.config.ts` and refuses to
+proceed if any acceptance test passes before implementation (a test that already passes proves
+nothing). It writes `.rigel/redgreen/SPEC-XXX.json`. If it fails, fix the offending test so it
+genuinely asserts unbuilt behavior, then re-run it.
+
+**Always remove `.rigel/acceptance.unlock` when done** — leaving it in place would defeat the
+holdout. If any step above errors out, still run `rm -f .rigel/acceptance.unlock`.
 
 ## Step 4 — Update Index + Roadmap
 Add to `docs/product-specs/index.md`: `| SPEC-XXX | {Name} | DRAFT | — | YYYY-MM-DD |`
@@ -67,12 +138,16 @@ If this spec came from a `ROADMAP.md` row, flip that row: `Spec ID: — → SPEC
 
 ## Step 5 — Tell the Human
 ```
-Spec written: docs/product-specs/draft/SPEC-XXX-{slug}.md
+Spec written:      docs/product-specs/draft/SPEC-XXX-{slug}.md   (Status: DRAFT)
+Acceptance tests:  tests/acceptance/SPEC-XXX/  (N tests, all red — proof recorded)
 
 Review it. When satisfied:
   1. Move to: docs/product-specs/ready/SPEC-XXX-{slug}.md
   2. Change Status: DRAFT → READY
   3. Run /write-plan
 
-Claude will not create a plan until the spec is in ready/.
+A spec may not go DRAFT → READY until its acceptance tests exist and their red-green
+proof is recorded (.rigel/redgreen/SPEC-XXX.json) — /write-plan enforces this and
+refuses to plan a spec that lacks them. Claude will not create a plan until the spec is
+in ready/.
 ```

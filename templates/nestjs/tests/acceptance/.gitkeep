@@ -1,0 +1,6 @@
+# Holdout acceptance tests live here — one dir per spec: tests/acceptance/SPEC-XXX/
+#
+# These are the spec's success criteria, scaffolded by /write-spec (each test title
+# carries its AC-ID) and proven red before implementation (scripts/redgreen-record.mjs).
+# They are a HOLDOUT: the post-write hook blocks any edit here outside the spec phase,
+# and CODEOWNERS requires a lead review. Do not edit acceptance tests while building.

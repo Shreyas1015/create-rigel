@@ -47,7 +47,16 @@ Any shortcuts taken → add to `docs/exec-plans/tech-debt-tracker.md`.
 ### 6. Close the Plan
 - Read active plan
 - Confirm ALL layer checkboxes are `[x]`
-- Confirm ALL acceptance criteria are checked (or note which aren't and why)
+- **Grade the outcome, not the checkboxes** — run the AC vector, which runs the spec's
+  acceptance tests and asserts every `AC-N` is PASS (test exists, was proven red, now green):
+
+  ```bash
+  npm run ac:vector   # exits non-zero unless every AC is PASS; appends the vector to the plan
+  ```
+
+  Do NOT close the plan while any AC is FAIL / MISSING / INVALID — those are unmet criteria,
+  not paperwork. Fix the code (or, if a criterion is genuinely dropped, remove its AC in the
+  spec and its acceptance test during a fresh spec phase) and re-run.
 - Set `**Status:** COMPLETE` and `**Completed:** YYYY-MM-DD`
 - Move: `docs/exec-plans/active/PLAN-XXX.md` → `docs/exec-plans/completed/PLAN-XXX.md`
 

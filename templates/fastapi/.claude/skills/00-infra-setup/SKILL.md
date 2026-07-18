@@ -120,6 +120,14 @@ omit = ["src/runtime/main.py", "src/providers/telemetry.py"]
 # gate-checker agent. Keep this ≤ the lowest per-layer floor so a full `pytest` run does
 # not fail spuriously when a low-threshold layer drags the aggregate down.
 fail_under = 70
+
+[tool.mutmut]
+# AC-7 mutation audit — a NIGHTLY ALARM, never a merge gate (.github/workflows/
+# mutation-nightly.yml). mutmut mutates src/ and checks whether the acceptance-test
+# holdout (tests/acceptance/) catches the mutants; scripts/mutation_report.py scores the
+# JUnit output against a 60% floor. It judges tests/acceptance/ ONLY.
+paths_to_mutate = "src/"
+tests_dir = "tests/acceptance/"
 ```
 
 ## Step 2 — Install Dependencies
@@ -203,6 +211,14 @@ Update `alembic.ini` to read URL from settings.
 ## Step 8 — Testing Base
 Create `tests/conftest.py` — async session fixture (auto-rollback), async_client, auth_client, loginAs helper.
 Create `tests/architecture/test_layers.py` — ast-based import graph structural tests.
+
+> **Deterministic-eval arch tests ship with the template** — do NOT recreate or overwrite them:
+> `tests/architecture/test_traceability.py` (AC-1/AC-4 static: every spec AC-N has a
+> red-recorded acceptance test) and `tests/architecture/test_assertion_integrity.py` (AC-5:
+> AC-claiming tests have a non-trivial assertion). They are self-contained (pure stdlib),
+> skip cleanly on a fresh repo, and run in the gate automatically via `scripts/gate.sh`'s
+> `pytest tests/architecture/`. The holdout dir `tests/acceptance/` (one dir per spec,
+> `SPEC-XXX/`) also ships; its contents are scaffolded by `/write-spec`, not here.
 Create `tests/integration/test_cross_user_isolation.py` — User A creates resource, User B attempts access (404 not 403).
 Create `tests/integration/test_gdpr_deletion.py` — cascade deletion test (PII anonymized, audit kept).
 Create `tests/contract/test_openapi.py` — schemathesis: load `/openapi.json`, fuzz every endpoint (`schemathesis.from_asgi`).
@@ -214,7 +230,7 @@ Create `tests/load/stress.js` — k6 stress test (ramping VUs, P95/P99 threshold
 ## Step 9 — Makefile + gate script (single-command DX)
 Create `Makefile` with daily-driver targets — every doc command goes through these:
 ```make
-.PHONY: bootstrap dev lint format typecheck test gate migrate openapi up down
+.PHONY: bootstrap dev lint format typecheck test gate gate-final redgreen ac-vector migrate openapi up down
 bootstrap: ; uv sync && uv run pre-commit install      # one-command setup
 dev:       ; uv run uvicorn src.runtime.main:app --reload
 lint:      ; uv run ruff check src/ tests/
@@ -222,6 +238,9 @@ format:    ; uv run ruff format src/ tests/
 typecheck: ; uv run mypy src/
 test:      ; uv run pytest
 gate:      ; bash scripts/gate.sh                       # deterministic, same checks as gate-checker agent
+redgreen:  ; uv run python scripts/redgreen_record.py $(SPEC)   # AC-4: prove acceptance tests red (make redgreen SPEC=SPEC-XXX)
+ac-vector: ; uv run python scripts/ac_vector.py         # AC-1: feature-completion pass/fail vector (non-zero unless all PASS)
+gate-final: gate ac-vector                              # per-layer gate + the green AC vector (feature done)
 migrate:   ; uv run alembic upgrade head
 openapi:   ; set -a; [ -f .env ] && . ./.env; set +a; uv run python -c "import json,sys; from src.runtime.main import app; json.dump(app.openapi(), sys.stdout)" > openapi.json
 up:        ; docker compose up -d

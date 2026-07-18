@@ -28,6 +28,14 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Rigel deterministic evals — ephemeral artifacts.
+# NOTE: .rigel/redgreen/ and .rigel/ac-results/ ARE committed (traceability proof);
+# only the transient run outputs below are ignored.
+.rigel/acceptance.unlock
+.rigel/.junit-*.xml
+.rigel/mutation/
+reports/mutation/
+
 # Logs
 *.log
 logs/

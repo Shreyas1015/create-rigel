@@ -6,6 +6,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-18
+
+### Added
+
+- **Deterministic evals (PLAN-003, Phase 1) across all four templates.** Closes the
+  spec→evidence loop with mechanically-enforced, LLM-free checks. No agent can claim an
+  acceptance criterion by self-report; it must produce a test that was proven red, is
+  non-vacuous, and passes.
+  - **AC-ID traceability + per-AC vector.** Specs now write stable `AC-N` ids; every id must
+    map to an acceptance test whose title carries it. `scripts/ac-vector.*` grades the outcome
+    at feature completion (`PASS` / `FAIL` / `MISSING` / `INVALID`) into the plan's progress log.
+  - **Holdout enforcement.** `tests/acceptance/` is a fail-closed holdout: the post-write hook
+    blocks edits there (exit 2) unless `/write-spec` has set `.rigel/acceptance.unlock`, backed
+    by a CODEOWNERS lead-review line.
+  - **Spec-phase scaffolding + red-green proof.** `/write-spec` scaffolds one failing acceptance
+    test per AC; `scripts/redgreen-record.*` requires every one to fail pre-implementation
+    (recorded to `.rigel/redgreen/`), and `/write-plan` refuses specs lacking tests + proof.
+  - **Assertion integrity.** An AST check (TS compiler API for TS templates, `ast` for fastapi)
+    fails any AC-claiming test with zero/trivial/snapshot-only assertions.
+  - **Design-token conformance (nextjs).** A deterministic Playwright check diffs rendered
+    computed styles against a `DESIGN.md` token list; per-dimension, opt-in enforcement.
+  - **Mutation audit (nightly alarm).** Stryker (TS) / mutmut (fastapi) run nightly on the
+    acceptance holdout and open an issue below the 60% floor — never a merge gate.
+  - Per-gate cost stays flat: only the *static* traceability + assertion-integrity checks run
+    in the per-layer gate; the green vector runs at feature completion.
+
+### Fixed
+
+- **express jest never ran in a clean environment.** The `ts-jest` ESM preset requires
+  `NODE_OPTIONS=--experimental-vm-modules`, which no script/CI set — so `npm test`, `npm run
+  gate`, and CI silently reported "0 tests". Added the flag to the jest scripts.
+- **nestjs post-write hook never saw the edited path** (read only top-level `file_path`, not
+  the nested `tool_input.file_path` Claude Code sends), and the express/fastapi/nestjs hooks
+  could crash under `set -u` with no warnings. Both fixed.
+
 ## [0.4.0] - 2026-07-18
 
 ### Changed

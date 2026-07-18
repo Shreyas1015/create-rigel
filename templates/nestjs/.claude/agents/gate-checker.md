@@ -33,9 +33,24 @@ grep -rn "HttpException" src/ --include="*.service.ts"
 # 7. @InjectModel in services
 grep -rn "@InjectModel" src/ --include="*.service.ts"
 
-# 8. Architecture tests
+# 8. Unit / spec tests
 npx jest src/ --testPathPattern="spec" --no-coverage 2>&1 | tail -5
+
+# 9. Architecture structural tests (the deterministic-eval check home)
+# Includes layer boundaries AND the deterministic-eval checks:
+#   - traceability.test.ts        — every spec AC-N has a red-recorded acceptance test
+#   - assertion-integrity.test.ts — AC-claiming tests have a non-trivial assertion
+# Equivalent to `npm run test:arch`. NestJS jest is CommonJS (no --experimental-vm-modules).
+npx jest tests/architecture/ --no-coverage 2>&1 | tail -20
 ```
+
+> **Acceptance criteria (AC-N) are graded at feature completion, not per layer.** The
+> per-layer gate above only enforces the *static* AC invariants (a red-recorded,
+> non-vacuous acceptance test exists for each AC — `tests/architecture/`). The pass/fail
+> **AC vector** — which requires the acceptance tests to be green — is run by
+> `/garbage-collect` (or `npm run ac:vector` / `npm run gate:final`) once the feature is
+> built. Do not expect acceptance tests to pass mid-build; they are legitimately red until
+> their layer lands.
 
 ## Layer-Specific Checks
 

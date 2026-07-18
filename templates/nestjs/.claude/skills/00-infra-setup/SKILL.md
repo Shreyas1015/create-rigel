@@ -191,6 +191,73 @@ Loads DATABASE_URL from .env for sequelize-cli.
 
 ---
 
+## Step 4b — Deterministic Evals Harness (PLAN-003)
+
+These files **ship committed** in the template and survive `nest new .` (they live in `scripts/`
+and `tests/` — plural — which do not collide with NestJS's generated `test/`). **Do NOT recreate them:**
+
+- `scripts/lib/rigel-evals.mjs`, `scripts/redgreen-record.mjs`, `scripts/ac-vector.mjs`,
+  `scripts/mutation-report.mjs` — the eval engine (pure Node, no deps).
+- `tests/architecture/traceability.test.ts` — AC↔test traceability (AC-1, static half) + red-green
+  integrity (AC-4). Runs in the per-layer gate.
+- `tests/architecture/assertion-integrity.test.ts` — AC-5, uses the TypeScript compiler API
+  (`import ts from 'typescript'`, already present in a Nest project) to reject vacuous assertions.
+- `tests/acceptance/.gitkeep` — the holdout root (one dir per spec: `tests/acceptance/SPEC-XXX/`).
+- `stryker.conf.json` + `.github/workflows/mutation-nightly.yml` — AC-7 nightly mutation alarm.
+
+Create the `.rigel` working dirs (the eval scripts write here; redgreen/ + ac-results/ are the
+committed proof, the rest are transient):
+
+```bash
+mkdir -p .rigel/redgreen .rigel/ac-results
+```
+
+### Wire jest to run the harness
+
+`nest new` generates a jest config (the `"jest"` key in `package.json`) with `rootDir: "src"` and
+`testRegex: ".*\\.spec\\.ts$"` — so it would never see the harness (which lives under `tests/` and
+uses the `.test.ts` suffix, matching Express). **Replace that `"jest"` block** so jest also runs
+`tests/**/*.test.ts` alongside NestJS's `src/**/*.spec.ts`. NestJS jest is **CommonJS** (`ts-jest`,
+no ESM preset), so — unlike the Express template — **no `NODE_OPTIONS=--experimental-vm-modules`
+is needed** on any jest script:
+
+```jsonc
+// package.json  →  "jest": { ... }
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "roots": ["<rootDir>/src", "<rootDir>/tests"],
+  "testEnvironment": "node",
+  "testRegex": ".*\\.(spec|test)\\.ts$",
+  "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+  "collectCoverageFrom": ["src/**/*.(t|j)s", "!src/main.ts", "!src/**/*.module.ts"],
+  "coverageDirectory": "<rootDir>/coverage"
+}
+```
+
+(The `test/jest-e2e.json` config `nest new` generates is separate and unchanged — e2e still runs
+via `test:e2e`.) Note: as in Express, plain `npm test` now also matches the acceptance holdout,
+which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
+
+### Add the eval scripts to package.json `"scripts"`
+
+```jsonc
+"typecheck": "tsc --noEmit",
+"test:arch": "jest tests/architecture/",
+"redgreen:record": "node scripts/redgreen-record.mjs",
+"ac:vector": "node scripts/ac-vector.mjs",
+"gate": "npm run typecheck && npm run lint && npm run test:arch",
+"gate:final": "npm run gate && npm run ac:vector"
+```
+
+- `test:arch` is the per-layer check home — it runs the two `tests/architecture/` eval tests plus
+  any layer-boundary tests. `gate` **must** include it.
+- `redgreen:record` / `ac:vector` are the spec-phase and feature-completion checks (see
+  `/write-spec` and `/garbage-collect`). `ac:vector` is the green PASS/FAIL vector — a
+  feature-completion check, **not** the per-layer gate.
+
+---
+
 ## Step 5 — Activate Git Hooks + Branch Policy
 
 The git hooks ship committed under `.githooks/` (toolchain-free POSIX shell that reads
@@ -223,9 +290,11 @@ enforces branch name, Conventional Commits, the PLAN reference, and protection d
 
 ## Gate Check
 ```bash
-npx tsc --noEmit
-npx eslint src/ --max-warnings=0
-npx jest --no-coverage 2>&1 | tail -5
+# The one-command deterministic gate (typecheck + lint + arch tests). Same gate the
+# gate-checker agent and /validate-layer run. `test:arch` runs the tests/architecture/
+# eval tests, which skip cleanly on a fresh repo (no active plan/spec yet).
+npm run gate
+npx jest src/ --testPathPattern="spec" --no-coverage 2>&1 | tail -5
 curl http://localhost:3000/health
 curl http://localhost:3000/ready
 ```

@@ -11,6 +11,7 @@
 # Security-sensitive — leads must review
 /.githooks/                     @your-team/leads
 /.rigel/                        @your-team/leads
+/tests/acceptance/              @your-team/leads
 /src/config/                    @your-team/leads
 /src/auth/                      @your-team/leads
 /src/common/guards/             @your-team/leads

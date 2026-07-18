@@ -36,11 +36,26 @@ process.stdin.on('data', c => d += c).on('end', () => {
 " 2>/dev/null || echo "")
 
 [[ -z "$FILE" ]] && exit 0
-[[ ! -f "$FILE" ]] && exit 0
-[[ ! "$FILE" =~ \.(ts|tsx)$ ]] && exit 0
 
 # Normalise backslashes → forward slashes for portable matching.
 NORM="${FILE//\\//}"
+
+# ── BLOCKER: tests/acceptance/ is a HOLDOUT — writable ONLY during the spec phase ──
+# /write-spec drops .rigel/acceptance.unlock while it scaffolds the failing acceptance
+# tests, then removes it. A write here without that marker is a build-phase edit to the
+# holdout set (test tampering) and must be reverted. Fail-closed: no marker → blocked.
+# Placed BEFORE the -f / extension filters so ANY file under tests/acceptance/ (a brand
+# new file, a .tsx test, or a non-source fixture) is caught, not just existing .ts files.
+if [[ "$NORM" =~ (^|/)tests/acceptance/ ]]; then
+  MARKER="${CLAUDE_PROJECT_DIR:-.}/.rigel/acceptance.unlock"
+  if [[ ! -f "$MARKER" ]]; then
+    echo "🚫 [HOOK] $NORM is a HOLDOUT acceptance test — editable only during the spec phase (/write-spec). Revert this change. Acceptance tests encode the spec's success criteria and must not be altered while building." >&2
+    exit 2
+  fi
+fi
+
+[[ ! -f "$FILE" ]] && exit 0
+[[ ! "$FILE" =~ \.(ts|tsx)$ ]] && exit 0
 
 WARNINGS=()
 BLOCKERS=()

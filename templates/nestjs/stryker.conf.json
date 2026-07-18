@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "AC-7 mutation audit — a NIGHTLY ALARM, never a merge gate. Judges the acceptance-test holdout (tests/acceptance/ only) by mutating src/ and checking the acceptance tests catch the mutants. Run via .github/workflows/mutation-nightly.yml; the JSON report is post-processed by scripts/mutation-report.mjs into a per-AC score. NestJS jest is CommonJS (ts-jest, no ESM preset), so no --experimental-vm-modules node arg is needed here (unlike the Express template). main.ts (bootstrap) and *.module.ts (pure DI wiring) are excluded — mutating them yields low-signal mutants.",
+  "packageManager": "npm",
+  "testRunner": "jest",
+  "coverageAnalysis": "perTest",
+  "mutate": ["src/**/*.ts", "!src/**/*.d.ts", "!src/main.ts", "!src/**/*.module.ts", "!src/**/*.spec.ts", "!src/**/*.dto.ts"],
+  "jest": {
+    "projectType": "custom",
+    "config": {
+      "rootDir": ".",
+      "roots": ["<rootDir>/src", "<rootDir>/tests"],
+      "moduleFileExtensions": ["js", "json", "ts"],
+      "testEnvironment": "node",
+      "testRegex": "tests/acceptance/.*\\.test\\.ts$",
+      "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+      }
+    }
+  },
+  "reporters": ["json", "html", "clear-text", "progress"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "incremental": true,
+  "incrementalFile": ".rigel/mutation/stryker-incremental.json"
+}
