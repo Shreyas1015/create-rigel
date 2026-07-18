@@ -63,7 +63,7 @@ echo "▶ Step 3 — directory structure"
 mkdir -p \
   src/types src/lib src/hooks src/store src/features src/components/shared src/utils \
   tests/unit/hooks tests/unit/features tests/unit/components tests/unit/utils \
-  tests/e2e tests/e2e/helpers tests/visual tests/architecture tests/load tests/mocks tests/utils \
+  tests/e2e tests/e2e/helpers tests/visual tests/architecture tests/acceptance tests/design tests/load tests/mocks tests/utils \
   docs/product-specs/draft docs/product-specs/ready \
   docs/exec-plans/active docs/exec-plans/completed \
   docs/design-docs/decisions docs/generated
@@ -82,12 +82,20 @@ const harness = {
   'test:coverage': 'vitest run --coverage',
   'test:e2e': 'playwright test',
   'test:visual': 'playwright test tests/visual/',
+  'test:design': 'playwright test tests/design/', // AC-6 deterministic design-token conformance
   'typecheck': 'tsc --noEmit',
   'lint': 'eslint .',
   'lint:fix': 'eslint . --fix',
   'format': 'prettier --write .',
   'format:check': 'prettier --check .',
   'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage',
+  // Deterministic evals (PLAN-003). The per-layer 'gate' already runs the STATIC
+  // traceability + assertion-integrity arch tests (test:coverage → vitest includes
+  // tests/architecture/). These add the red-green recorder and the feature-completion
+  // AC vector; 'gate:final' is the whole-feature check /garbage-collect runs.
+  'redgreen:record': 'node scripts/redgreen-record.mjs',
+  'ac:vector': 'node scripts/ac-vector.mjs',
+  'gate:final': 'npm run gate && npm run ac:vector',
   'analyze': 'ANALYZE=true next build',
 };
 p.scripts = Object.assign(defaults, p.scripts, harness);
@@ -139,9 +147,19 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     // Vitest runs unit + architecture tests ONLY. Playwright owns tests/e2e &
     // tests/visual; k6 owns tests/load — exclude them or Vitest tries to run them
-    // and crashes on the Playwright/k6 globals.
+    // and crashes on the Playwright/k6 globals. tests/acceptance/ is the HOLDOUT
+    // (PLAN-003): it is legitimately RED mid-build, so it is excluded here or every
+    // per-layer gate would fail — it is run on demand via vitest.acceptance.config.ts
+    // by scripts/redgreen-record.mjs and scripts/ac-vector.mjs.
     include: ['tests/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: [...configDefaults.exclude, 'tests/e2e/**', 'tests/visual/**', 'tests/load/**'],
+    exclude: [
+      ...configDefaults.exclude,
+      'tests/e2e/**',
+      'tests/visual/**',
+      'tests/design/**',
+      'tests/load/**',
+      'tests/acceptance/**',
+    ],
     // env.ts validates NEXT_PUBLIC_* at import — provide them so api-client imports
     // don't throw "Invalid environment variables" in jsdom.
     env: { NEXT_PUBLIC_API_URL: 'http://localhost:8000' },
@@ -171,6 +189,33 @@ export default defineConfig({
         'src/components/**': { lines: 70, functions: 70, branches: 70, statements: 70 },
       },
     },
+  },
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
+})
+EOF
+
+# Dedicated config for the acceptance HOLDOUT (PLAN-003). The main vitest.config.ts
+# EXCLUDES tests/acceptance/ (it is red mid-build); this config RE-INCLUDES only that
+# dir so scripts/redgreen-record.mjs + scripts/ac-vector.mjs (and the nightly Stryker
+# run) can execute it on demand: `vitest run <dir> --config vitest.acceptance.config.ts`.
+# It mirrors the main test env (jsdom + react + setup + alias) but carries no coverage.
+write_if_absent vitest.acceptance.config.ts <<'EOF'
+import { defineConfig, configDefaults } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./tests/setup.ts'],
+    // ONLY the acceptance holdout. NOTE: config `exclude` blocks even an explicitly
+    // named dir, so the acceptance dir must not be excluded here (that is exactly why
+    // this is a separate config from vitest.config.ts).
+    include: ['tests/acceptance/**/*.{test,spec}.{ts,tsx}'],
+    exclude: [...configDefaults.exclude],
+    env: { NEXT_PUBLIC_API_URL: 'http://localhost:8000' },
   },
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
 })
@@ -272,6 +317,527 @@ describe('app pages contain no business logic', () => {
     )
     expect(violations, violations.join('\n')).toHaveLength(0)
   })
+})
+EOF
+
+# ── PLAN-003 deterministic-eval arch tests (STATIC half) — run in the per-layer gate ──
+# These run inside `npm run test:coverage` (vitest includes tests/architecture/), so the
+# gate enforces the structural AC invariants on every layer. The green PASS/FAIL vector
+# is a feature-completion check (scripts/ac-vector.mjs), NOT these tests.
+
+write_if_absent tests/architecture/traceability.test.ts <<'EOF'
+/**
+ * Architecture test — AC↔test traceability (AC-1, static half) + red-green integrity
+ * (AC-4). Runs in the per-layer gate via vitest (tests/architecture/).
+ *
+ * This enforces the *structural* invariants that must hold from spec-time onward and
+ * are safe to check on every gate (they do NOT require the tests to be green yet):
+ *   1. Every AC-ID in the active plan's spec has an acceptance test titled with it.
+ *   2. Every such AC-ID has a recorded red state in .rigel/redgreen/SPEC-XXX.json.
+ *
+ * The green PASS/FAIL vector is a feature-completion check (scripts/ac-vector.mjs),
+ * not this file — acceptance tests are legitimately red mid-build.
+ *
+ * A fresh repo (no active plan, or a plan with no spec) skips cleanly, exactly like
+ * layers.test.ts, so the suite passes immediately after /infra-setup.
+ */
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
+
+const ACTIVE_DIR = 'docs/exec-plans/active'
+const READY_DIR = 'docs/product-specs/ready'
+const ACCEPTANCE_DIR = 'tests/acceptance'
+const REDGREEN_DIR = '.rigel/redgreen'
+
+const AC_ID = /\bAC-\d+\b/g
+
+function firstActivePlan(): string | null {
+  if (!existsSync(ACTIVE_DIR)) return null
+  const plans = readdirSync(ACTIVE_DIR)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
+  return plans.length ? join(ACTIVE_DIR, plans[0]!) : null
+}
+
+function specIdsFromPlan(text: string): string[] {
+  const line = text.match(/\*\*Spec:\*\*\s*(.+)/)
+  const source = line ? line[1]! : text
+  return [...new Set([...source.matchAll(/\bSPEC-\d+\b/g)].map((m) => m[0]))]
+}
+
+function findSpecFile(specId: string): string | null {
+  if (!existsSync(READY_DIR)) return null
+  const hit = readdirSync(READY_DIR).find((f) => f.startsWith(specId) && f.endsWith('.md'))
+  return hit ? join(READY_DIR, hit) : null
+}
+
+function acIdsInSpec(specText: string): string[] {
+  const lines = specText.split('\n')
+  const start = lines.findIndex((l) => /^##\s+Acceptance Criteria/i.test(l))
+  if (start === -1) return []
+  const ids = new Set<string>()
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^##\s+/.test(lines[i]!)) break
+    for (const m of lines[i]!.matchAll(AC_ID)) ids.add(m[0])
+  }
+  return [...ids]
+}
+
+function testFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) out.push(...testFiles(full))
+    else if (entry.endsWith('.test.ts') || entry.endsWith('.test.tsx')) out.push(full)
+  }
+  return out
+}
+
+function acIdsWithTests(specId: string): Set<string> {
+  const found = new Set<string>()
+  for (const file of testFiles(join(ACCEPTANCE_DIR, specId))) {
+    const src = readFileSync(file, 'utf8')
+    for (const m of src.matchAll(/\b(?:describe|it|test)\s*\(\s*[`'"]([^`'"]*)[`'"]/g)) {
+      for (const ac of m[1]!.matchAll(AC_ID)) found.add(ac[0])
+    }
+  }
+  return found
+}
+
+function readRedGreen(specId: string): { tests?: Record<string, unknown> } | null {
+  const f = join(REDGREEN_DIR, `${specId}.json`)
+  return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as { tests?: Record<string, unknown> }) : null
+}
+
+const plan = firstActivePlan()
+const specId = plan ? specIdsFromPlan(readFileSync(plan, 'utf8'))[0] : undefined
+const specFile = specId ? findSpecFile(specId) : null
+const acs = specFile ? acIdsInSpec(readFileSync(specFile, 'utf8')) : []
+
+describe('architecture: AC traceability + red-green integrity', () => {
+  it('has an active plan and spec, or skips cleanly on a fresh repo', () => {
+    // Sanity anchor so the suite is never empty; real assertions are conditional below.
+    expect(Array.isArray(acs)).toBe(true)
+  })
+
+  const maybe = acs.length ? it : it.skip
+
+  maybe('every spec AC-ID has an acceptance test titled with it (no MISSING)', () => {
+    const withTests = acIdsWithTests(specId!)
+    const missing = acs.filter((id) => !withTests.has(id))
+    expect(missing).toEqual([])
+  })
+
+  maybe('every spec AC-ID has a recorded red state (no INVALID)', () => {
+    const rg = readRedGreen(specId!)
+    const invalid = acs.filter((id) => !rg || !rg.tests || !(id in rg.tests))
+    expect(invalid).toEqual([])
+  })
+})
+EOF
+
+write_if_absent tests/architecture/assertion-integrity.test.ts <<'EOF'
+/**
+ * Architecture test — assertion integrity (AC-5). Runs in the per-layer gate via vitest
+ * (tests/architecture/).
+ *
+ * A test that claims an AC-ID must actually assert something. Using the TypeScript
+ * compiler API (present via create-next-app's `typescript` dev dependency — no new
+ * dependency) we parse every acceptance test file and, for each `it`/`test` whose title
+ * contains an AC-ID, require at least one NON-TRIVIAL assertion. The following are
+ * rejected:
+ *   - zero `expect(...)` calls
+ *   - only trivial assertions on literals (`expect(true).toBe(true)`)
+ *   - snapshot-only (`toMatchSnapshot` / `toMatchInlineSnapshot`)
+ *
+ * A fresh repo (no acceptance tests) skips cleanly.
+ */
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import ts from 'typescript'
+import { describe, it, expect } from 'vitest'
+
+const ACCEPTANCE_DIR = 'tests/acceptance'
+const AC_ID = /\bAC-\d+\b/
+const SNAPSHOT_MATCHERS = new Set(['toMatchSnapshot', 'toMatchInlineSnapshot'])
+const LITERAL_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.TrueKeyword,
+  ts.SyntaxKind.FalseKeyword,
+  ts.SyntaxKind.NullKeyword,
+  ts.SyntaxKind.NumericLiteral,
+  ts.SyntaxKind.StringLiteral,
+  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+])
+
+function acceptanceFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) out.push(...acceptanceFiles(full))
+    else if (entry.endsWith('.test.ts') || entry.endsWith('.test.tsx')) out.push(full)
+  }
+  return out
+}
+
+/** The literal title string of an `it`/`test` call, or null. */
+function testTitle(call: ts.CallExpression): string | null {
+  const callee = call.expression
+  const name = ts.isIdentifier(callee)
+    ? callee.text
+    : ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)
+      ? callee.expression.text
+      : null
+  if (name !== 'it' && name !== 'test') return null
+  const arg = call.arguments[0]
+  if (arg && (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg))) return arg.text
+  return null
+}
+
+/** The callback (last function/arrow argument) of a test call. */
+function testBody(call: ts.CallExpression): ts.Node | null {
+  for (let i = call.arguments.length - 1; i >= 0; i--) {
+    const a = call.arguments[i]!
+    if (ts.isArrowFunction(a) || ts.isFunctionExpression(a)) return a.body
+  }
+  return null
+}
+
+/** Walk up an `expect(...)` call to collect its chained matcher names. */
+function matchersOf(expectCall: ts.Node): string[] {
+  const names: string[] = []
+  let cur: ts.Node | undefined = expectCall.parent
+  while (cur && (ts.isPropertyAccessExpression(cur) || ts.isCallExpression(cur) || ts.isElementAccessExpression(cur))) {
+    if (ts.isPropertyAccessExpression(cur)) names.push(cur.name.text)
+    cur = cur.parent
+  }
+  return names
+}
+
+function isLiteral(node: ts.Expression | undefined): boolean {
+  if (!node) return false
+  if (ts.isPrefixUnaryExpression(node)) return isLiteral(node.operand) // -1, !true
+  return LITERAL_KINDS.has(node.kind)
+}
+
+/** True if a test body contains at least one meaningful (non-trivial) assertion. */
+function hasMeaningfulAssertion(body: ts.Node): boolean {
+  let meaningful = false
+  const visit = (node: ts.Node): void => {
+    if (meaningful) return
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'expect') {
+      const argLiteral = isLiteral(node.arguments[0])
+      const matchers = matchersOf(node)
+      const invoked = matchers.length > 0
+      const snapshotOnly = matchers.some((m) => SNAPSHOT_MATCHERS.has(m))
+      if (invoked && !argLiteral && !snapshotOnly) meaningful = true
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(body)
+  return meaningful
+}
+
+type Offender = { file: string; title: string }
+
+function scan(): Offender[] {
+  const offenders: Offender[] = []
+  for (const file of acceptanceFiles(ACCEPTANCE_DIR)) {
+    const sf = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node)) {
+        const title = testTitle(node)
+        if (title && AC_ID.test(title)) {
+          const body = testBody(node)
+          if (!body || !hasMeaningfulAssertion(body)) offenders.push({ file, title })
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+  }
+  return offenders
+}
+
+const offenders = scan()
+
+describe('architecture: acceptance-test assertion integrity', () => {
+  it('every AC-claiming acceptance test has a non-trivial assertion', () => {
+    const report = offenders.map((o) => `${o.file} :: "${o.title}"`)
+    expect(report).toEqual([])
+  })
+})
+EOF
+
+write_if_absent tests/acceptance/.gitkeep <<'EOF'
+# Holdout acceptance tests live here — one dir per spec: tests/acceptance/SPEC-XXX/
+#
+# These are the spec's success criteria, scaffolded by /write-spec (each test title
+# carries its AC-ID) and proven red before implementation (scripts/redgreen-record.mjs).
+# They are a HOLDOUT: the post-write hook blocks any edit here outside the spec phase,
+# and CODEOWNERS requires a lead review. They are EXCLUDED from the default `vitest run`
+# (vitest.config.ts) so their legitimately-red state never breaks the per-layer gate;
+# they are run on demand via vitest.acceptance.config.ts. Frontend acceptance tests are
+# usually .test.tsx (Testing Library + MSW). Do not edit acceptance tests while building.
+EOF
+
+# ── AC-6 — deterministic design-token conformance (PLAN-003) ───────────────────
+# A Playwright check that reads computed styles of rendered pages and fails on any
+# color/spacing/radius/font value not in the DESIGN.md token list. Mechanizes most of
+# what a vision judge would do. Enforcement is per-dimension and opt-in (empty token
+# list ⇒ that dimension is skipped; an all-empty block ⇒ the whole check skips).
+write_if_absent DESIGN.md <<'EOF'
+# DESIGN — Design System Tokens
+
+> Minimal token list for the deterministic design-token conformance check (PLAN-003, AC-6).
+> The full DESIGN.md format is Phase-2; for now this file only needs the token block below.
+>
+> The check (`tests/design/token-conformance.spec.ts`) reads the JSON between the markers
+> and, for each route in `tests/design/routes.json`, fails if a rendered element uses a
+> color / spacing / radius / font-size / font-family that is NOT in these lists.
+>
+> Enforcement is PER-DIMENSION and OPT-IN: a dimension is only checked when its array is
+> non-empty. An empty block (the default) means the check SKIPS — fill in your system's
+> tokens to turn enforcement on. Values are compared against COMPUTED styles, so use the
+> resolved values your theme produces (e.g. hex/rgb for colors, integer px for lengths).
+> Colors are exact-match; spacing / radii / font-sizes are integer px; font-family matches
+> the first family in the stack (case-insensitive).
+
+<!-- rigel-tokens:start -->
+```json
+{
+  "colors": [],
+  "spacing": [],
+  "radii": [],
+  "fontSizes": [],
+  "fontFamilies": []
+}
+```
+<!-- rigel-tokens:end -->
+EOF
+
+write_if_absent tests/design/routes.json <<'EOF'
+["/"]
+EOF
+
+write_if_absent tests/design/token-conformance.mjs <<'EOF'
+// tests/design/token-conformance.mjs
+//
+// AC-6 — pure, deterministic design-token conformance logic (no Playwright, no DOM).
+// The .spec.ts collects computed styles in the browser and hands them here; keeping the
+// parse/normalize/diff logic in plain Node makes it unit-testable and framework-free.
+//
+// Token source: DESIGN.md, in a region delimited by <!-- rigel-tokens:start/end --> that
+// contains one ```json block. Each dimension is ENFORCED ONLY IF its token array is
+// non-empty — so a fresh app (empty tokens) passes, and teams turn on dimensions by
+// filling them in. Full DESIGN.md format is Phase-2; this is the minimal shape.
+
+const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
+
+/** Extract and parse the rigel-tokens JSON from DESIGN.md content. */
+export function parseTokens(markdown) {
+  const region = markdown.match(/<!--\s*rigel-tokens:start\s*-->([\s\S]*?)<!--\s*rigel-tokens:end\s*-->/)
+  const scope = region ? region[1] : markdown
+  const fence = scope.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (!fence) return emptyTokens()
+  let raw
+  try {
+    raw = JSON.parse(fence[1])
+  } catch {
+    return emptyTokens()
+  }
+  return {
+    colors: (raw.colors ?? []).map(normalizeColor).filter(Boolean),
+    spacing: (raw.spacing ?? []).map(toPx).filter((n) => n !== null),
+    radii: (raw.radii ?? []).map(toPx).filter((n) => n !== null),
+    fontSizes: (raw.fontSizes ?? []).map(toPx).filter((n) => n !== null),
+    fontFamilies: (raw.fontFamilies ?? []).map((f) => String(f).trim().toLowerCase()).filter(Boolean),
+  }
+}
+
+function emptyTokens() {
+  return { colors: [], spacing: [], radii: [], fontSizes: [], fontFamilies: [] }
+}
+
+export function tokensAreEmpty(t) {
+  return (
+    !t.colors.length &&
+    !t.spacing.length &&
+    !t.radii.length &&
+    !t.fontSizes.length &&
+    !t.fontFamilies.length
+  )
+}
+
+/** Normalize a color to lowercase #rrggbb, or null for transparent/none/unparseable. */
+export function normalizeColor(value) {
+  if (value == null) return null
+  let v = String(value).trim().toLowerCase()
+  if (v === '' || v === 'transparent' || v === 'none' || v === 'currentcolor' || v === 'inherit') return null
+  if (HEX_RE.test(v)) {
+    if (v.length === 4) v = '#' + [...v.slice(1)].map((c) => c + c).join('')
+    return v
+  }
+  const m = v.match(/^rgba?\(\s*([0-9.]+)[,\s]+([0-9.]+)[,\s]+([0-9.]+)(?:[,/\s]+([0-9.%]+))?\s*\)$/)
+  if (!m) return null
+  const a = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4])
+  if (a === 0) return null // fully transparent — not a token violation
+  const hex = (n) => Math.round(parseFloat(n)).toString(16).padStart(2, '0')
+  return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`
+}
+
+/** Parse a CSS length to an integer px, or null (for 'auto'/'normal'/non-px). */
+export function toPx(value) {
+  if (typeof value === 'number') return Math.round(value)
+  if (value == null) return null
+  const v = String(value).trim()
+  const m = v.match(/^(-?[0-9.]+)px$/)
+  if (m) return Math.round(parseFloat(m[1]))
+  if (/^-?[0-9.]+$/.test(v)) return Math.round(parseFloat(v)) // bare number token
+  return null
+}
+
+/** First font family, lowercased, quotes stripped. */
+export function firstFamily(value) {
+  if (!value) return null
+  const first = String(value).split(',')[0].trim().replace(/^["']|["']$/g, '')
+  return first ? first.toLowerCase() : null
+}
+
+const COLOR_PROPS = [
+  'color',
+  'backgroundColor',
+  'borderTopColor',
+  'borderRightColor',
+  'borderBottomColor',
+  'borderLeftColor',
+]
+const SPACING_PROPS = [
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'columnGap',
+  'rowGap',
+]
+
+/**
+ * Diff collected computed styles against the tokens. `collected` is an array of
+ * { route, sel, styles: {prop: value} }. Returns a list of violation strings.
+ * Only dimensions with non-empty token lists are enforced.
+ */
+export function checkStyles(collected, tokens) {
+  const colorSet = new Set(tokens.colors)
+  const spacingSet = new Set(tokens.spacing)
+  const radiiSet = new Set(tokens.radii)
+  const fontSet = new Set(tokens.fontSizes)
+  const famSet = new Set(tokens.fontFamilies)
+  const violations = []
+  const add = (route, sel, prop, value) => violations.push(`${route}  ${sel}  ${prop}: ${value}`)
+
+  for (const { route, sel, styles } of collected) {
+    if (colorSet.size) {
+      for (const p of COLOR_PROPS) {
+        const c = normalizeColor(styles[p])
+        if (c && !colorSet.has(c)) add(route, sel, p, c)
+      }
+    }
+    if (spacingSet.size) {
+      for (const p of SPACING_PROPS) {
+        const n = toPx(styles[p])
+        if (n && !spacingSet.has(n)) add(route, sel, p, `${n}px`)
+      }
+    }
+    if (radiiSet.size) {
+      const r = toPx(styles.borderTopLeftRadius)
+      if (r && !radiiSet.has(r)) add(route, sel, 'borderRadius', `${r}px`)
+    }
+    if (fontSet.size) {
+      const f = toPx(styles.fontSize)
+      if (f && !fontSet.has(f)) add(route, sel, 'fontSize', `${f}px`)
+    }
+    if (famSet.size) {
+      const fam = firstFamily(styles.fontFamily)
+      if (fam && !famSet.has(fam)) add(route, sel, 'fontFamily', fam)
+    }
+  }
+  return violations
+}
+
+export const COLLECT_PROPS = [...COLOR_PROPS, ...SPACING_PROPS, 'borderTopLeftRadius', 'fontSize', 'fontFamily']
+EOF
+
+write_if_absent tests/design/token-conformance.spec.ts <<'EOF'
+import { test, expect } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { COLLECT_PROPS, checkStyles, parseTokens, tokensAreEmpty } from './token-conformance.mjs'
+
+// AC-6 — deterministic design-token conformance. For each route, read the computed
+// styles of every visible element and fail on any color/spacing/radius/font value not
+// in the DESIGN.md token list. Skips cleanly until the rigel-tokens block is filled in.
+
+function safeRead(path: string, fallback: string): string {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    return fallback
+  }
+}
+
+const tokens = parseTokens(safeRead('DESIGN.md', ''))
+let routes: string[]
+try {
+  routes = JSON.parse(safeRead('tests/design/routes.json', '["/"]')) as string[]
+} catch {
+  routes = ['/']
+}
+
+test.describe('AC-6 — design-token conformance', () => {
+  test.skip(
+    tokensAreEmpty(tokens),
+    'No design tokens defined in DESIGN.md yet (the rigel-tokens block is empty) — fill it in to enable the check.',
+  )
+
+  for (const route of routes) {
+    test(`route ${route} uses only DESIGN.md tokens`, async ({ page }) => {
+      await page.goto(route, { waitUntil: 'load' })
+      const collected = await page.evaluate((props: string[]) => {
+        const kebab = (s: string) => s.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())
+        const out: Array<{ sel: string; styles: Record<string, string> }> = []
+        const els = Array.from(document.querySelectorAll('body *')).slice(0, 800)
+        for (const el of els) {
+          const rect = el.getBoundingClientRect()
+          if (rect.width === 0 || rect.height === 0) continue
+          const cs = getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue
+          const styles: Record<string, string> = {}
+          for (const p of props) styles[p] = cs.getPropertyValue(kebab(p))
+          const cls =
+            typeof el.className === 'string' && el.className.trim()
+              ? '.' + el.className.trim().split(/\s+/)[0]
+              : ''
+          const sel = el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + cls
+          out.push({ sel, styles })
+        }
+        return out
+      }, COLLECT_PROPS)
+
+      const violations = checkStyles(
+        collected.map((c) => ({ route, sel: c.sel, styles: c.styles })),
+        tokens,
+      )
+      expect(
+        violations,
+        `Non-token values on ${route} (add them to DESIGN.md tokens or fix the styles):\n${violations.join('\n')}`,
+      ).toEqual([])
+    })
+  }
 })
 EOF
 
@@ -404,6 +970,37 @@ export default function () {
   const res = http.get(`${BASE_URL}/`, params)
   check(res, { 'status is 200': (r) => r.status === 200 })
   sleep(1)
+}
+EOF
+
+# Stryker config (AC-7 mutation audit) — SCRIPT-WRITTEN, not committed at the repo root:
+# a stray stryker.conf.json in the template would be flagged as a conflict by
+# create-next-app and abort the park-and-restore scaffold. Written here so it lands after
+# the app exists and is then committed with the repo. Drives .github/workflows/
+# mutation-nightly.yml via the Vitest runner, judging the tests/acceptance/ holdout.
+write_if_absent stryker.conf.json <<'EOF'
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "AC-7 mutation audit — a NIGHTLY ALARM, never a merge gate. Judges the acceptance-test holdout (tests/acceptance/ only) by mutating src/ and checking the acceptance tests catch the mutants. Run via .github/workflows/mutation-nightly.yml; the JSON report is post-processed by scripts/mutation-report.mjs into a per-AC score.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.acceptance.config.ts" },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.{test,spec}.{ts,tsx}",
+    "!src/types/api.generated.ts",
+    "!src/instrumentation.ts",
+    "!src/app/**",
+    "!src/components/ui/**",
+    "!src/components/providers.tsx"
+  ],
+  "reporters": ["json", "html", "clear-text", "progress"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "incremental": true,
+  "incrementalFile": ".rigel/mutation/stryker-incremental.json"
 }
 EOF
 
@@ -546,5 +1143,8 @@ fi
 
 echo "✅ Deterministic infra complete."
 echo "   Configs, gate tests, load tests, and observability glue are written."
+echo "   Deterministic evals (PLAN-003): scripts/{lib/rigel-evals,redgreen-record,ac-vector,"
+echo "   mutation-report}.mjs, tests/architecture/{traceability,assertion-integrity}.test.ts,"
+echo "   tests/acceptance/ holdout, vitest.acceptance.config.ts, and stryker.conf.json."
 echo "   Next: Claude authors the remaining glue (Step 5 of the skill) — env.ts,"
 echo "   api-client.ts, utils, store, providers, mocks, and ADR-000."

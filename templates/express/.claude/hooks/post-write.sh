@@ -3,8 +3,15 @@
 # Fires after every Write/Edit/MultiEdit tool call.
 # Claude Code passes the tool invocation as JSON on stdin; the edited file
 # path lives at .tool_input.file_path.
-# Checks: console.log, process.env outside config, file size, unsafe casts.
-# Prints warnings directly — gate-checker does the hard blocking.
+#
+# Two severities:
+#   BLOCKERS (exit 2) — the agent MUST revert before continuing. Currently: editing
+#     the holdout acceptance-test set (tests/acceptance/) outside the spec phase.
+#   WARNINGS (exit 0) — advisory: console.log, process.env outside config, file size,
+#     unsafe casts. The gate-checker does the rest of the hard blocking.
+#
+# Exit-code contract (Claude Code PostToolUse): a non-zero exit (2) with text on stderr
+# is fed back to the agent as a required fix. Exit 0 with text on stdout is advisory.
 
 set -euo pipefail
 
@@ -38,6 +45,32 @@ fi
 
 # Nothing to check
 [[ -z "$FILE" ]] && exit 0
+
+# Normalise backslashes → forward slashes for portable path matching.
+NORM="${FILE//\\//}"
+
+BLOCKERS=()
+
+# ── BLOCKER: tests/acceptance/ is a HOLDOUT — writable ONLY during the spec phase ──
+# /write-spec drops .rigel/acceptance.unlock while it scaffolds the failing acceptance
+# tests, then removes it. A write here without that marker is a build-phase edit to the
+# holdout set (test tampering) and must be reverted. Fail-closed: no marker → blocked.
+if [[ "$NORM" =~ (^|/)tests/acceptance/ ]]; then
+  MARKER="${CLAUDE_PROJECT_DIR:-.}/.rigel/acceptance.unlock"
+  if [[ ! -f "$MARKER" ]]; then
+    BLOCKERS+=("🚫 [HOOK] $NORM is a HOLDOUT acceptance test — editable only during the spec phase (/write-spec). Revert this change. Acceptance tests encode the spec's success criteria and must not be altered while building.")
+  fi
+fi
+
+# Flush blockers to stderr and fail before the source-file filter, so non-.ts holdout
+# writes are caught too.
+if [[ ${#BLOCKERS[@]} -gt 0 ]]; then
+  for b in "${BLOCKERS[@]}"; do
+    echo "$b" >&2
+  done
+  exit 2
+fi
+
 [[ ! -f "$FILE" ]] && exit 0
 
 # Only check TypeScript source files
@@ -84,10 +117,12 @@ if [[ "$REL" =~ \.repo\.ts$ ]]; then
   fi
 fi
 
-# Print all warnings
-for w in "${WARNINGS[@]}"; do
-  echo "$w"
-done
+# Print all warnings (guard empty array for bash 3.2 / set -u).
+if [[ ${#WARNINGS[@]} -gt 0 ]]; then
+  for w in "${WARNINGS[@]}"; do
+    echo "$w"
+  done
+fi
 
-# Exit 0 always — hooks warn, gate-checker blocks
+# Exit 0 — remaining severity is advisory; the holdout blocker above already exited 2.
 exit 0

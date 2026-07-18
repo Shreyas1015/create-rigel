@@ -46,8 +46,18 @@ npx eslint src/ --max-warnings=0 2>&1
 npx madge --circular src/ --extensions ts 2>&1
 
 # 7. Architecture structural tests
+# Includes layer boundaries, cross-user isolation, AND the deterministic-eval checks:
+#   - traceability.test.ts        — every spec AC-N has a red-recorded acceptance test
+#   - assertion-integrity.test.ts — AC-claiming tests have a non-trivial assertion
 npx jest tests/architecture/ --no-coverage 2>&1
 ```
+
+> **Acceptance criteria (AC-N) are graded at feature completion, not per layer.** The
+> per-layer gate above only enforces the *structural* AC invariants (a red-recorded,
+> non-vacuous acceptance test exists for each AC). The pass/fail **AC vector** — which
+> requires the acceptance tests to be green — is run by `/garbage-collect` (or
+> `npm run ac:vector` / `npm run gate:final`) once the feature is built. Do not expect
+> acceptance tests to pass mid-build; they are legitimately red until their layer lands.
 
 ## Layer-Specific Checks
 

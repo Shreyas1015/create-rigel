@@ -1,0 +1,8 @@
+# Holdout acceptance tests live here -- one dir per spec: tests/acceptance/SPEC-XXX/
+#
+# These are the spec's success criteria, scaffolded by /write-spec (each test carries
+# its AC-ID in the module docstring and the file/function name test_ac_<N>.py /
+# test_ac_<N>_*) and proven red before implementation (scripts/redgreen_record.py).
+# They are a HOLDOUT: the post-write hook blocks any edit here outside the spec phase
+# (unless .rigel/acceptance.unlock exists), and CODEOWNERS requires a lead review.
+# Do not edit acceptance tests while building.

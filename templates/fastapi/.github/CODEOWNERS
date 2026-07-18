@@ -12,6 +12,7 @@
 # Security-sensitive — leads must review
 /.githooks/                     @your-team/leads
 /.rigel/                        @your-team/leads
+/tests/acceptance/              @your-team/leads
 /app/core/                      @your-team/leads
 /app/auth/                      @your-team/leads
 /alembic/                       @your-team/leads

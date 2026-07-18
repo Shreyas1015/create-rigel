@@ -8,6 +8,23 @@ ls docs/product-specs/ready/
 ```
 If none → tell human to mark a spec READY first. Stop.
 
+### Step 1b — Enforce the acceptance-test precondition
+
+A spec may not be planned unless its acceptance tests exist and were proven red. For the
+chosen `SPEC-XXX`, verify both before continuing:
+
+```bash
+# 1. Every AC-N in the spec has an acceptance test titled with its id.
+test -d tests/acceptance/SPEC-XXX || { echo "BLOCK: no tests/acceptance/SPEC-XXX — run /write-spec's scaffolding step"; exit 1; }
+# 2. The red-green proof was recorded pre-implementation.
+test -f .rigel/redgreen/SPEC-XXX.json || { echo "BLOCK: no .rigel/redgreen/SPEC-XXX.json — run: npm run redgreen:record -- SPEC-XXX"; exit 1; }
+```
+
+If either is missing, **stop** and tell the human the spec is not eligible: its acceptance
+tests / red-green proof must be created by `/write-spec` first (the `tests/architecture/`
+traceability test would otherwise fail the very first gate). Do not hand-create these here —
+they belong to the spec phase and the holdout hook blocks writing them outside it.
+
 > A large feature area may span MULTIPLE plans — slice it into shippable milestones, each its
 > own `PLAN-XXX` that ends green (e.g. live feed; then drill-in; then filters/export). Plans are
 > numbered independently, so just create the next plan for the same spec.

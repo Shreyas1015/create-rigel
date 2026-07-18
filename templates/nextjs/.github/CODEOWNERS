@@ -12,6 +12,7 @@
 /.claude/hooks/                 @your-team/leads
 /.githooks/                     @your-team/leads
 /.rigel/                        @your-team/leads
+/tests/acceptance/              @your-team/leads
 /src/lib/env.ts                 @your-team/leads
 /src/lib/api-client.ts          @your-team/leads
 /src/features/auth/             @your-team/leads

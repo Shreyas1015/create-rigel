@@ -1,0 +1,83 @@
+name: Mutation audit (nightly)
+
+# AC-7 — a NIGHTLY ALARM, not a merge gate. Mutation testing is too slow and flaky to
+# block PRs, but it is an excellent auditor of the acceptance-test holdout: it mutates
+# src/ and checks whether tests/acceptance/ catch the mutants. A sustained score below
+# the floor (60%) opens an issue automatically; it never fails required checks.
+#
+# Skips cleanly when there is no src/ yet (bare template) or no acceptance tests.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write # open an issue on a floor breach
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Stryker on tests/acceptance/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -z "$(find src -name '*.ts' 2>/dev/null | head -1)" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No src/ yet — skipping."; exit 0
+          fi
+          if [ -z "$(find tests/acceptance -name '*.test.ts' 2>/dev/null | head -1)" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No acceptance tests yet — skipping."; exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.run == 'true'
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        if: steps.detect.outputs.run == 'true'
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm i -D @stryker-mutator/core @stryker-mutator/jest-runner
+      - name: Run Stryker (acceptance holdout)
+        if: steps.detect.outputs.run == 'true'
+        run: npx stryker run || true # never fail the job — this is an alarm
+      - name: Summarize per-AC mutation score
+        if: steps.detect.outputs.run == 'true'
+        run: node scripts/mutation-report.mjs
+      - name: Upload mutation report
+        if: steps.detect.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: |
+            reports/mutation/
+            .rigel/mutation/summary.json
+          if-no-files-found: ignore
+      - name: Open issue on floor breach
+        if: steps.detect.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SUMMARY=.rigel/mutation/summary.json
+          [ -f "$SUMMARY" ] || exit 0
+          BREACH=$(node -e "process.stdout.write(String(require('./'+process.argv[1]).breach))" "$SUMMARY")
+          SCORE=$(node -e "process.stdout.write(String(require('./'+process.argv[1]).overallScore))" "$SUMMARY")
+          if [ "$BREACH" = "true" ]; then
+            TITLE="Mutation score below floor: ${SCORE}%"
+            # Avoid duplicate spam — reuse an open issue with the same label if present.
+            EXISTING=$(gh issue list --label mutation-alarm --state open --json number --jq '.[0].number' || echo "")
+            BODY="Nightly mutation audit scored ${SCORE}% on tests/acceptance/, below the 60% floor (PLAN-003 falsifier #3). The acceptance holdout is not catching enough mutants — strengthen the acceptance tests. See the mutation-report artifact for per-AC detail."
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body "$BODY"
+            else
+              gh issue create --title "$TITLE" --label mutation-alarm --body "$BODY" || \
+              gh issue create --title "$TITLE" --body "$BODY"
+            fi
+          fi

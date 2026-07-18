@@ -40,8 +40,19 @@ uv run ruff check src/ 2>&1
 uv run mypy src/ 2>&1
 
 # 6. Architecture structural tests
+# Includes layer boundaries, cross-user isolation, AND the deterministic-eval checks:
+#   - test_traceability.py         — every spec AC-N has a red-recorded acceptance test
+#   - test_assertion_integrity.py  — AC-claiming tests have a non-trivial assertion
 uv run pytest tests/architecture/ -v --no-header 2>&1
 ```
+
+> **Acceptance criteria (AC-N) are graded at feature completion, not per layer.** The
+> per-layer gate above only enforces the *structural* AC invariants (a red-recorded,
+> non-vacuous acceptance test exists for each AC — via `tests/architecture/`). The
+> pass/fail **AC vector** — which requires the acceptance tests to be green — is run by
+> `/garbage-collect` (`uv run python scripts/ac_vector.py`) once the feature is built. Do
+> not expect acceptance tests to pass mid-build; they are legitimately red until their
+> layer lands.
 
 ## Layer-Specific Checks
 

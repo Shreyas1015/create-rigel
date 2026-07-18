@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "AC-7 mutation audit — a NIGHTLY ALARM, never a merge gate. Judges the acceptance-test holdout (tests/acceptance/ only) by mutating src/ and checking the acceptance tests catch the mutants. Run via .github/workflows/mutation-nightly.yml; the JSON report is post-processed by scripts/mutation-report.mjs into a per-AC score.",
+  "packageManager": "npm",
+  "testRunner": "jest",
+  "coverageAnalysis": "perTest",
+  "mutate": ["src/**/*.ts", "!src/**/*.d.ts", "!src/runtime/server.ts", "!src/providers/telemetry.ts"],
+  "jest": {
+    "configFile": "jest.config.ts",
+    "config": {
+      "testMatch": ["**/tests/acceptance/**/*.test.ts"]
+    }
+  },
+  "testRunnerNodeArgs": ["--experimental-vm-modules"],
+  "reporters": ["json", "html", "clear-text", "progress"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "incremental": true,
+  "incrementalFile": ".rigel/mutation/stryker-incremental.json"
+}

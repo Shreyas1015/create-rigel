@@ -179,7 +179,7 @@ export const apiClient = createClient<paths>({
 ### src/lib/constants.ts
 App-wide constants. No process.env.
 
-### Script-written glue (do NOT hand-author — `infra-setup.sh` Step 7 writes these)
+### Script-written glue (do NOT hand-author — `infra-setup.sh` writes these)
 - `src/lib/logger.ts` — zero-dep structured JSON logger (the only sanctioned logging path)
 - `src/lib/api-error.ts` — `toApiError`/`ApiError` (normalises the canonical error envelope)
 - `src/instrumentation.ts` — Next.js boot/observability seam
@@ -187,6 +187,18 @@ App-wide constants. No process.env.
 - `.env.example`, the per-layer `vitest.config.ts`, `playwright.config.ts`, `tests/setup.ts`,
   `tests/architecture/layers.test.ts`, `tests/e2e/isolation.spec.ts` (+ `helpers/auth.ts`),
   and `tests/load/{smoke,stress,soak}.js`
+- **Deterministic evals (PLAN-003):** `vitest.acceptance.config.ts` (runs the acceptance
+  HOLDOUT, which is excluded from the default `vitest run`), `stryker.conf.json` (Vitest-runner
+  mutation config — a nightly alarm, never a gate), `tests/acceptance/.gitkeep`, and the two
+  extra arch tests `tests/architecture/traceability.test.ts` +
+  `tests/architecture/assertion-integrity.test.ts` (the STATIC AC checks that run in the gate).
+  `stryker.conf.json` and the `tests/` files are script-written (not committed at the template
+  root) precisely because a stray root file / `tests/` dir would make `create-next-app` abort
+  the park-and-restore scaffold.
+- **Committed eval scripts** (survive scaffold via the `scripts/` park-and-restore, so NOT
+  written by the script): `scripts/lib/rigel-evals.mjs`, `scripts/redgreen-record.mjs`,
+  `scripts/ac-vector.mjs`, `scripts/mutation-report.mjs`. The nightly workflow
+  `.github/workflows/mutation-nightly.yml` ships the same way.
 
 ### src/utils/cn.util.ts
 `clsx` + `tailwind-merge` class merger. 100% tested.
@@ -412,10 +424,24 @@ is the single command `/push-layer` and `/validate-layer` run.
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gate": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
+    "redgreen:record": "node scripts/redgreen-record.mjs",
+    "ac:vector": "node scripts/ac-vector.mjs",
+    "gate:final": "npm run gate && npm run ac:vector",
     "analyze": "ANALYZE=true next build"
   }
 }
 ```
+
+The deterministic-eval scripts (PLAN-003):
+- `gate` already runs the **STATIC** AC checks — `test:coverage` runs `vitest run --coverage`,
+  which includes `tests/architecture/` (traceability + assertion-integrity). No separate
+  `test:arch` script is needed. `tests/acceptance/` is EXCLUDED from that run (it is the
+  red-mid-build holdout), so the gate never fails on unbuilt acceptance tests.
+- `redgreen:record` — run once by `/write-spec` to prove every acceptance test is red before
+  implementation (writes `.rigel/redgreen/SPEC-XXX.json`).
+- `ac:vector` — the feature-completion PASS/FAIL vector, run by `/garbage-collect`. Runs the
+  acceptance holdout via `vitest.acceptance.config.ts`; non-zero unless every AC is PASS.
+- `gate:final` — the whole-feature check: the per-layer gate plus the AC vector.
 
 ### Committed dev-experience tooling (already in the template — no authoring needed)
 These files ship with the template; the script installs their deps and activates the git hooks

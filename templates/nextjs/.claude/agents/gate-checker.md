@@ -35,9 +35,23 @@ grep -rn "process\.env" src/ app/ --include="*.ts" --include="*.tsx" | grep -v "
 git diff --name-only | grep "api.generated.ts" && echo "FAIL: api.generated.ts was manually edited"
 
 # 7. Architecture structural tests (file MUST exist — a missing file is a FAIL, not a skip)
+# Includes layer boundaries AND the deterministic-eval STATIC checks:
+#   - traceability.test.ts        — every spec AC-N has a red-recorded acceptance test
+#   - assertion-integrity.test.ts — AC-claiming tests have a non-trivial assertion
 test -f tests/architecture/layers.test.ts || echo "FAIL: tests/architecture/layers.test.ts missing"
+test -f tests/architecture/traceability.test.ts || echo "FAIL: tests/architecture/traceability.test.ts missing"
+test -f tests/architecture/assertion-integrity.test.ts || echo "FAIL: tests/architecture/assertion-integrity.test.ts missing"
 npx vitest run tests/architecture/ --reporter=verbose 2>&1
 ```
+
+> **Acceptance criteria (AC-N) are graded at feature completion, not per layer.** The
+> per-layer gate above only enforces the *structural* AC invariants (a red-recorded,
+> non-vacuous acceptance test exists for each AC — traceability + assertion-integrity).
+> The pass/fail **AC vector** — which requires the acceptance tests to be green — is run
+> by `/garbage-collect` (or `npm run ac:vector` / `npm run gate:final`) once the feature
+> is built. tests/acceptance/ is a HOLDOUT excluded from the default `vitest run`, so do
+> not expect acceptance tests to run (or pass) in this gate; they are legitimately red
+> until their layer lands.
 
 ## Layer-Specific Checks
 

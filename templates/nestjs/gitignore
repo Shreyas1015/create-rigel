@@ -6,3 +6,10 @@ coverage/
 *.log
 .DS_Store
 .vscode/
+
+# Deterministic-eval transient artifacts (PLAN-003). The proof — .rigel/redgreen/ and
+# .rigel/ac-results/ — is committed; these are throwaway.
+reports/
+.rigel/acceptance.unlock
+.rigel/.jest-*.json
+.rigel/mutation/
