@@ -1,0 +1,9 @@
+{
+  "id": "SPEC-G3-fullstack",
+  "stack": "express+nextjs",
+  "profile": "full-stack",
+  "acCount": 4,
+  "judgeDimensions": ["intent", "abstraction", "layout"],
+  "frozen": true,
+  "notes": "A single vertical slice across API + UI: the backend exposes an endpoint, the OpenAPI contract is synced, and the frontend consumes it. Exercises the api-sync contract boundary end-to-end. Reference is two apps (api/ + web/) graded together."
+}

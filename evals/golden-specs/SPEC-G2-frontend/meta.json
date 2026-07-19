@@ -1,0 +1,9 @@
+{
+  "id": "SPEC-G2-frontend",
+  "stack": "nextjs",
+  "profile": "frontend-heavy",
+  "acCount": 4,
+  "judgeDimensions": ["intent", "abstraction", "layout"],
+  "frozen": true,
+  "notes": "List page over a typed API hook — exercises the hooks/features/components layering, the no-direct-fetch rule, loading state, and design-token conformance (AC-6). Carries the 'layout' dimension for the vision judge."
+}

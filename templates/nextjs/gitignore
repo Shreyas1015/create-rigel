@@ -33,3 +33,13 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Deterministic-eval transient artifacts (PLAN-003 / PLAN-004). The PROOF
+# (.rigel/redgreen/, .rigel/ac-results/) and the judge review queue
+# (.rigel/judge-review-queue/) are committed; everything below is throwaway.
+.rigel/acceptance.unlock
+.rigel/.vitest-*.json
+.rigel/.jest-*.json
+.rigel/mutation/
+.rigel/screens/
+reports/mutation/

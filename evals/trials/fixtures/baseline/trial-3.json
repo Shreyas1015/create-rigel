@@ -1,0 +1,9 @@
+{
+  "trialId": "baseline-3",
+  "specId": "SPEC-FIX",
+  "harnessCommit": "baseA",
+  "status": "COMPLETE",
+  "budget": { "tokenLimit": 1000000, "tokensUsed": 500000, "aborted": false },
+  "checks": { "AC-1": "PASS", "AC-2": "PASS", "AC-3": "PASS", "gate": "PASS" },
+  "judgeAdvisories": { "intent": "PASS", "abstraction": "PASS" }
+}

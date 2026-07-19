@@ -1,0 +1,9 @@
+{
+  "id": "SPEC-G1-backend",
+  "stack": "express",
+  "profile": "backend-heavy",
+  "acCount": 4,
+  "judgeDimensions": ["intent", "abstraction"],
+  "frozen": true,
+  "notes": "Owned-resource CRUD with cursor pagination and cross-user isolation — exercises the models/repo/service/runtime layers and the security-isolation gate."
+}

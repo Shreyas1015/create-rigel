@@ -1,0 +1,11 @@
+{
+  "$comment": "Per-dimension judge enforcement (PLAN-004 AC-4). A dimension may be 'blocking' ONLY if it cites a calibration report that evals/harness/promotion-check.mjs accepts: report exists, is <=90 days old, and its per-dimension promoteEligible is true (judge-vs-reference kappa >= threshold; human dimensions also require human-vs-human kappa >= 0.4). Judges START advisory. Do not hand-flip a dimension to 'blocking' without a report — CI (promotion-check) will reject it.",
+  "thresholds": { "default": 0.6, "blockerSeverity": 0.8 },
+  "judgeModelPinned": "opus",
+  "dimensions": {
+    "spec-judge/ac-conformance": { "mode": "advisory", "report": null, "severity": "normal" },
+    "spec-judge/intent": { "mode": "advisory", "report": null, "severity": "normal" },
+    "spec-judge/abstraction": { "mode": "advisory", "report": null, "severity": "normal" },
+    "vision-judge/layout": { "mode": "advisory", "report": null, "severity": "normal" }
+  }
+}

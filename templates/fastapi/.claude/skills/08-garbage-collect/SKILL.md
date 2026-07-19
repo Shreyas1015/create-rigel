@@ -30,6 +30,18 @@ Update domain grades.
 
 ### 5. Log Debt → `docs/exec-plans/tech-debt-tracker.md`
 
+### 5b. Advisory spec-judge (log-only, never blocks)
+The AC vector (Step 6) proves the *named* criteria pass; it cannot judge whether the spec's
+**intent** was honored or the **abstraction** is right. Run the advisory judge for that remainder:
+
+- Call the `spec-judge` agent. It reads ONLY the spec + the feature diff (never this transcript),
+  and appends an `### spec-judge (ADVISORY — non-blocking)` block to the active plan with a
+  per-AC + intent + abstraction verdict, routing anything UNKNOWN to `.rigel/judge-review-queue/`.
+
+This is **advisory**: it does NOT gate plan-close. Do not fix code to satisfy the judge and do not
+skip closing because of a judge FAIL — surface its block to the human and let them decide. (The
+judge stays log-only until a calibration report promotes a dimension to blocking.)
+
 ### 6. Close Plan
 - All `[x]` confirmed
 - **Grade the outcome, not the checkboxes** — run the AC vector, which runs the spec's

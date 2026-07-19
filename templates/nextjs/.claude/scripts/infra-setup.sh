@@ -82,7 +82,8 @@ const harness = {
   'test:coverage': 'vitest run --coverage',
   'test:e2e': 'playwright test',
   'test:visual': 'playwright test tests/visual/',
-  'test:design': 'playwright test tests/design/', // AC-6 deterministic design-token conformance
+  'test:design': 'playwright test tests/design/token-conformance.spec.ts', // AC-6 deterministic design-token conformance
+  'capture:screens': 'playwright test tests/design/capture-screens.spec.ts', // AC-2 vision-judge input
   'typecheck': 'tsc --noEmit',
   'lint': 'eslint .',
   'lint:fix': 'eslint . --fix',
@@ -836,6 +837,33 @@ test.describe('AC-6 — design-token conformance', () => {
         violations,
         `Non-token values on ${route} (add them to DESIGN.md tokens or fix the styles):\n${violations.join('\n')}`,
       ).toEqual([])
+    })
+  }
+})
+EOF
+
+# ── AC-2 support — screenshot capture for the advisory vision-judge (PLAN-004) ──
+# Not an assertion; it always passes and just writes .rigel/screens/<route>.png per route so
+# the vision-judge agent has pixels to read. Layout sanity only — token adherence stays the
+# deterministic AC-6 check.
+write_if_absent tests/design/capture-screens.spec.ts <<'EOF'
+import { test } from '@playwright/test'
+import { mkdirSync, readFileSync } from 'node:fs'
+
+let routes: string[]
+try {
+  routes = JSON.parse(readFileSync('tests/design/routes.json', 'utf8')) as string[]
+} catch {
+  routes = ['/']
+}
+
+test.describe('capture screens (vision-judge input, not an assertion)', () => {
+  for (const route of routes) {
+    test(`capture ${route}`, async ({ page }) => {
+      await page.goto(route, { waitUntil: 'load' })
+      const name = route === '/' ? 'root' : route.replace(/^\//, '').replace(/\//g, '_')
+      mkdirSync('.rigel/screens', { recursive: true })
+      await page.screenshot({ path: `.rigel/screens/${name}.png`, fullPage: true })
     })
   }
 })

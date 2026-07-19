@@ -24,3 +24,8 @@ yarn-error.log*
 # itself (gh/git-push permissions). Intentionally never committed — a shipped
 # .claude/ belongs to the *templates*, not to this repo root. See PLAN-001 AC-2.
 /.claude/
+
+# Golden-set harness (PLAN-004): ignore only regenerable CLI output. Trial INPUTS
+# (trial-*.json) and calibration REPORTS (proof, cited by judge-config) are committed.
+evals/trials/**/scorecard.json
+evals/trials/**/regression-issue.json

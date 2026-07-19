@@ -1,0 +1,27 @@
+{
+  "_comment": "EXAMPLE calibration set documenting the format for calibrate.mjs. NOT real data. A real set is produced by running the judge on the stratified sample and recording, per dimension, {judge, reference[, human2]} per item. 'bootstrap' dims take reference from the deterministic AC vector (free); 'human' dims take reference from human rater #1 and human2 from a second rater (omit human2 when solo -> reduced-confidence).",
+  "judgeModel": "opus",
+  "generatedAt": "2026-07-19T00:00:00.000Z",
+  "dimensions": {
+    "spec-judge/ac-conformance": {
+      "method": "bootstrap",
+      "severity": "normal",
+      "labels": [
+        { "judge": "PASS", "reference": "PASS" },
+        { "judge": "FAIL", "reference": "FAIL" },
+        { "judge": "PASS", "reference": "PASS" },
+        { "judge": "FAIL", "reference": "FAIL" }
+      ]
+    },
+    "spec-judge/intent": {
+      "method": "human",
+      "severity": "normal",
+      "labels": [
+        { "judge": "PASS", "reference": "PASS" },
+        { "judge": "FAIL", "reference": "FAIL" },
+        { "judge": "PASS", "reference": "PASS" },
+        { "judge": "FAIL", "reference": "FAIL" }
+      ]
+    }
+  }
+}

@@ -36,6 +36,15 @@ jobs:
       - name: Model routing drift check
         run: node scripts/check-model-routing.js
 
+      - name: Eval harness tests (PLAN-004)
+        run: npm run test:evals
+
+      - name: Judge promotion gate (PLAN-004 AC-4)
+        # Refuses any judge dimension marked `blocking` in evals/config/judge-config.json
+        # without a fresh, threshold-meeting calibration report. Judges start advisory, so
+        # this passes today; it fails the moment someone promotes an uncalibrated judge.
+        run: npm run eval:promote-check
+
       - name: Rename completeness (no dead-brand identifiers)
         # Only the OLD PACKAGE IDENTITY is banned — the npm name `create-harness` and any
         # `harness-*-template` package name. The common noun "harness" is intentional

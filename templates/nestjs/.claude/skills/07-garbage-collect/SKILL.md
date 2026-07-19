@@ -14,3 +14,13 @@ paperwork. Fix the code (or, if a criterion is genuinely dropped, remove its AC 
 its acceptance test during a fresh spec phase) and re-run. The per-layer gate only enforced the
 STATIC invariants (`tests/architecture/`); this green pass/fail vector is the feature-completion
 check.
+
+## Advisory spec-judge (log-only, never blocks)
+
+The AC vector proves the *named* criteria pass; it cannot judge whether the spec's **intent** was
+honored or the **abstraction** is right. After the vector is green, call the `spec-judge` agent: it
+reads ONLY the spec + the feature diff (never this transcript) and appends an
+`### spec-judge (ADVISORY — non-blocking)` block to the active plan with a per-AC + intent +
+abstraction verdict, routing anything UNKNOWN to `.rigel/judge-review-queue/`. It is **advisory** —
+it does NOT gate plan-close; surface a judge FAIL to the human rather than acting on it. (Log-only
+until a calibration report promotes a dimension to blocking.)

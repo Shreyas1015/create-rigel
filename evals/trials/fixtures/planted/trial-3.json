@@ -1,0 +1,4 @@
+{ "trialId": "planted-3", "specId": "SPEC-FIX", "harnessCommit": "candB", "status": "COMPLETE",
+  "budget": { "tokenLimit": 1000000, "tokensUsed": 610000, "aborted": false },
+  "checks": { "AC-1": "PASS", "AC-2": "PASS", "AC-3": "PASS", "gate": "PASS" },
+  "judgeAdvisories": { "intent": "PASS", "abstraction": "PASS" } }

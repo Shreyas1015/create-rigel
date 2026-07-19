@@ -6,6 +6,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-19
+
+> Ships the template-facing half of PLAN-004: the **advisory judges** (safe, log-only, never
+> block). The golden-set harness that calibrates/regresses them lives in `evals/` and is
+> intentionally **not published** (repo-internal); its reference solutions + live runner are
+> deferred. So this release adds a coherent advisory feature to scaffolded projects without
+> shipping anything half-built.
+
+### Added
+
+- **Judges + golden-set harness (PLAN-004, Phase 1 part 2) — machinery.** The judgment-shaped
+  remainder PLAN-003's deterministic checks can't cover. Everything ships **advisory**; nothing
+  blocks until mechanically calibrated.
+  - **Advisory spec-conformance judge** (`spec-judge` agent, all templates) — reads only the
+    spec + diff (never the transcript), emits per-AC + intent + abstraction verdicts
+    (PASS/FAIL/UNKNOWN) into the plan log, routing UNKNOWN to `.rigel/judge-review-queue/`.
+    Wired into `/garbage-collect` as a log-only step. New `judge` role (opus) in
+    `model-routing.json`.
+  - **Advisory vision judge** (`vision-judge` agent, nextjs) — layout sanity only (hierarchy /
+    spacing-sanity / state-completeness); token adherence stays the deterministic AC-6 check.
+    Screenshot capture via `tests/design/capture-screens.spec.ts`.
+  - **Golden-set harness** in `evals/` (repo-level, unpublished, zero-dep): three frozen golden
+    specs; a "no green reference, no entry" loader; per-check trial scoring with pass^k and
+    ERRORED≠FAILED; regression detection (fail ≥2/3 AND baseline-passed, with the METR
+    "human reads the transcript" rule); champion/challenger via a two-sided sign-flip test;
+    a calibration harness with the deterministic-overlap bootstrap and per-dimension κ; and the
+    grader cost-down (opus-vs-cheaper) parity experiment.
+  - **Mechanical promotion gate** (`promotion-check.mjs`, in `repo-integrity.yml`): a judge
+    dimension may go blocking only by citing a fresh (≤90-day), threshold-meeting calibration
+    report — CI refuses otherwise. The judge model is pinned (documented exception to no-pins).
+  - Solo-maintainer honest by construction: with one labeler, human-vs-human κ isn't
+    established, so judge-exclusive dimensions stay reduced-confidence and advisory rather than
+    inventing a κ; only deterministic-overlap dimensions can be promoted.
+
+### Note
+
+- Deferred to a later pass (infra/API-heavy): the golden **reference solutions**, the live
+  **`run-trial.mjs`** runner (headless agent execution + `ANTHROPIC_API_KEY`), and the golden
+  nightly workflow. All deterministic harness logic is complete and tested on fixtures
+  (`npm run test:evals`).
+
 ## [0.5.0] - 2026-07-18
 
 ### Added

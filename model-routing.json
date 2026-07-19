@@ -12,6 +12,11 @@
     "grader": {
       "model": "opus",
       "used_by": ["contract-checker", "gate-checker", "reviewer", "security-auditor"]
+    },
+    "judge": {
+      "model": "opus",
+      "_comment": "PLAN-004 advisory LLM judges. Opus so the judge sits a tier above sonnet builders; same family, so self-preference is only partially mitigated (recorded in every calibration report). Judges are ADVISORY until a calibration report promotes a dimension to blocking (evals/harness/promotion-check.mjs).",
+      "used_by": ["spec-judge", "vision-judge"]
     }
   },
   "escalation": {

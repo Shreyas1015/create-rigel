@@ -1,13 +1,15 @@
 {
   "name": "create-rigel",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Scaffold an agent-first, gate-enforced starter project — Next.js, Express+TypeScript, NestJS, or FastAPI — wired for Claude Code.",
   "type": "module",
   "bin": {
     "create-rigel": "cli.js"
   },
   "scripts": {
-    "test": "node test/smoke.mjs"
+    "test": "node test/smoke.mjs",
+    "test:evals": "node evals/harness/lib/eval-lib.test.mjs && node evals/harness/load-golden.test.mjs && node evals/harness/score.test.mjs && node evals/harness/calibrate.test.mjs && node evals/harness/champion.test.mjs && node evals/harness/parity.test.mjs",
+    "eval:promote-check": "node evals/harness/promotion-check.mjs"
   },
   "files": [
     "cli.js",

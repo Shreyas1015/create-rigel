@@ -40,3 +40,18 @@ close over it. Re-run `npm run ac:vector` until it is green, then close the plan
 (The per-layer gate only enforces the STATIC arch checks — traceability +
 assertion-integrity — so acceptance tests are legitimately red mid-build; this vector is the
 one place their green state is required.)
+
+---
+
+## Advisory spec-judge (log-only, never blocks)
+
+The AC vector proves the *named* criteria pass; it cannot judge whether the spec's **intent**
+was honored or the **abstraction** is right. After the vector is green, run the advisory judge:
+
+- Call the `spec-judge` agent. It reads ONLY the spec + the feature diff (never this transcript),
+  and appends an `### spec-judge (ADVISORY — non-blocking)` block to the active plan with a
+  per-AC + intent + abstraction verdict, routing anything UNKNOWN to `.rigel/judge-review-queue/`.
+
+This is **advisory**: it does NOT gate plan-close. Do not fix code just to satisfy the judge and
+do not skip closing because of a judge FAIL — surface its block to the human. (The judge stays
+log-only until a calibration report promotes a dimension to blocking.)

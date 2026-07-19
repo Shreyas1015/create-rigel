@@ -43,14 +43,23 @@ function assertEvalFiles(dir, stack) {
     `${stack}: CODEOWNERS missing the acceptance-holdout line`
   );
 
+  // PLAN-004: the advisory spec-judge ships in every template's agents dir.
+  assert.ok(
+    has(dir, ".claude/agents/spec-judge.md"),
+    `${stack}: missing spec-judge agent (PLAN-004)`
+  );
+
   if (stack === "nextjs") {
-    // Generated template: arch tests + holdout are written by infra-setup.sh.
+    // The vision-judge ships only for nextjs.
+    assert.ok(has(dir, ".claude/agents/vision-judge.md"), `${stack}: missing vision-judge agent`);
+    // Generated template: arch tests + holdout + judge screenshot capture are written by infra-setup.sh.
     const infra = reads(dir, ".claude/scripts/infra-setup.sh");
     for (const marker of [
       "tests/architecture/traceability.test.ts",
       "tests/architecture/assertion-integrity.test.ts",
       "tests/acceptance/.gitkeep",
       "tests/design/token-conformance.spec.ts", // AC-6
+      "tests/design/capture-screens.spec.ts", // AC-2 vision-judge input
     ]) {
       assert.ok(infra.includes(marker), `${stack}: infra-setup.sh does not write ${marker}`);
     }
