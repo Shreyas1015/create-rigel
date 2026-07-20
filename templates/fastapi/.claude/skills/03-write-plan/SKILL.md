@@ -90,6 +90,20 @@ Save to: `docs/exec-plans/active/PLAN-XXX-{slug}.md`
 *(filled during build)*
 ```
 
+## Step 4b — Cut the feature branch (from `main`, per `.rigel/git-policy.json`)
+
+The build loop runs on a feature branch, **never on `main`** (protected). Cut it now, named to
+match the policy pattern `^(feat|fix|chore|hotfix)/PLAN-\d{3}-[a-z0-9-]+$`, same `PLAN-XXX-{slug}`
+as the plan file (`feat/` for a new feature; `fix/`/`chore/` when apt):
+
+```bash
+trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .rigel/git-policy.json)
+git switch "$trunk" && git pull --ff-only origin "$trunk" 2>/dev/null || true
+git switch -c feat/PLAN-XXX-{slug}      # resuming? use: git switch feat/PLAN-XXX-{slug}
+```
+
+`/build-layer` commits + pushes THIS branch each layer; `/open-pr` later lands it on `main`.
+
 ## Step 5 — Update Spec + Index
 APPEND `PLAN-XXX` to the spec's `**Plan:**` field (do not overwrite) — a spec split across
 several plans lists them all, e.g. `**Plan:** PLAN-003, PLAN-007`. Update index status to `PLANNED`.

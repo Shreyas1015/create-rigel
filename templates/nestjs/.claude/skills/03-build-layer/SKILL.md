@@ -244,7 +244,7 @@ Call `gate-checker` agent. Auto-fix failures. Re-run up to 3 times.
 git add -A
 git commit -m "{feat|chore|test}({feature}): {description}
 PLAN-XXX Layer N/Total"
-git push origin main
+git push origin "$(git branch --show-current)"   # the feature branch — never main (protected)
 ```
 
 ## Step 7 — Report + Wait

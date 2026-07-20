@@ -81,6 +81,48 @@ than false-failing. (Logged; docs note deferred with DF-11/12/13.)
 | DF-12 | nextjs | doc | Skill Step 8 "Write ADR-000" would clobber the template-shipped `ADR-000`. | Drop/rewrite Step 8 (ADR-000 ships already). | TO FIX |
 | DF-13 | nextjs+express | doc | Skill Step 1 "one overlap (.gitignore)" understates the restore-overlap set (`AGENTS.md`, `eslint.config.mjs`…); express gate-description omits `assert:tests`; Step-6 "already exists" list omits shipped arch tests. | Soften/refresh the stale skill sentences. | TO FIX |
 
+## Run-3 (F1 auth feature build on rigel-bookmarks-api) — 14 findings, OPEN
+
+F1 shipped (PR #1 open, 8 layers, gate green, AC-1..6 vector all PASS, loop worked). But the
+feature build surfaced real gaps — several in the flagship **git-loop skills** themselves.
+All OPEN (candidate fix batch before F2). CLASS unless noted.
+
+- **DF-17 (P0, git-loop):** `/build-layer` Step 6 hardcodes `git push origin main` — contradicts the
+  feature-branch model and is rejected by main's protection. Guard: push `$(git branch --show-current)`.
+- **DF-18 (P0, git-loop):** **nothing cuts the feature branch** — `/write-plan` only writes the plan,
+  `/open-pr` assumes `feat/PLAN-*` exists. Guard: `/write-plan` cuts `feat/PLAN-xxx-<slug>` from `main`.
+- **DF-19 (P1):** `/write-spec` records red-green while the spec is in `draft/`, but `redgreen-record.mjs`
+  resolves only from `ready/` → deadlock. Guard: align ordering (promote before record, or read draft).
+- **DF-20 (P1):** `npm run db:migrate` broken — `.sequelizerc` → `src/config/database.ts` (TS/ESM, exports a
+  Sequelize instance not CLI config) and `.js` `module.exports` migrations under `"type":"module"`. Guard:
+  ship a CLI-shaped DB config + `.cjs` migrations (or an ESM-compatible runner).
+- **DF-21 (P1):** OpenAPI rule vs exporter mismatch — `api.md` says register paths in the route file, but
+  `openapi.export.ts` imports only `runtime/openapi.ts` → `wrote 0 path(s)` silently. Guard: register in openapi.ts.
+- **DF-22 (P1):** acceptance/`ac:vector` hit real endpoints but no step provisions the DB schema. Guard:
+  schema provisioning in the acceptance/eval setup.
+- **DF-23 (P2):** `authLimiter` (10/min/IP) makes the app's OWN acceptance suite 429. Guard: rate-limit
+  test-env bypass shipped.
+- **DF-24 (P1):** per-directory coverage thresholds fail on unused scaffold code (providers/rbac, featureFlags,
+  jwt.revokeToken, health 503) the first feature never touches → first feature can't pass coverage. Guard:
+  scope coverage to touched layers / exclude unused scaffold.
+- **DF-25 (P2):** open Redis/DB handles hang the full jest suite (module-singleton ioredis never closes).
+  Guard: `forceExit` + teardown that closes handles.
+- **DF-26 (P2):** shared DB + parallel jest workers race (`sync force:true`/truncate, no per-worker DB).
+  Guard: `maxWorkers:1` or per-worker DB.
+- **DF-27 (P2):** plan-template "Layer Build Order" is a table with no `[ ]` checkboxes, but `/build-layer`
+  Step 1 looks for the first `[ ]`. Guard: align the plan template with checkboxes.
+- **DF-28 (P2):** `/open-pr` title = last commit subject (a trailing `test:`/`chore:` for a multi-commit PR).
+  Guard: derive the title from the spec/plan.
+- **DF-29 (P0, git-loop):** **CODEOWNERS placeholders + `require_code_owner_reviews` = unmergeable first PR.**
+  Protection requests zero reviewers (`@your-team/*` don't exist) → PR #1 permanently `REVIEW_REQUIRED`/BLOCKED.
+  Bootstrapping deadlock. Guard: ship CODEOWNERS commented-out (or don't require codeowner review until it has
+  real entries); document the one-time setup.
+- **DF-30 (P2):** express CI/Actions workflows did NOT run on PR #1 (no workflow runs, no required checks).
+  Needs investigating — the template ships ci.yml + git-policy.yml. Guard: confirm Actions enabled / triggers.
+- **DF-31 (instance, self-corrected):** `import argon2` default vs named-only exports; and repo importing the
+  model directly bypasses the `models/index` `addModels` barrel → "Model not initialized". Under-documented
+  scaffold conventions (worth a skill note).
+
 ## Positives confirmed live
 - Both templates' `/infra-setup` complete; nextjs PLAN-005 design stack fully works
   (tokens→@theme, design:drift/waivers:check green, impeccable detector installed).

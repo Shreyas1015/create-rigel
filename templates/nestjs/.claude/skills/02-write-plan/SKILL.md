@@ -49,5 +49,13 @@ Layer order for each NestJS feature:
 | 7 | Module | SequelizeModule.forFeature, registered in AppModule |
 | 8 | Tests | service unit (mock repo) + e2e (201, 401, 422) |
 
-4. In `docs/product-specs/ready/SPEC-XXX.md`, append `PLAN-XXX` to the `**Plan:**` field.
-5. Tell human: Run /build-layer to start Layer 1.
+4. **Cut the feature branch** from `main` (never build on `main` — it's protected), matching the
+   policy pattern `^(feat|fix|chore|hotfix)/PLAN-\d{3}-[a-z0-9-]+$`, same `PLAN-XXX-{slug}`:
+   ```bash
+   trunk=$(sed -n 's/.*"trunk"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .rigel/git-policy.json)
+   git switch "$trunk" && git pull --ff-only origin "$trunk" 2>/dev/null || true
+   git switch -c feat/PLAN-XXX-{slug}
+   ```
+   `/build-layer` commits + pushes this branch each layer; `/open-pr` lands it on `main`.
+5. In `docs/product-specs/ready/SPEC-XXX.md`, append `PLAN-XXX` to the `**Plan:**` field.
+6. Tell human: Run /build-layer to start Layer 1.

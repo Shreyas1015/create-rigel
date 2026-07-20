@@ -198,7 +198,8 @@ git commit -m "{type}({scope}): {description}
 
 PLAN-XXX Layer N/Total"
 
-git push origin main
+# Push the CURRENT feature branch — never main (it's protected; the loop lands via /open-pr).
+git push origin "$(git branch --show-current)"
 ```
 
 Conventional commit types: `feat`, `fix`, `chore`, `refactor`, `test`, `docs`

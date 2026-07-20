@@ -130,7 +130,7 @@ git commit -m "{feat|chore|test}({scope}): {description}
 {bullet points}
 
 PLAN-XXX Layer N/Total"
-git push origin main
+git push origin "$(git branch --show-current)"   # the feature branch — never main (protected)
 ```
 
 ---
