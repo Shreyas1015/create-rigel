@@ -36,6 +36,8 @@ const eslintConfig = defineConfig([
     'src/types/api.generated.ts',
     'src/components/ui/**',
     'tests/load/**', // k6 scripts run in the k6 runtime, not linted as app code
+    '**/skills/impeccable/**', // vendored Impeccable skill code (installed by /infra-setup) — not app code (DF-4)
+    '**/*.umd.js', // minified UMD bundles (e.g. Impeccable's modern-screenshot) — never lint (DF-4)
   ]),
 
   // Harness-wide rules

@@ -66,7 +66,12 @@ function testBody(call: ts.CallExpression): ts.Node | null {
 function matchersOf(expectCall: ts.Node): string[] {
   const names: string[] = []
   let cur: ts.Node | undefined = expectCall.parent
-  while (cur && (ts.isPropertyAccessExpression(cur) || ts.isCallExpression(cur) || ts.isElementAccessExpression(cur))) {
+  while (
+    cur &&
+    (ts.isPropertyAccessExpression(cur) ||
+      ts.isCallExpression(cur) ||
+      ts.isElementAccessExpression(cur))
+  ) {
     if (ts.isPropertyAccessExpression(cur)) names.push(cur.name.text)
     cur = cur.parent
   }
@@ -84,7 +89,11 @@ function hasMeaningfulAssertion(body: ts.Node): boolean {
   let meaningful = false
   const visit = (node: ts.Node): void => {
     if (meaningful) return
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'expect') {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'expect'
+    ) {
       const argLiteral = isLiteral(node.arguments[0])
       const matchers = matchersOf(node)
       const invoked = matchers.length > 0

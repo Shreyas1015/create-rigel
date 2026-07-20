@@ -32,7 +32,9 @@ function importSpecifiers(file: string): string[] {
   const specs: string[] = []
   const re = /(?:from\s+|require\(\s*)['"]([^'"]+)['"]/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(src)) !== null) { if (m[1] !== undefined) specs.push(m[1]) }
+  while ((m = re.exec(src)) !== null) {
+    if (m[1] !== undefined) specs.push(m[1])
+  }
   return specs
 }
 
@@ -53,7 +55,15 @@ function findViolations(layerDir: string, forbidden: string[]): string[] {
 
 describe('architecture: layer import boundaries', () => {
   it('types imports nothing from other layers', () => {
-    const v = findViolations('types', ['config', 'models', 'repo', 'services', 'runtime', 'providers', 'utils'])
+    const v = findViolations('types', [
+      'config',
+      'models',
+      'repo',
+      'services',
+      'runtime',
+      'providers',
+      'utils',
+    ])
     expect(v).toEqual([])
   })
 
@@ -77,7 +87,14 @@ describe('architecture: layer import boundaries', () => {
   })
 
   it('utils has zero domain imports', () => {
-    const v = findViolations('utils', ['config', 'models', 'repo', 'services', 'runtime', 'providers'])
+    const v = findViolations('utils', [
+      'config',
+      'models',
+      'repo',
+      'services',
+      'runtime',
+      'providers',
+    ])
     expect(v).toEqual([])
   })
 })

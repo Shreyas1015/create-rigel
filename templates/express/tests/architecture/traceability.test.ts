@@ -25,7 +25,9 @@ const AC_ID = /\bAC-\d+\b/g
 
 function firstActivePlan(): string | null {
   if (!existsSync(ACTIVE_DIR)) return null
-  const plans = readdirSync(ACTIVE_DIR).filter((f) => f.endsWith('.md')).sort()
+  const plans = readdirSync(ACTIVE_DIR)
+    .filter((f) => f.endsWith('.md'))
+    .sort()
   return plans.length ? join(ACTIVE_DIR, plans[0]!) : null
 }
 
@@ -77,7 +79,9 @@ function acIdsWithTests(specId: string): Set<string> {
 
 function readRedGreen(specId: string): { tests?: Record<string, unknown> } | null {
   const f = join(REDGREEN_DIR, `${specId}.json`)
-  return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as { tests?: Record<string, unknown> }) : null
+  return existsSync(f)
+    ? (JSON.parse(readFileSync(f, 'utf8')) as { tests?: Record<string, unknown> })
+    : null
 }
 
 const plan = firstActivePlan()

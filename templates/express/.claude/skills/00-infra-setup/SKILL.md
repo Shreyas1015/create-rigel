@@ -83,7 +83,7 @@ npm install -D \
   eslint \
   @typescript-eslint/eslint-plugin \
   @typescript-eslint/parser \
-  eslint-plugin-boundaries \
+  eslint-plugin-boundaries@^6 \
   eslint-import-resolver-typescript \
   prettier \
   eslint-config-prettier \
@@ -135,10 +135,14 @@ Create `src/config/metrics.ts` — counter/histogram helpers (uses only `@opente
 > belong in Config. The `NodeSDK` itself stays in `providers/telemetry.ts` (Step 4).
 
 **`src/config/env.ts`** — the OTEL block (append to the existing schema). Use `z.stringbool()`
-for boolean flags — **never** `z.coerce.boolean()` (it turns the string `"false"` into `true`):
+for boolean flags — **never** `z.coerce.boolean()` (it turns the string `"false"` into `true`).
+**The very first line of `env.ts` must be `import 'dotenv/config'`** — `dotenv` is installed in
+Step 1 but nothing loads it otherwise, so without this a local `.env` is silently ignored:
 ```typescript
 // ...inside the zod schema object...
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),  // blank/unset ⇒ SDK no-ops
+  // blank OR unset ⇒ SDK no-ops. z.string().url() rejects "", and .env.example ships this
+  // var blank, so preprocess an empty string to undefined before the optional URL check.
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   OTEL_SERVICE_NAME: z.string().default('app'),
   OTEL_METRIC_EXPORT_INTERVAL_MS: z.coerce.number().int().positive().default(10000),
   APP_VERSION: z.string().default('0.0.1'),

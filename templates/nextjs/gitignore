@@ -43,3 +43,9 @@ Thumbs.db
 .rigel/mutation/
 .rigel/screens/
 reports/mutation/
+
+# Impeccable skills are installed by /infra-setup (npx impeccable install) — regenerable,
+# not committed (like node_modules). The detector + Rigel's severity config in .claude/hooks/
+# ARE committed. (DF-4)
+.claude/skills/impeccable/
+.github/skills/impeccable/

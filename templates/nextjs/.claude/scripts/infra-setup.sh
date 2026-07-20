@@ -63,7 +63,12 @@ npm install -D style-dictionary
 # devDep the post-write hook + gate call; `impeccable install` adds the agent-facing skills
 # (best-effort, non-fatal — safe to run later with `npx impeccable install`).
 npm install -D impeccable
-npx --yes impeccable install || echo "  ⚠ impeccable skills install skipped (run 'npx impeccable install' later)"
+# Non-interactive: `impeccable install` prompts for target/location, so feed it /dev/null
+# (auto-takes the detected-project defaults) under a timeout so a prompt can never hang the
+# deterministic setup. Non-fatal — safe to re-run `npx impeccable install` later. (DF-5)
+(command -v timeout >/dev/null 2>&1 && timeout 120 npx --yes impeccable install </dev/null \
+  || npx --yes impeccable install </dev/null) \
+  || echo "  ⚠ impeccable skills install skipped (run 'npx impeccable install' later)"
 
 echo "▶ Step 2 — shadcn/ui init + base components (non-interactive)"
 npx shadcn@latest init -d
@@ -270,6 +275,28 @@ import { server } from './mocks/server'
 beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
+EOF
+
+# DF-3 (PLAN-006): tests/setup.ts imports ./mocks/server, so ship a runnable MSW stub NOW —
+# otherwise typecheck + every test file break immediately after infra-setup (before the
+# Step-5 hand-authored mocks exist). An empty handler list is a valid start; feature tests
+# add/override handlers via server.use(...).
+write_if_absent tests/mocks/handlers.ts <<'EOF'
+import type { RequestHandler } from 'msw'
+
+// MSW request handlers. Empty is a valid starting point — tests/setup.ts warns on any
+// unhandled request rather than failing. Add per-endpoint handlers as features land, or
+// override per-test with `server.use(...)`.
+export const handlers: RequestHandler[] = []
+EOF
+
+write_if_absent tests/mocks/server.ts <<'EOF'
+import { setupServer } from 'msw/node'
+import { handlers } from './handlers'
+
+// Node (vitest) MSW server used by tests/setup.ts. Feature tests register or override
+// handlers with `server.use(...)`.
+export const server = setupServer(...handlers)
 EOF
 
 echo "▶ Step 6 — gate-critical test artifacts (the gate references these — ship them real)"
@@ -699,6 +726,27 @@ if [[ -n "${GLOBALS:-}" ]] && ! grep -q 'tokens.css' "$GLOBALS"; then
     printf '@import "./tokens.css";\n%s' "$(cat "$GLOBALS")" >"$GLOBALS"
   fi
   echo "  • imported tokens.css into $GLOBALS"
+fi
+
+# DF-2 (PLAN-006): create-next-app ships a demo page.tsx full of arbitrary values
+# (hover:bg-[#383838], md:w-[158px]…) that the AC-2 `no-arbitrary-value` lint rule rejects
+# with no autofix — so the gate's lint step could never go green on a fresh scaffold.
+# Replace it with a minimal, token-only placeholder (only @theme tokens + built-in utilities).
+if [[ -f src/app/page.tsx ]]; then
+  cat >src/app/page.tsx <<'EOF'
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-8 text-foreground">
+      <h1 className="text-xl font-semibold">Welcome to your Rigel app</h1>
+      <p className="text-base">
+        Edit <code className="rounded-sm bg-muted px-1">src/app/page.tsx</code>, then run{' '}
+        <code className="rounded-sm bg-muted px-1">/build-layer</code> to start building.
+      </p>
+    </main>
+  )
+}
+EOF
+  echo "  • replaced create-next-app demo page.tsx with a token-clean placeholder (DF-2)"
 fi
 
 # ── PLAN-005 AC-3 — Impeccable project config (detector ignores) ───────────────
