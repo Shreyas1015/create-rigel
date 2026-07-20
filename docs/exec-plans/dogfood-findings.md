@@ -27,6 +27,13 @@ Severity: **P0** blocks the build/commit · **P1** breaks a gate/commit path · 
 setup.ts helper-signature contract (DF-11), redundant skill Step-8 "Write ADR-000" (DF-12),
 skill doc-drift sentences (DF-13). Kept logged here; not fixed in this batch.
 
+**Run-2 (real-repo rebuild from fixed templates) — DF-14 (nextjs, P2): FIXED.** The harness
+`gitignore` (which replaces create-next-app's on park-and-restore) omitted `*.tsbuildinfo` and
+`next-env.d.ts`, so `tsconfig.tsbuildinfo` (a build cache) got committed into the initial commit.
+Guard: added both to `templates/nextjs/gitignore` (Build output). Class — every nextjs scaffold
+would otherwise commit the cache. Both templates' gates were GREEN on rebuild; express commit +
+branches pending its agent's report.
+
 ## Blockers (must fix before feature builds F1+)
 
 | ID | Template | Sev | Class? | What broke | Mechanical guard | Status |
