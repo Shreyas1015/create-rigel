@@ -34,6 +34,25 @@ Guard: added both to `templates/nextjs/gitignore` (Build output). Class — ever
 would otherwise commit the cache. Both templates' gates were GREEN on rebuild; express commit +
 branches pending its agent's report.
 
+**Phase-0.5 (real-remote) — DF-15 (nextjs, P1, CLASS): FIXED.** On the real remote, `protect-branch.sh`
++ `check-protection-drift.sh` **failed on the nextjs repo but PASSED on express**. Root cause: nextjs
+`.lintstagedrc.json` prettifies `*.{json,…}` (and `npm run format` is `prettier --write .`), so prettier
+**reformats `.rigel/git-policy.json`'s single-line protection objects to multi-line** — which breaks the
+toolchain-free single-line `grep`/`sed` policy readers in `.githooks/*`, `protect-branch.sh`, and
+`check-protection-drift.sh` (`branch_bool` returns empty → `set -e` abort). Express was immune only because
+the DF-1 fix scoped its lint-staged to `.ts`. The single-line format is a **load-bearing machine-read
+contract**. Guard: added `.rigel/` to `templates/nextjs/.prettierignore` (covers both lint-staged and
+`format`). (Deeper fragility noted for later: the shell readers assume single-line JSON — a hand-reformat
+would still break them; a multi-line-robust reader is a future hardening.) Also required a live
+GitHub-tier finding:
+
+**Phase-0.5 environment — DF-16 (both, P2, doc): branch protection requires a public repo or GitHub
+Pro.** On a free plan, `gh api .../branches/*/protection` returns 403 "Upgrade to Pro or make public"
+for PRIVATE repos, so `protect-branch.sh` can't apply protection and the drift check silently SKIPS.
+The dogfood repos were made public to verify. Guard: `docs/git-workflow.md` should note that branch
+protection needs a public repo or a paid plan; the drift check already degrades gracefully (skips) rather
+than false-failing. (Logged; docs note deferred with DF-11/12/13.)
+
 ## Blockers (must fix before feature builds F1+)
 
 | ID | Template | Sev | Class? | What broke | Mechanical guard | Status |
