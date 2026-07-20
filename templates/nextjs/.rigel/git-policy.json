@@ -30,9 +30,10 @@
     }
   },
   "protection": {
-    "main":    { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "require_codeowner_review": true },
-    "staging": { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "require_codeowner_review": true }
+    "main":    { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "required_approving_reviews": 0, "require_codeowner_review": false, "enforce_admins": false },
+    "staging": { "linear_history": false, "allowed_merges": ["merge"], "require_pull_request": true, "required_approving_reviews": 0, "require_codeowner_review": false, "enforce_admins": false }
   },
+  "protection_note": "Defaults are SOLO-FRIENDLY so a single maintainer can merge their own PRs: 0 required approvals (GitHub forbids approving your own PR), no code-owner review, enforce_admins=false (an admin can override). The workflow is still enforced — PR-only, no force-push, no branch deletion. Harden per branch as the team grows: raise required_approving_reviews, set require_codeowner_review=true (and fill .github/CODEOWNERS with real teams), set enforce_admins=true. protect-branch.sh and check-protection-drift.sh read these fields.",
   "unprotected_note": "'drop' is intentionally NOT protected — it is a disposable deploy-trigger branch that the pipeline (and developers) reset and force-update freely. It never merges into main or staging directly; the pipeline advances staging to the validated commit after stage tests pass.",
   "require_plan_reference": true,
   "auto_delete_head": true,

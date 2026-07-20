@@ -37,6 +37,10 @@ branch_bool() { # $1=branch $2=key → true|false (from that branch's protection
   grep -E "\"$1\"[[:space:]]*:[[:space:]]*\{" "$policy" \
     | grep -oE "\"$2\"[[:space:]]*:[[:space:]]*(true|false)" | grep -oE 'true|false'
 }
+branch_num() { # $1=branch $2=key → integer (from that branch's protection line)
+  grep -E "\"$1\"[[:space:]]*:[[:space:]]*\{" "$policy" \
+    | grep -oE "\"$2\"[[:space:]]*:[[:space:]]*[0-9]+" | grep -oE '[0-9]+$'
+}
 auto_delete=$(grep -oE '"auto_delete_head"[[:space:]]*:[[:space:]]*(true|false)' "$policy" | grep -oE 'true|false')
 
 run() { # echo + (unless dry-run) execute
@@ -53,16 +57,22 @@ run gh api --method PATCH "repos/$repo" \
   -F delete_branch_on_merge="${auto_delete:-true}"
 
 # --- per-branch protection -------------------------------------------------------
+# All protection knobs come from policy.protection.<branch> (solo-friendly defaults — see the
+# git-policy.json protection_note; harden there as the team grows). PR-only, no force-push, and
+# no branch deletion are always on.
 for branch in $(scalar_list protected); do
   linear=$(branch_bool "$branch" linear_history)
-  echo "Protecting '$branch' (required_linear_history=$linear, PR + CODEOWNERS review, no force-push/delete)"
+  approvals=$(branch_num "$branch" required_approving_reviews)
+  codeowner=$(branch_bool "$branch" require_codeowner_review)
+  admins=$(branch_bool "$branch" enforce_admins)
+  echo "Protecting '$branch' (linear=${linear:-false}, approvals=${approvals:-0}, codeowner=${codeowner:-false}, enforce_admins=${admins:-false}, PR-only, no force-push/delete)"
   body=$(cat <<JSON
 {
   "required_status_checks": null,
-  "enforce_admins": true,
+  "enforce_admins": ${admins:-false},
   "required_pull_request_reviews": {
-    "required_approving_review_count": 1,
-    "require_code_owner_reviews": true,
+    "required_approving_review_count": ${approvals:-0},
+    "require_code_owner_reviews": ${codeowner:-false},
     "dismiss_stale_reviews": true
   },
   "restrictions": null,

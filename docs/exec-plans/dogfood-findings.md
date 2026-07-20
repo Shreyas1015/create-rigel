@@ -123,6 +123,15 @@ All OPEN (candidate fix batch before F2). CLASS unless noted.
   model directly bypasses the `models/index` `addModels` barrel → "Model not initialized". Under-documented
   scaffold conventions (worth a skill note).
 
+### Run-3 fix status
+- **DF-17, DF-18 — FIXED + committed** (git-loop skills: `/write-plan` cuts the feature branch;
+  `/build-layer` pushes the current branch, not main). All 4 templates.
+- **DF-29 — FIXED** (solo-friendly branch protection). `git-policy.json` protection now defaults to
+  0 approvals / no code-owner review / `enforce_admins:false` (PR-only + no force-push still on);
+  `protect-branch.sh` + `check-protection-drift.sh` read those fields; a `protection_note` documents
+  hardening for teams. A solo maintainer can now merge their own PRs. All 4 templates (byte-identical).
+- **DF-20/21/22/24 (express pipeline) + DF-23/25/26/27/28/30/31** — still OPEN (next).
+
 ## Positives confirmed live
 - Both templates' `/infra-setup` complete; nextjs PLAN-005 design stack fully works
   (tokens→@theme, design:drift/waivers:check green, impeccable detector installed).
