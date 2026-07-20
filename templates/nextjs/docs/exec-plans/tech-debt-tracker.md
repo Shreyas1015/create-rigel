@@ -11,7 +11,7 @@
 ## Open Debt
 | ID | Severity | Area | Description | Created By | Date |
 |---|---|---|---|---|---|
-| *(none yet)* | — | — | — | — | — |
+| TD-001 | P2 | tests/architecture | The AST assertion checker imports the TypeScript compiler API (`import ts from 'typescript'`, written by `/infra-setup` into `tests/architecture/assertion-integrity.test.ts`). The TS7 native (Go) compiler rewrite drops the JS API, so this test breaks under TS7. **Dormant:** create-next-app pins to TS5. **Trigger:** adopting TS7. **Affected:** `tests/architecture/assertion-integrity.test.ts`. | PLAN-006 AC-3 | 2026-07-20 |
 
 ## Resolved Debt
 | ID | Description | Resolved By | Date |

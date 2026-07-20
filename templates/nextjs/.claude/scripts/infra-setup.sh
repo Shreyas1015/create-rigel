@@ -90,6 +90,8 @@ const harness = {
   'test': 'vitest',
   'test:ui': 'vitest --ui',
   'test:coverage': 'vitest run --coverage',
+  // Zero-tests gate guard (PLAN-006 AC-1): fail if the runner executed 0 tests.
+  'assert:tests': 'vitest run --reporter=json --outputFile=.rigel/.vitest-count.json && node scripts/assert-tests-ran.mjs .rigel/.vitest-count.json',
   'test:e2e': 'playwright test',
   'test:visual': 'playwright test tests/visual/',
   'test:design': 'playwright test tests/design/token-conformance.spec.ts', // AC-6 deterministic design-token conformance
@@ -99,7 +101,7 @@ const harness = {
   'lint:fix': 'eslint . --fix',
   'format': 'prettier --write .',
   'format:check': 'prettier --check .',
-  'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run waivers:check && npm run design:drift',
+  'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run assert:tests && npm run waivers:check && npm run design:drift',
   // Deterministic evals (PLAN-003). The per-layer 'gate' already runs the STATIC
   // traceability + assertion-integrity arch tests (test:coverage → vitest includes
   // tests/architecture/). These add the red-green recorder and the feature-completion

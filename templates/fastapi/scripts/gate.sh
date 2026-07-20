@@ -60,6 +60,17 @@ if [[ -d tests/architecture ]]; then
   echo "── architecture tests ──"; uv run pytest tests/architecture/ -q || FAIL=1
 fi
 
+# 12. zero-tests guard (PLAN-006 AC-1) — a runner that collects 0 tests must FAIL LOUDLY,
+# never be indistinguishable from a pass. pytest exit code 5 = NO_TESTS_COLLECTED.
+echo "── zero-tests guard ──"
+rc=0
+uv run pytest tests/ --collect-only -q >/dev/null 2>&1 || rc=$?
+if [[ $rc -eq 5 ]]; then
+  echo "🚫 zero-tests guard: pytest collected 0 tests (exit 5). A runner that finds nothing is NOT a pass."; FAIL=1
+elif [[ $rc -ne 0 ]]; then
+  echo "🚫 zero-tests guard: pytest collection errored (exit $rc) — failing rather than assuming success."; FAIL=1
+fi
+
 echo "─────────────────────────────"
 if [[ $FAIL -ne 0 ]]; then
   echo "GATE: ❌ FAIL"
