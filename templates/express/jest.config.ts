@@ -3,6 +3,17 @@ import type { Config } from 'jest'
 const config: Config = {
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
+  // DB-backed suites (integration + acceptance) share ONE Postgres and reset it (sync/truncate);
+  // run serially so parallel workers can't wipe each other's rows mid-test.
+  maxWorkers: 1,
+  // The app owns a module-singleton ioredis client that supertest-based suites can't close;
+  // force-exit after the run completes so those open handles don't hang the process at teardown.
+  forceExit: true,
+  // Provision the DB schema once, before any suite, so acceptance tests (and `ac:vector` /
+  // `redgreen:record`, which run only the acceptance dir) hit a real schema without out-of-band
+  // table creation. Best-effort + guarded: a no-op when no migrations exist yet or no DB is
+  // reachable, so the DB-free arch-test gate (`npm run test:arch`) is unaffected.
+  globalSetup: '<rootDir>/tests/setup/provision-schema.mjs',
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -21,6 +32,11 @@ const config: Config = {
     '!src/**/*.d.ts',
     '!src/runtime/server.ts',
     '!src/providers/telemetry.ts', // boot-only OTel SDK wiring, like server.ts
+    // Optional scaffold providers shipped by /infra-setup but not exercised until a feature
+    // adopts them — excluded so their unused branches don't sink the providers/ threshold on
+    // the first feature. Delete the matching line here once a feature starts using one.
+    '!src/providers/auth/rbac.ts', // role guard — used once a feature needs RBAC
+    '!src/providers/featureFlags.ts', // flag reader — used once a feature adds a flag
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

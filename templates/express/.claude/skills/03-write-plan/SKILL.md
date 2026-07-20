@@ -83,7 +83,7 @@ Save to: `docs/exec-plans/active/PLAN-XXX-{slug}.md`
 | 1 | Types | `src/types/{entity}.types.ts`, `common.types.ts` | Zero imports, zero logic |
 | 2 | Config | `src/config/env.ts` update, `constants.ts` | No process.env elsewhere |
 | 3 | Models | `src/models/{Entity}.model.ts` × N | paranoid, UUIDv7, indexes |
-| 4 | Migrations | `db/migrations/YYYYMMDD-create-{table}.js` × N | Runs clean, has down() |
+| 4 | Migrations | `db/migrations/YYYYMMDD-create-{table}.cjs` × N | Runs clean, has down() |
 | 5 | Repo | `src/repo/{entity}.repo.ts` × N | Zod parse, cursor pagination, ownership, no N+1 |
 | 6 | Service | `src/services/{domain}.service.ts` × N | No express imports, ≥90% coverage |
 | 7 | Runtime | `src/runtime/routes/v1/{resource}.route.ts` × N | Auth first, envelope, rate-limit |

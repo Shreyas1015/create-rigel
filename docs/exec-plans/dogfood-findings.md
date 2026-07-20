@@ -130,7 +130,19 @@ All OPEN (candidate fix batch before F2). CLASS unless noted.
   0 approvals / no code-owner review / `enforce_admins:false` (PR-only + no force-push still on);
   `protect-branch.sh` + `check-protection-drift.sh` read those fields; a `protection_note` documents
   hardening for teams. A solo maintainer can now merge their own PRs. All 4 templates (byte-identical).
-- **DF-20/21/22/24 (express pipeline) + DF-23/25/26/27/28/30/31** — still OPEN (next).
+- **DF-20/21/22/23/24/25/26 (express pipeline) — FIXED** (verified): `db:migrate` via a new
+  `db/config.cjs` + `.cjs` migrations (root cause reproduced AND fix confirmed against the real
+  sequelize-cli 6.6.5 / umzug 2.3.0); OpenAPI now registers in `openapi.ts` (rule + skill aligned to
+  the exporter); jest `globalSetup` `provision-schema.mjs` runs migrations (guarded — DB-free arch
+  gate + red-green recording unaffected); coverage excludes unexercised scaffold (rbac/featureFlags)
+  without weakening feature thresholds; rate-limit test-env skip; `forceExit` + `maxWorkers:1`.
+  Consistency edits across `database.md`, `03-write-plan`, `04-build-layer`, `10-db-optimize`
+  (migrations are `.cjs`; index CONCURRENTLY only on populated tables).
+- **New residuals (logged):** **DF-32** — jest `coverageThreshold` with a zero-file path glob throws
+  "coverage data not found" (latent; a pre-feature / provider-only commit could trip it). **DF-24-residual**
+  — F1's own coverage gap is *feature test debt* (it never tested its 401/409/revoked-token branches),
+  NOT a scaffold issue; a feature that follows `testing.md` meets thresholds. **DF-27/28/30/31** doc nits
+  still OPEN.
 
 ## Positives confirmed live
 - Both templates' `/infra-setup` complete; nextjs PLAN-005 design stack fully works

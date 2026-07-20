@@ -2,7 +2,7 @@
 paths:
   - "src/repo/**/*.ts"
   - "src/models/**/*.ts"
-  - "db/migrations/**/*.js"
+  - "db/migrations/**/*.cjs"
 ---
 
 # Database Rules — Auto-injected on repo/model/migration edits

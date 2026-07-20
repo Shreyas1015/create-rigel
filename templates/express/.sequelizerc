@@ -1,7 +1,10 @@
 const path = require('path')
 
 module.exports = {
-  config: path.resolve('src', 'config', 'database.ts'),
+  // sequelize-cli needs a CLI-shaped config ({ development, test, production }) loaded as
+  // CommonJS — NOT src/config/database.ts (that's the app's runtime Sequelize *instance*, an
+  // ESM/TS module the CLI can't consume). db/config.cjs reads DATABASE_URL. See db/config.cjs.
+  config: path.resolve('db', 'config.cjs'),
   'models-path': path.resolve('src', 'models'),
   'seeders-path': path.resolve('db', 'seeders'),
   'migrations-path': path.resolve('db', 'migrations'),

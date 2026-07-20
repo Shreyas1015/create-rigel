@@ -49,10 +49,13 @@ SQL
 ## Step 4 — Add Index via Migration
 ```bash
 npx sequelize-cli migration:generate --name add-idx-{table}-{columns}
+# `migration:generate` writes a .js file, but this package is "type": "module", so that file is
+# parsed as ESM and its `module.exports` throws. Rename it to .cjs (forced CommonJS):
+mv db/migrations/*-add-idx-{table}-{columns}.js db/migrations/*-add-idx-{table}-{columns}.cjs
 ```
 
 ```javascript
-// In the generated migration file:
+// In the generated migration file (.cjs):
 module.exports = {
   up: async (queryInterface) => {
     await queryInterface.sequelize.query(

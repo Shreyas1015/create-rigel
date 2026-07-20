@@ -132,11 +132,20 @@ This is what the `security-auditor` A04 check ("idempotency keys on mutation end
 ### OpenAPI registration (every route)
 
 The harness publishes one machine-readable contract for the frontend's `openapi-fetch` client.
-Every route registers its Zod request/response schemas + path into the registry in
-`src/runtime/openapi.ts`, then `npm run openapi:export` regenerates `docs/generated/openapi.{json,yaml}`.
+For every path, add a `registry.registerPath({...})` call **inside `src/runtime/openapi.ts`
+itself** — importing that path's Zod request/response schemas from your `types`/route module —
+then `npm run openapi:export` regenerates `docs/generated/openapi.{json,yaml}`.
+
+**Register in `openapi.ts`, never in the route file.** `scripts/openapi.export.ts` imports only
+`src/runtime/openapi.ts`, so a `registerPath` call living in a route file never runs → the
+exporter silently writes **0 paths**. (And importing routes *into* `openapi.ts` is a circular
+import, because routes import the registry.) So the registry and every registration live together
+in `openapi.ts`:
 
 ```typescript
-import { registry } from '../../openapi.js'
+// src/runtime/openapi.ts
+import { CreateApplicationSchema } from '../types/application.types.js'
+
 registry.registerPath({
   method: 'post',
   path: '/applications',

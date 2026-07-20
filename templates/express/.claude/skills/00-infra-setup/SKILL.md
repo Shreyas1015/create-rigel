@@ -22,7 +22,7 @@ Run each step in order. Gate-check after all steps complete.
 
 ### Step 1 — Install All Dependencies
 
-**Note:** Config files (`package.json`, `tsconfig.json`, `jest.config.ts`, `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env.example`, `eslint.config.mjs`, `.prettierrc`, `.sequelizerc`, `.lintstagedrc.json`, `.nvmrc`) already exist in the template. So do the committed CI/automation files (`.github/workflows/ci.yml`, `.github/workflows/load-test.yml`, `.github/dependabot.yml`) and the OpenAPI exporter (`scripts/openapi.export.ts`). No need to create any of these.
+**Note:** Config files (`package.json`, `tsconfig.json`, `jest.config.ts`, `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env.example`, `eslint.config.mjs`, `.prettierrc`, `.sequelizerc`, `db/config.cjs`, `.lintstagedrc.json`, `.nvmrc`) already exist in the template. So do the committed CI/automation files (`.github/workflows/ci.yml`, `.github/workflows/load-test.yml`, `.github/dependabot.yml`), the OpenAPI exporter (`scripts/openapi.export.ts`), and the jest schema-provisioning hook (`tests/setup/provision-schema.mjs`). No need to create any of these.
 
 Run npm install to get all dependencies:
 ```bash
@@ -125,6 +125,17 @@ Create `src/config/database.ts` — Sequelize instance with pool config + timeou
 models in `src/models/index.ts` via `sequelize.addModels([...])` (import `reflect-metadata` first
 there): `models → config` is the only legal registration edge — neither config nor runtime may
 import the models layer.
+
+> **`database.ts` (runtime instance) vs `db/config.cjs` (CLI config) — two different things.**
+> `src/config/database.ts` is the app's live Sequelize *instance*. `sequelize-cli` can't consume it
+> (it's ESM/TS and exports an instance, not the `{ development, test, production }` shape the CLI
+> needs), so the template ships a separate **`db/config.cjs`** (CommonJS, reads `DATABASE_URL`) that
+> `.sequelizerc` points at. Both files already exist — do not recreate them, and keep them pointing
+> at the same `DATABASE_URL`. **Migration files under `db/migrations/` MUST be `.cjs`**, not `.js`:
+> this package is `"type": "module"`, so a `.js` migration is parsed as ESM and its `module.exports`
+> throws "module is not defined in ES module scope". `.cjs` forces CommonJS (`sequelize-cli` globs
+> `*.{cjs,js,cts,ts}`, so `.cjs` is picked up). `npm run db:migrate` must run clean from a fresh
+> scaffold before any feature's repo layer is built.
 Create `src/config/logger.ts` — pino + trace-correlation mixin + guarded pretty transport.
 Create `src/config/tracing.ts` — `withSpan()` helper (uses only `@opentelemetry/api`).
 Create `src/config/metrics.ts` — counter/histogram helpers (uses only `@opentelemetry/api`).
@@ -222,11 +233,16 @@ export const httpRequestDuration = meter.createHistogram('http.server.duration',
 
 Create `src/providers/redis.ts` — ioredis singleton with retry.
 Create `src/providers/telemetry.ts` — OTel `NodeSDK` init (boot-only, template below).
-Create `src/providers/auth/jwt.ts` — jose sign + verify + revocation.
+Create `src/providers/auth/jwt.ts` — jose sign + verify + revocation. `revokeToken` is scaffold no
+feature exercises until it adds token revocation/logout, so prefix it with
+`/* istanbul ignore next -- scaffold: covered once a feature adds revocation/logout */` to keep the
+`providers/` coverage threshold honest for the code the first feature *does* use.
 Create `src/providers/auth/middleware.ts` — requireAuth.
-Create `src/providers/auth/rbac.ts` — requirePermission.
+Create `src/providers/auth/rbac.ts` — requirePermission. (Coverage-excluded in `jest.config.ts`
+until a feature adopts RBAC — see the note in `collectCoverageFrom`.)
 Create `src/providers/featureFlags.ts` — Redis-backed flag reader with static defaults
 (makes the "feature flags" provider referenced in `ARCHITECTURE.md` real, not aspirational).
+(Coverage-excluded in `jest.config.ts` until a feature adds a flag — see `collectCoverageFrom`.)
 
 **`src/providers/featureFlags.ts`** — reads a Redis hash override, falls back to a static default
 map in `config/constants.ts`. Uses Redis (a sibling provider) + Config only — never `process.env`
@@ -286,13 +302,28 @@ export async function shutdownTelemetry(): Promise<void> {
 ### Step 5 — Runtime Layer
 Create `src/runtime/middleware/helmet.ts` — all 7 headers.
 Create `src/runtime/middleware/cors.ts` — allowlist from env.
-Create `src/runtime/middleware/rateLimiter.ts` — 3 tiers with Redis store.
+Create `src/runtime/middleware/rateLimiter.ts` — 3 tiers with Redis store. **Every tier must
+`skip: () => env.NODE_ENV === 'test'`** — the acceptance suite (and the eval holdout) drives the
+rate-limited auth endpoints many times from one IP, so without the bypass the app's own tests get
+429'd. Production/dev limits are unchanged:
+
+```typescript
+return rateLimit({
+  windowMs, max, standardHeaders: true, legacyHeaders: false,
+  skip: () => env.NODE_ENV === 'test', // never rate-limit the test suite (429s our own acceptance run)
+  store: new RedisStore({ sendCommand: (...a: string[]) => redis.call(a[0] ?? '', ...a.slice(1)) as Promise<number> }),
+})
+```
+
 Create `src/runtime/middleware/requestId.ts` — X-Request-ID propagation.
 Create `src/runtime/middleware/errorHandler.ts` — sanitised errors + logging.
 Create `src/runtime/middleware/idempotency.ts` — Redis-backed idempotency for mutations
 (makes the `security-auditor` A04 "idempotency keys on mutation endpoints" check real).
 Create `src/runtime/openapi.ts` — the OpenAPI registry that `scripts/openapi.export.ts` reads.
-Create `src/runtime/routes/v1/health.route.ts` — /health + /ready (DB ping + Redis ping).
+Create `src/runtime/routes/v1/health.route.ts` — /health + /ready (DB ping + Redis ping). The
+`/ready` 503 branch (a dependency is down) isn't exercised by tests where both deps are up, so
+prefix that `catch` with `/* istanbul ignore next -- scaffold: dependency-down path */` so it
+doesn't sink the `routes/` coverage threshold.
 Create `src/runtime/app.ts` — Express app with all middleware mounted.
 Create `src/runtime/server.ts` — **boot telemetry first**, then listen + SIGTERM graceful shutdown.
 
@@ -301,17 +332,21 @@ Create `src/runtime/server.ts` — **boot telemetry first**, then listen + SIGTE
 returns the cached response with `Idempotent-Replay: true`; a still-in-flight key returns `409 CONFLICT`.
 Skips non-mutating methods and requests with no key. Keep it ≤ 400 lines; back it with the `redis` provider.
 
-**`src/runtime/openapi.ts`** — the contract registry. Routes register their Zod schemas + paths here so
-`npm run openapi:export` emits `docs/generated/openapi.{json,yaml}` (the frontend's `openapi-fetch`
-source of truth). Call `extendZodWithOpenApi(z)` once before any schema uses `.openapi(...)`:
+**`src/runtime/openapi.ts`** — the contract registry AND the home of every `registry.registerPath`
+call. `scripts/openapi.export.ts` imports **only this module**, so paths must be registered *here*,
+importing each path's Zod schemas from the `types` module — **not** in the route files. A
+`registerPath` in a route file never runs under the exporter (it writes `0 path(s)`), and importing
+routes into `openapi.ts` would be a circular import (routes import the registry). Call
+`extendZodWithOpenApi(z)` once before any schema uses `.openapi(...)`:
 ```typescript
 import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi'
 import { z } from 'zod'
+// import { CreateApplicationSchema } from '../types/application.types.js'  // ← schemas, not routes
 
 extendZodWithOpenApi(z) // enables `.openapi()` metadata on Zod schemas (call once, at import time)
 
 export const registry = new OpenAPIRegistry()
-// Each route registers itself, e.g.:
+// Register every path HERE (products add their registerPath calls in this file), e.g.:
 //   registry.registerPath({ method: 'post', path: '/applications', request: {...}, responses: {...} })
 // `scripts/openapi.export.ts` imports this `registry` and generates the document.
 ```
@@ -354,13 +389,22 @@ Create `src/utils/uuid.util.ts` — `newId()` → uuidv7.
 ### Step 6 — Testing Scaffolds
 
 **Note:** These already exist in the template — do NOT recreate them:
-- `jest.config.ts` (per-layer coverage thresholds)
+- `jest.config.ts` (per-layer coverage thresholds; `maxWorkers: 1` + `forceExit` for the shared-DB
+  suites; `globalSetup` pointing at the schema-provisioning hook below)
+- `tests/setup/provision-schema.mjs` (jest `globalSetup`: best-effort `db:migrate` before the run so
+  acceptance suites — and `ac:vector` / `redgreen:record`, which run only `tests/acceptance/` and do
+  NOT import `setup.ts` — hit a real schema. No-op when there are no migrations or no DB, so the
+  DB-free arch gate is unaffected)
 - `tests/architecture/layers.test.ts` (working layer-boundary structural tests)
 - `tests/unit/utils/response.util.test.ts` (utils-layer example — pins the envelope contract)
 - `tests/integration/health.test.ts` (route example using supertest)
 - `tests/integration/isolation.test.template.ts` (copy per feature for cross-user isolation)
 
-Create `tests/integration/setup.ts` — test DB lifecycle hooks (beforeAll/afterAll, truncate between tests, auth-token + createUser helpers referenced by the isolation template).
+Create `tests/integration/setup.ts` — test DB lifecycle hooks (beforeAll `sequelize.sync({ force:
+true })` + afterAll close, truncate between tests, auth-token + createUser helpers referenced by the
+isolation template). This resets the schema for the *integration* suites; acceptance suites rely on
+the `globalSetup` migrations above (they don't import this file). afterAll must close the DB pool and
+`redis.disconnect()` so handles don't leak (jest's `forceExit` is the backstop).
 
 ### Step 7 — GitHub Actions CI
 
