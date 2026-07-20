@@ -7,5 +7,10 @@
     "spec-judge/intent": { "mode": "advisory", "report": null, "severity": "normal" },
     "spec-judge/abstraction": { "mode": "advisory", "report": null, "severity": "normal" },
     "vision-judge/layout": { "mode": "advisory", "report": null, "severity": "normal" }
+  },
+  "droppedDimensions": {
+    "$comment": "PLAN-005 AC-7: dimensions deliberately REMOVED from a judge's rubric because a deterministic layer now owns them. Recorded here as an auditable scope-reduction trail — each maps to the layer that replaced it. Do not re-add these to a judge; a subjective re-judgement would just duplicate a mechanical check.",
+    "vision-judge/token-adherence": "replaced by tests/design/token-conformance.spec.ts (AC-6, reads tokens.json) + eslint-plugin-tailwindcss no-arbitrary-value (AC-2)",
+    "vision-judge/slop-patterns": "replaced by the Impeccable slop tier — .claude/hooks/impeccable-tier.mjs blocks slop on write (AC-3)"
   }
 }

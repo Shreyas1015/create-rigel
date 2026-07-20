@@ -77,6 +77,49 @@ function assertEvalFiles(dir, stack) {
   }
 }
 
+// PLAN-005 — design enforcement stack. BOUNDARY (AC-9): it applies ONLY to the frontend
+// template (nextjs). The backends (express/nestjs/fastapi) render no UI, so they intentionally
+// ship NONE of it — asserting its absence documents the boundary mechanically rather than
+// force-fitting a design system onto a backend.
+function assertDesignFiles(dir, stack) {
+  if (stack === "nextjs") {
+    // Committed files that must land on scaffold (copied verbatim).
+    for (const f of [
+      ".claude/hooks/impeccable-severity.json", // AC-3 Rigel slop/craft tiering
+      ".claude/hooks/impeccable-tier.mjs", // AC-3 hook wrapper
+      "scripts/check-waivers.mjs", // AC-4 waiver reasons
+      "scripts/check-design-drift.mjs", // AC-5 DESIGN.md value drift
+      "docs/design-workflow.md", // AC-8 Figma connector + boundary
+    ]) {
+      assert.ok(has(dir, f), `nextjs: missing PLAN-005 file ${f}`);
+    }
+    // AC-2: the committed eslint config wires the Tailwind token-discipline plugin.
+    assert.match(
+      reads(dir, "eslint.config.mjs"),
+      /eslint-plugin-tailwindcss/,
+      "nextjs: eslint.config.mjs missing eslint-plugin-tailwindcss (AC-2)"
+    );
+    // Generated design files: infra-setup.sh must write/build/wire them.
+    const infra = reads(dir, ".claude/scripts/infra-setup.sh");
+    for (const marker of [
+      "write_if_absent tokens.json", // AC-1 DTCG source of truth
+      "style-dictionary.config.mjs", // AC-1 build config
+      "npm install -D style-dictionary", // AC-1 dep
+      "npm install -D impeccable", // AC-3 detector dep
+      "write_if_absent .impeccable/config.json", // AC-3 detector ignores
+      "waivers:check", // AC-4 in gate
+      "design:drift", // AC-5 in gate
+    ]) {
+      assert.ok(infra.includes(marker), `nextjs: infra-setup.sh does not reference "${marker}"`);
+    }
+  } else {
+    // Boundary: backends ship none of the design stack.
+    for (const f of ["tokens.json", ".claude/hooks/impeccable-severity.json", "docs/design-workflow.md"]) {
+      assert.ok(!has(dir, f), `${stack}: should NOT ship ${f} (design stack is frontend-only, AC-9)`);
+    }
+  }
+}
+
 let failures = 0;
 for (const stack of STACKS) {
   const dir = mkdtempSync(join(tmpdir(), `create-rigel-${stack}-`));
@@ -91,6 +134,7 @@ for (const stack of STACKS) {
       `${stack}: .claude/model-routing.json was not stamped`
     );
     assertEvalFiles(dir, stack);
+    assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);
   } catch (err) {
     failures++;

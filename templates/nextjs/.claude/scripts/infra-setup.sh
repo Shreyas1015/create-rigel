@@ -49,11 +49,21 @@ npm install -D msw @playwright/test
 # Performance
 npm install -D @next/bundle-analyzer
 # Linting (the committed eslint.config.mjs uses Next's native flat config — no FlatCompat)
-npm install -D @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-import
+# eslint-plugin-tailwindcss v4 enforces design-token discipline (PLAN-005 AC-2).
+npm install -D @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-import eslint-plugin-tailwindcss
 # Formatting + pre-commit (config files are committed in the template)
 npm install -D prettier prettier-plugin-tailwindcss eslint-config-prettier lint-staged
 # Core Web Vitals budget (config/workflows committed in the template)
 npm install -D @lhci/cli
+# Design tokens → Tailwind v4 @theme (PLAN-005 AC-1). Style Dictionary, unpinned per Rigel
+# convention (latest stable). The config (usesDtcg auto-detect + a custom css @theme format)
+# is version-tolerant — verified building identical output on v4.4 and v5.5. See ADR-001.
+npm install -D style-dictionary
+# Impeccable — deterministic design-quality detector (PLAN-005 AC-3). The detector is a
+# devDep the post-write hook + gate call; `impeccable install` adds the agent-facing skills
+# (best-effort, non-fatal — safe to run later with `npx impeccable install`).
+npm install -D impeccable
+npx --yes impeccable install || echo "  ⚠ impeccable skills install skipped (run 'npx impeccable install' later)"
 
 echo "▶ Step 2 — shadcn/ui init + base components (non-interactive)"
 npx shadcn@latest init -d
@@ -89,7 +99,7 @@ const harness = {
   'lint:fix': 'eslint . --fix',
   'format': 'prettier --write .',
   'format:check': 'prettier --check .',
-  'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage',
+  'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run waivers:check && npm run design:drift',
   // Deterministic evals (PLAN-003). The per-layer 'gate' already runs the STATIC
   // traceability + assertion-integrity arch tests (test:coverage → vitest includes
   // tests/architecture/). These add the red-green recorder and the feature-completion
@@ -97,6 +107,12 @@ const harness = {
   'redgreen:record': 'node scripts/redgreen-record.mjs',
   'ac:vector': 'node scripts/ac-vector.mjs',
   'gate:final': 'npm run gate && npm run ac:vector',
+  // Design tokens (PLAN-005 AC-1): tokens.json (DTCG) → src/app/tokens.css (@theme).
+  'tokens:build': 'style-dictionary build --config style-dictionary.config.mjs',
+  // Waiver governance (PLAN-005 AC-4): every impeccable-disable marker must carry a reason.
+  'waivers:check': 'node scripts/check-waivers.mjs',
+  // Design ownership drift (PLAN-005 AC-5): no literal values in DESIGN.md (they live in tokens.json).
+  'design:drift': 'node scripts/check-design-drift.mjs',
   'analyze': 'ANALYZE=true next build',
 };
 p.scripts = Object.assign(defaults, p.scripts, harness);
@@ -584,39 +600,165 @@ write_if_absent tests/acceptance/.gitkeep <<'EOF'
 # usually .test.tsx (Testing Library + MSW). Do not edit acceptance tests while building.
 EOF
 
-# ── AC-6 — deterministic design-token conformance (PLAN-003) ───────────────────
-# A Playwright check that reads computed styles of rendered pages and fails on any
-# color/spacing/radius/font value not in the DESIGN.md token list. Mechanizes most of
-# what a vision judge would do. Enforcement is per-dimension and opt-in (empty token
-# list ⇒ that dimension is skipped; an all-empty block ⇒ the whole check skips).
-write_if_absent DESIGN.md <<'EOF'
-# DESIGN — Design System Tokens
-
-> Minimal token list for the deterministic design-token conformance check (PLAN-003, AC-6).
-> The full DESIGN.md format is Phase-2; for now this file only needs the token block below.
->
-> The check (`tests/design/token-conformance.spec.ts`) reads the JSON between the markers
-> and, for each route in `tests/design/routes.json`, fails if a rendered element uses a
-> color / spacing / radius / font-size / font-family that is NOT in these lists.
->
-> Enforcement is PER-DIMENSION and OPT-IN: a dimension is only checked when its array is
-> non-empty. An empty block (the default) means the check SKIPS — fill in your system's
-> tokens to turn enforcement on. Values are compared against COMPUTED styles, so use the
-> resolved values your theme produces (e.g. hex/rgb for colors, integer px for lengths).
-> Colors are exact-match; spacing / radii / font-sizes are integer px; font-family matches
-> the first family in the stack (case-insensitive).
-
-<!-- rigel-tokens:start -->
-```json
+# ── PLAN-005 AC-1 — design tokens (DTCG) → Tailwind v4 @theme ──────────────────
+# tokens.json is the SINGLE SOURCE OF TRUTH for design VALUES. Style Dictionary v4
+# transforms it into src/app/tokens.css as a Tailwind v4 @theme block, so editing a
+# token and running `npm run tokens:build` changes rendered output. Two tiers:
+# primitives (raw values, internal alias targets) and semantics (what components use).
+# Only semantics are emitted as @theme utilities — components never touch primitives.
+write_if_absent tokens.json <<'EOF'
 {
-  "colors": [],
-  "spacing": [],
-  "radii": [],
-  "fontSizes": [],
-  "fontFamilies": []
+  "$description": "DTCG design tokens — the single source of truth for design VALUES. Primitives are raw values; semantics alias primitives and are the ONLY tier emitted as Tailwind @theme utilities. Style Dictionary (style-dictionary.config.mjs) builds this into src/app/tokens.css.",
+  "color": {
+    "primitive": {
+      "neutral": {
+        "0":   { "$type": "color", "$value": "#ffffff" },
+        "50":  { "$type": "color", "$value": "#f8fafc" },
+        "100": { "$type": "color", "$value": "#f1f5f9" },
+        "200": { "$type": "color", "$value": "#e2e8f0" },
+        "500": { "$type": "color", "$value": "#64748b" },
+        "700": { "$type": "color", "$value": "#334155" },
+        "900": { "$type": "color", "$value": "#0f172a" }
+      },
+      "brand": {
+        "500": { "$type": "color", "$value": "#4f46e5" },
+        "600": { "$type": "color", "$value": "#4338ca" }
+      },
+      "danger": { "500": { "$type": "color", "$value": "#dc2626" } }
+    },
+    "background":         { "$type": "color", "$value": "{color.primitive.neutral.0}" },
+    "foreground":         { "$type": "color", "$value": "{color.primitive.neutral.900}" },
+    "muted":              { "$type": "color", "$value": "{color.primitive.neutral.100}" },
+    "border":             { "$type": "color", "$value": "{color.primitive.neutral.200}" },
+    "primary":            { "$type": "color", "$value": "{color.primitive.brand.500}" },
+    "primary-foreground": { "$type": "color", "$value": "{color.primitive.neutral.0}" },
+    "destructive":        { "$type": "color", "$value": "{color.primitive.danger.500}" }
+  },
+  "radius": {
+    "sm": { "$type": "dimension", "$value": "4px" },
+    "md": { "$type": "dimension", "$value": "8px" },
+    "lg": { "$type": "dimension", "$value": "12px" }
+  },
+  "text": {
+    "sm":   { "$type": "dimension", "$value": "14px" },
+    "base": { "$type": "dimension", "$value": "16px" },
+    "lg":   { "$type": "dimension", "$value": "18px" },
+    "xl":   { "$type": "dimension", "$value": "24px" }
+  }
 }
-```
-<!-- rigel-tokens:end -->
+EOF
+
+write_if_absent style-dictionary.config.mjs <<'EOF'
+// Style Dictionary v4 — tokens.json (DTCG) → src/app/tokens.css as a Tailwind v4
+// @theme block. DTCG ($value/$type + aliases) is auto-detected (usesDtcg). Only SEMANTIC
+// tokens are emitted; primitives (color.primitive.*) are internal alias targets, filtered
+// out so components can't use raw values. Token paths map to Tailwind v4 namespaces:
+// color.primary → --color-primary (bg-primary/text-primary), radius.md → --radius-md,
+// text.base → --text-base. PLAN-005 AC-1.
+export default {
+  source: ['tokens.json'],
+  usesDtcg: true,
+  hooks: {
+    formats: {
+      'css/tailwind-theme': ({ dictionary }) => {
+        const decls = dictionary.allTokens
+          .map((t) => `  --${t.name}: ${t.$value ?? t.value};`)
+          .join('\n');
+        return `/* GENERATED from tokens.json by Style Dictionary — do not edit by hand. */\n@theme {\n${decls}\n}\n`;
+      },
+    },
+  },
+  platforms: {
+    tailwind: {
+      transformGroup: 'css',
+      buildPath: 'src/app/',
+      files: [
+        {
+          destination: 'tokens.css',
+          format: 'css/tailwind-theme',
+          filter: (token) => !token.path.includes('primitive'),
+        },
+      ],
+    },
+  },
+};
+EOF
+
+echo "▶ Design tokens — build tokens.json → src/app/tokens.css (@theme)"
+npx style-dictionary build --config style-dictionary.config.mjs
+
+# Wire the generated @theme into Tailwind: import tokens.css from globals.css (once).
+GLOBALS=$(ls src/app/globals.css app/globals.css 2>/dev/null | head -1 || true)
+if [[ -n "${GLOBALS:-}" ]] && ! grep -q 'tokens.css' "$GLOBALS"; then
+  # Place the import right after the Tailwind import so @theme is picked up.
+  if grep -q '@import "tailwindcss";' "$GLOBALS"; then
+    node -e "const fs=require('fs');const f='$GLOBALS';let s=fs.readFileSync(f,'utf8');s=s.replace('@import \"tailwindcss\";','@import \"tailwindcss\";\n@import \"./tokens.css\";');fs.writeFileSync(f,s);"
+  else
+    printf '@import "./tokens.css";\n%s' "$(cat "$GLOBALS")" >"$GLOBALS"
+  fi
+  echo "  • imported tokens.css into $GLOBALS"
+fi
+
+# ── PLAN-005 AC-3 — Impeccable project config (detector ignores) ───────────────
+# One job per layer: eslint-plugin-tailwindcss + the token-conformance check own token
+# VALUES, so Impeccable's design-system-* value rules are turned OFF here to avoid double
+# enforcement. NOTE: `impeccable ignores add-*` rewrites this file, so Rigel's slop/craft
+# severity tiering lives separately in .claude/hooks/impeccable-severity.json (not here).
+write_if_absent .impeccable/config.json <<'EOF'
+{
+  "detector": {
+    "ignoreRules": [
+      "design-system-color",
+      "design-system-font",
+      "design-system-font-size",
+      "design-system-radius"
+    ]
+  }
+}
+EOF
+
+# ── AC-6 — deterministic design-token conformance (PLAN-003, retargeted PLAN-005 AC-6) ──
+# A Playwright check that reads computed styles of rendered pages and fails on any
+# color/spacing/radius/font value not in the SINGLE SOURCE OF TRUTH — tokens.json (was the
+# DESIGN.md token block; PLAN-005 moved values to tokens.json). Enforcement is per-dimension
+# and opt-in (a dimension with no tokens is skipped; empty tokens.json ⇒ the whole check
+# skips). Mechanizes most of what a vision judge would do.
+#
+# DESIGN.md now owns brand MEANING only (audience, lane, voice, anti-references) and points
+# at tokens.json for values — PLAN-005 AC-5. `npm run design:drift` fails if a literal value
+# leaks back into DESIGN.md.
+write_if_absent DESIGN.md <<'EOF'
+# DESIGN — Brand & Design Meaning
+
+> This file owns design **meaning** — who the product is for, the lane it's in, its voice,
+> and what to avoid. It does NOT own design **values**: every color, spacing, radius, and
+> type value lives in `tokens.json` (the single source of truth), which Style Dictionary
+> builds into `src/app/tokens.css` (@theme). Impeccable and the vision-judge read this file
+> for brand context; the deterministic token-conformance check reads `tokens.json`.
+>
+> RULE (enforced by `npm run design:drift`): do NOT write literal color / spacing / radius
+> values here — no raw hex codes, no rgb or hsl color functions, no numeric pixel lengths.
+> Reference token names instead: use the token `--color-primary`, never the raw value it
+> resolves to.
+
+## Audience
+Who this product is for. _(e.g. "Operators at mid-market logistics firms — time-poor, data-dense.")_
+
+## Lane / Positioning
+The design lane. _(e.g. "Calm, precise, utilitarian — closer to Linear than to a consumer marketing page.")_
+
+## Voice & Tone
+How the UI and copy speak. _(e.g. "Direct, concrete, no hype. Verbs over adjectives.")_
+
+## Anti-references (what to avoid)
+Concrete off-brand tells. _(e.g. "No purple SaaS gradients, no bounce animation, no hero
+eyebrow chips, no dark glows." These overlap the Impeccable slop rules that block on write.)_
+
+## Values
+All design values are tokens — see [`tokens.json`](tokens.json). To change a color, space,
+radius, or type step, edit `tokens.json` and run `npm run tokens:build`. Never hard-code
+values in components (enforced by eslint-plugin-tailwindcss) or list them here (enforced by
+`npm run design:drift`).
 EOF
 
 write_if_absent tests/design/routes.json <<'EOF'
@@ -772,16 +914,78 @@ export function checkStyles(collected, tokens) {
 }
 
 export const COLLECT_PROPS = [...COLOR_PROPS, ...SPACING_PROPS, 'borderTopLeftRadius', 'fontSize', 'fontFamily']
+
+/**
+ * PLAN-005 AC-6 — build the allowed-token lists from tokens.json (DTCG), the single source
+ * of truth, replacing the old DESIGN.md rigel-tokens block. Flattens the token tree,
+ * resolves {alias} references to their primitive value, drops the internal `primitive`
+ * tier (components use only semantics), and maps token groups to the conformance dimensions:
+ *   $type color OR top group `color` → colors   ·   `radius` → radii
+ *   `text` → fontSizes   ·   `spacing` → spacing   ·   `font.*family*` → fontFamilies
+ */
+export function tokensFromDtcg(jsonText) {
+  let root
+  try {
+    root = JSON.parse(jsonText)
+  } catch {
+    return emptyTokens()
+  }
+  const flat = {}
+  const walk = (node, path) => {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return
+    if (Object.prototype.hasOwnProperty.call(node, '$value')) {
+      flat[path.join('.')] = { value: node.$value, type: node.$type }
+      return
+    }
+    for (const [k, v] of Object.entries(node)) {
+      if (k.startsWith('$')) continue
+      walk(v, [...path, k])
+    }
+  }
+  walk(root, [])
+  const resolve = (val, depth = 0) => {
+    if (typeof val === 'string' && /^\{[^}]+\}$/.test(val) && depth < 20) {
+      const target = flat[val.slice(1, -1)]
+      return target ? resolve(target.value, depth + 1) : val
+    }
+    return val
+  }
+  const out = { colors: [], spacing: [], radii: [], fontSizes: [], fontFamilies: [] }
+  for (const [path, { value, type }] of Object.entries(flat)) {
+    if (path.split('.').includes('primitive')) continue
+    const resolved = resolve(value)
+    const top = path.split('.')[0]
+    if (type === 'color' || top === 'color') {
+      const c = normalizeColor(resolved)
+      if (c) out.colors.push(c)
+    } else if (top === 'radius') {
+      const n = toPx(resolved)
+      if (n !== null) out.radii.push(n)
+    } else if (top === 'text' || top === 'fontSize') {
+      const n = toPx(resolved)
+      if (n !== null) out.fontSizes.push(n)
+    } else if (top === 'spacing' || top === 'space') {
+      const n = toPx(resolved)
+      if (n !== null) out.spacing.push(n)
+    } else if (top === 'font' && /family/i.test(path)) {
+      const f = firstFamily(resolved)
+      if (f) out.fontFamilies.push(f)
+    }
+  }
+  for (const k of Object.keys(out)) out[k] = [...new Set(out[k])]
+  return out
+}
 EOF
 
 write_if_absent tests/design/token-conformance.spec.ts <<'EOF'
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { COLLECT_PROPS, checkStyles, parseTokens, tokensAreEmpty } from './token-conformance.mjs'
+import { COLLECT_PROPS, checkStyles, tokensFromDtcg, tokensAreEmpty } from './token-conformance.mjs'
 
 // AC-6 — deterministic design-token conformance. For each route, read the computed
 // styles of every visible element and fail on any color/spacing/radius/font value not
-// in the DESIGN.md token list. Skips cleanly until the rigel-tokens block is filled in.
+// in tokens.json (the single source of truth — PLAN-005 AC-6). Skips cleanly until
+// tokens.json defines semantic tokens.
 
 function safeRead(path: string, fallback: string): string {
   try {
@@ -791,7 +995,7 @@ function safeRead(path: string, fallback: string): string {
   }
 }
 
-const tokens = parseTokens(safeRead('DESIGN.md', ''))
+const tokens = tokensFromDtcg(safeRead('tokens.json', '{}'))
 let routes: string[]
 try {
   routes = JSON.parse(safeRead('tests/design/routes.json', '["/"]')) as string[]
@@ -802,11 +1006,11 @@ try {
 test.describe('AC-6 — design-token conformance', () => {
   test.skip(
     tokensAreEmpty(tokens),
-    'No design tokens defined in DESIGN.md yet (the rigel-tokens block is empty) — fill it in to enable the check.',
+    'No semantic tokens in tokens.json yet — add them (and run tokens:build) to enable the check.',
   )
 
   for (const route of routes) {
-    test(`route ${route} uses only DESIGN.md tokens`, async ({ page }) => {
+    test(`route ${route} uses only tokens.json tokens`, async ({ page }) => {
       await page.goto(route, { waitUntil: 'load' })
       const collected = await page.evaluate((props: string[]) => {
         const kebab = (s: string) => s.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())
@@ -835,7 +1039,7 @@ test.describe('AC-6 — design-token conformance', () => {
       )
       expect(
         violations,
-        `Non-token values on ${route} (add them to DESIGN.md tokens or fix the styles):\n${violations.join('\n')}`,
+        `Non-token values on ${route} (add them to tokens.json or fix the styles):\n${violations.join('\n')}`,
       ).toEqual([])
     })
   }

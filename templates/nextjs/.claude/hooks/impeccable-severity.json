@@ -1,0 +1,25 @@
+{
+  "_comment": "Rigel severity tiering for Impeccable findings (PLAN-005 AC-3). Impeccable has NO native per-rule severity tiers, so Rigel classifies here. Antipatterns listed in 'slopRules' are AI-slop / aesthetic tells that must never land — they BLOCK the post-write hook (exit 2). Everything else Impeccable reports is treated as CRAFT and is advisory (printed, exit 0). PROMOTION PATH: to make a craft rule blocking, add its antipattern id to slopRules; to relax a slop rule to advisory, remove it here. Token-VALUE rules (design-system-*) are owned by the eslint-plugin-tailwindcss + token-conformance layers and are turned off in .impeccable/config.json (one job per layer, zero overlap).",
+  "slopRules": [
+    "ai-color-palette",
+    "aphoristic-cadence",
+    "border-accent-on-rounded",
+    "bounce-easing",
+    "codex-grid-background",
+    "cream-palette",
+    "dark-glow",
+    "em-dash-overuse",
+    "gpt-thin-border-wide-shadow",
+    "gradient-text",
+    "hero-eyebrow-chip",
+    "icon-tile-stack",
+    "image-hover-transform",
+    "layout-transition",
+    "marketing-buzzword",
+    "numbered-section-markers",
+    "repeated-section-kickers",
+    "repeating-stripes-gradient",
+    "side-tab",
+    "theater-slop-phrase"
+  ]
+}

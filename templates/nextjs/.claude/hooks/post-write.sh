@@ -55,7 +55,9 @@ if [[ "$NORM" =~ (^|/)tests/acceptance/ ]]; then
 fi
 
 [[ ! -f "$FILE" ]] && exit 0
-[[ ! "$FILE" =~ \.(ts|tsx)$ ]] && exit 0
+# Rigel's TS-specific checks below run for .ts/.tsx; design-bearing files (.tsx/.jsx/.css/
+# .mdx) additionally get the Impeccable tier at the end. Anything else is ignored.
+[[ ! "$FILE" =~ \.(ts|tsx|jsx|css|mdx)$ ]] && exit 0
 
 WARNINGS=()
 BLOCKERS=()
@@ -126,11 +128,22 @@ if [[ ${#WARNINGS[@]} -gt 0 ]]; then
 fi
 
 # Blockers go to stderr and fail the hook so the agent must address them.
+# Rigel's own blockers run FIRST — architecture/security beat aesthetics.
 if [[ ${#BLOCKERS[@]} -gt 0 ]]; then
   for b in "${BLOCKERS[@]}"; do
     echo "$b" >&2
   done
   exit 2
+fi
+
+# ── Impeccable design-quality tier (PLAN-005 AC-3) ─────────────────────────────
+# Runs only after Rigel's blockers passed. Slop antipatterns block (exit 2); craft
+# findings are advisory. Design-bearing files only. `exec` hands the tier's exit code
+# straight back as the hook's. Skips cleanly (falls through to exit 0) if the tier or
+# Impeccable isn't present (e.g. a bare scaffold before /infra-setup).
+if [[ "$FILE" =~ \.(tsx|jsx|css|mdx)$ ]]; then
+  TIER="${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/impeccable-tier.mjs"
+  [[ -f "$TIER" ]] && exec node "$TIER" "$FILE"
 fi
 
 exit 0

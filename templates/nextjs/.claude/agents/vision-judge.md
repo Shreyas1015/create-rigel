@@ -30,8 +30,12 @@ Emit PASS / FAIL / UNKNOWN + one line each, for:
 - **state-completeness** — for the state shown, is it complete? (e.g. a list route shows list
   OR a clear empty/loading state — not a blank white page.)
 
-**Out of scope (do NOT judge):** exact colors/spacing/radii/fonts (AC-6 owns these), aesthetic
-taste, copy quality, brand feel. If your only complaint is a token value, that is not your call.
+**Out of scope (do NOT judge):** exact colors/spacing/radii/fonts (the AC-6 token-conformance
+check + eslint-plugin-tailwindcss own these), AI-slop patterns — purple gradients, bounce easing,
+dark glows, side tabs, etc. (the Impeccable slop tier blocks these on write, PLAN-005 AC-3),
+aesthetic taste, copy quality, brand feel. If your only complaint is a token value or a slop
+pattern, that is not your call — a deterministic layer already caught it. (See `droppedDimensions`
+in `evals/config/judge-config.json` for the full scope-reduction trail.)
 
 ## Rules
 

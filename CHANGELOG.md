@@ -6,6 +6,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-20
+
+> Ships PLAN-005 — the **design enforcement stack** for the `nextjs` template (the only one
+> with a rendered UI; backends intentionally get none of it). Buy-over-build: trusted, maintained
+> packages own each rule class; Rigel builds only the glue and the checks nobody ships. Verified
+> end-to-end with a real `create-next-app` + `/infra-setup` run on Next 16 + Tailwind v4.
+
+### Added
+
+- **Design tokens as the source of truth (AC-1).** `tokens.json` in DTCG format (primitive +
+  semantic tiers; components reference only semantics). Style Dictionary builds it into
+  `src/app/tokens.css` as a Tailwind v4 `@theme` block, imported into `globals.css`. Editing a
+  token and running `npm run tokens:build` changes rendered output.
+- **Token discipline in the lint gate (AC-2).** `eslint-plugin-tailwindcss` v4 enforces
+  `no-arbitrary-value`, `no-custom-classname`, and `no-contradicting-classname` as errors on the
+  render layers (arbitrary values like `bg-[#ff0000]` fail the gate).
+- **Impeccable design-quality detector (AC-3).** Chained into `post-write.sh` after Rigel's own
+  blockers (architecture beats aesthetics). A Rigel-owned severity map
+  (`.claude/hooks/impeccable-severity.json`) blocks AI-slop antipatterns (exit 2) and treats
+  craft findings as advisory.
+- **Waiver governance (AC-4).** `scripts/check-waivers.mjs` (in the gate) fails any
+  `impeccable-disable` marker that lacks a reason; the count is reported in QUALITY_SCORE.md.
+- **DESIGN.md ownership split + drift guard (AC-5).** `DESIGN.md` now holds brand *meaning* and
+  references `tokens.json` for values; `scripts/check-design-drift.mjs` fails if a literal value
+  leaks into `DESIGN.md`.
+- **Optional Figma connector docs (AC-8).** `docs/design-workflow.md` documents the Figma Dev
+  Mode MCP import/export paths with the explicit boundary that `tokens.json` in the repo — never
+  Figma — is authoritative.
+- **ADR-001 / ADR-002** recording the Style Dictionary choice and (critically) why the Impeccable
+  severity map lives in a Rigel-owned file, not `.impeccable/config.json` (which the tool rewrites).
+
+### Changed
+
+- **Design-token conformance now reads `tokens.json` (AC-6).** The PLAN-003 rendered-conformance
+  check reads its allowed values from `tokens.json` (resolving DTCG aliases, dropping primitives)
+  instead of a DESIGN.md token block — one source of truth.
+- **vision-judge scope-reduction recorded (AC-7).** `evals/config/judge-config.json` now records
+  the dimensions dropped from the advisory judge and the deterministic layer that replaced each
+  (token adherence → conformance + eslint; slop → Impeccable).
+
 ## [0.6.0] - 2026-07-19
 
 > Ships the template-facing half of PLAN-004: the **advisory judges** (safe, log-only, never
@@ -182,7 +222,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Smoke test that scaffolds every template in CI (Node 18/20/22).
 - Publish-on-tag GitHub Actions workflow with npm provenance.
 
-[Unreleased]: https://github.com/Shreyas1015/create-rigel/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Shreyas1015/create-rigel/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Shreyas1015/create-rigel/compare/v0.1.0...v0.2.0

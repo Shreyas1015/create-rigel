@@ -21,6 +21,18 @@ Updated by /garbage-collect after every feature.
 | api.generated.ts not manually edited | — |
 | Utils: 100% test coverage | — |
 
+## Design Health (PLAN-005)
+| Check | Status |
+|---|---|
+| No arbitrary values / off-token classes (eslint-plugin-tailwindcss) | — |
+| No design slop (Impeccable slop tier — post-write blocker) | — |
+| Rendered styles conform to tokens.json (token-conformance) | — |
+| Every impeccable-disable waiver carries a reason (waivers:check) | — |
+
+**Design waiver count:** run `npm run waivers:check` — it reports the total number of
+`impeccable-disable` waivers, all of which MUST carry a reason (PLAN-005 AC-4). Record the
+count here each feature; a rising count is design debt to review.
+
 ## Domain Grades
 | Domain | Grade | Coverage | Last Updated | Notes |
 |---|---|---|---|---|

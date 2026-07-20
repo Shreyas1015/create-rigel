@@ -10,6 +10,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import nextVitals from 'eslint-config-next/core-web-vitals'
 import nextTs from 'eslint-config-next/typescript'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import tailwind from 'eslint-plugin-tailwindcss'
 
 // Direct fetch() is forbidden outside the hooks layer (call the API through a hook).
 const noFetch = {
@@ -133,6 +134,40 @@ const eslintConfig = defineConfig([
     rules: { 'no-restricted-syntax': ['error', noProcessEnv] },
   },
 
+  // ── Tailwind design-token discipline (PLAN-005 AC-2) ──
+  // Forces token-based styling in the render layers: no arbitrary values (use the @theme
+  // tokens generated from tokens.json), no unknown/custom classnames, no contradicting
+  // classes. These are ERRORS so they block the gate — nextjs's `lint` can't use
+  // --max-warnings=0 (the `no-console: warn` baseline would fail it), so a blocking rule
+  // must be `error`. `cssConfigPath` points at the v4 CSS entry so the plugin resolves the
+  // @theme tokens (from tokens.css) as valid utilities. shadcn's src/components/ui/** is
+  // globally ignored above, so generated primitives aren't linted. Retiring nothing: the
+  // arbitrary-value class is enforced ONLY here (single path); the rendered token-conformance
+  // check (tests/design) is the runtime complement, not a duplicate static grep.
+  {
+    files: [
+      'src/features/**/*.{ts,tsx}',
+      'src/components/**/*.{ts,tsx}',
+      'src/app/**/*.{ts,tsx}',
+      'app/**/*.{ts,tsx}',
+    ],
+    plugins: { tailwindcss: tailwind },
+    settings: {
+      tailwindcss: {
+        // v4 REQUIRES the CSS entry (not a JS config). This file @imports tokens.css (@theme).
+        cssConfigPath: 'src/app/globals.css',
+        // Escapes for legitimate non-utility classnames. Extend per-project rather than
+        // downgrading the rule (keeps enforcement credible). Values are regex strings.
+        whitelist: ['toaster', 'group(/.+)?', 'peer(/.+)?'],
+      },
+    },
+    rules: {
+      'tailwindcss/no-arbitrary-value': 'error',
+      'tailwindcss/no-contradicting-classname': 'error',
+      'tailwindcss/no-custom-classname': 'error',
+    },
+  },
+
   // ── Tests cross layers by design — relax the boundary + console rules there ──
   {
     files: ['tests/**/*.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
@@ -140,6 +175,9 @@ const eslintConfig = defineConfig([
       'no-restricted-imports': 'off',
       'no-restricted-syntax': 'off',
       'no-console': 'off',
+      'tailwindcss/no-arbitrary-value': 'off',
+      'tailwindcss/no-contradicting-classname': 'off',
+      'tailwindcss/no-custom-classname': 'off',
     },
   },
 
