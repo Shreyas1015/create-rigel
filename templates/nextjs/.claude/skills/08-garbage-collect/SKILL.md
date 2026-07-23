@@ -11,7 +11,10 @@ Calls garbage-collector agent which:
 6. Logs tech debt
 7. **Grades the outcome (AC vector) — then** closes plan (active/ to completed/)
 8. Marks spec SHIPPED
-9. Final commit + push
+9. Final commit + push **on the current feature branch** (never `main`, which is PR-only protected)
+
+gc is the **last step before `/open-pr`**: it runs on the feature branch so its cleanup rides the
+feature's PR onto `main`.
 
 ---
 

@@ -202,3 +202,63 @@ Renaming an already-applied migration `…-create-users.js` → `.cjs` orphaned 
 only bites when you *rename an applied migration* — which the templates never instruct. A fresh project
 scaffolds `.cjs` from the first feature, so it never happens. Surfaced only because the dogfood repo was
 retrofitted; resolved by resetting the throwaway test DB and migrating clean (`.cjs` applied in 0.011s).
+
+---
+
+## Run 5 — F2: Bookmarks CRUD (SPEC-002 / PLAN-002) — SHIPPED
+
+Second real feature through the full loop (spec → plan → 7 layers → PR → solo squash-merge) on the
+hardened live repo, against the live Dockerised Postgres/Redis.
+
+**Outcome:** SHIPPED. PR #3 squash-merged solo (main `ccb0e8f`). **AC-vector #2: 7/7 PASS**
+(`.rigel/ac-results/SPEC-002.json`), each proven red pre-impl. Full suite **96 tests / 28 suites green**;
+`test:coverage` exit 0 (all per-layer thresholds met after auto-fixes). Bookmarks repo/service/route
+coverage 90–100%. Gate attempts: every layer green in ≤2 tries, **no 3× escalation**.
+
+**Git-loop re-verification (DF-17/18/29):** branch cut off `main` (write-plan Step 4b); 10 commits pushed
+to `feat/PLAN-002-bookmarks`, **zero** direct to `main`; commit-msg + pre-push hooks passed every commit;
+PR merged solo (DF-29 solo-friendly protection worked). All three P0 git-loop fixes confirmed on a second
+real feature.
+
+### DF-30 — CONFIRMED DEFECT (verdict in)
+F2's PR #3 was open through a ~1 hr build and then merged (a push to `main`) — **still 0 `push`/
+`pull_request` workflow runs**, across **3 PRs + 3 merges**. A manual `workflow_dispatch` of
+`mutation-nightly.yml`, by contrast, **ran immediately** (run 30027167848). So: Actions is enabled and the
+pipeline executes on demand, but `push`/`pull_request` events never trigger. The template config is
+verifiably correct (ci.yml `push:[main]`+`pull_request`; git-policy.yml `pull_request:[main,staging]`;
+workflows present on `main`; `actions/permissions` = enabled/all). Root cause is therefore **not in the
+template** — it is GitHub account/identity/repo-state specific (e.g. the push identity not raising events,
+or a one-time Actions activation). **Action:** the maintainer must confirm CI fires on the first real PR in
+the GitHub UI; add a setup-doc step to verify this. Deterministic gates still run locally via `npm run gate`
+and the git hooks, so the loop is protected even while remote CI is dark — but the CI gate must be proven
+live before relying on it.
+
+### F2 findings (DF-33..DF-41)
+- **DF-33 (P1, template defect) — FIXING:** `redgreen:record` can't find a spec still in `draft/`
+  (`findSpecFile` searches only `ready/`, but `/write-spec` records red-green before promoting). Fix:
+  `findSpecFile` searches `ready/` + `draft/`.
+- **DF-34 (P1, inconsistency) — FIXING:** isolation-test arch gate fires at the **Repo** layer, but the
+  plan/build-layer schedule the isolation test under **Tests**. Fix: schedule it with the Repo layer.
+- **DF-35 (P1, defect) — FIXING:** validation status contradiction — `testing.md` asserts **422**, the
+  generated errorHandler maps ZodError → **400**. Fix: unify on **422** (`VALIDATION_ERROR`).
+- **DF-36 (P2, process+debt) — LOGGED:** coverage was already red on `main` because F1 never ran
+  `/garbage-collect` (which runs coverage). `providers/redis.ts` inline callbacks are untestable → repo
+  TD-003. A fresh feature adding provider unit tests clears the aggregate (F2 did). Watch: consider shipping
+  provider unit tests / excluding boot-wiring from coverage in the template.
+- **DF-37 (P1, gotcha) — FIXING:** Express 5 inline route middleware (`router.post('/', idempotency, h)`)
+  degrades `req.params` typing → `tsc` fails under `exactOptionalPropertyTypes`. Fix: `api.md` mounts
+  idempotency via `router.use(...)`.
+- **DF-38 (P1, defect) — FIXING:** `/garbage-collect` Step 8 does `git push origin main` — incompatible with
+  PR-only protection (same class as DF-17). Fix: gc runs on the feature branch (final pre-PR step); pushes
+  the current branch, lands via the PR.
+- **DF-39 (P2, policy drift) — LOGGED:** merge-method not enforceable per-branch by GitHub — policy says
+  `feature_to_main: merge` and `/open-pr` says "never squash a feat→main", but a manual
+  `gh pr merge --squash` succeeded (repo-wide buttons enable squash). Enforcement relies on `/open-pr`
+  choosing the method; a manual squash bypasses it. Reconcile policy ↔ repo settings, and prefer letting
+  `/open-pr` perform the merge with the policy method.
+- **DF-40 ≡ DF-27 (already FIXED):** F2 re-hit the plan-checkbox mismatch because the live repo carried the
+  pre-DF-27 skills; confirms DF-27 was real. No new work — templates already fixed (833d409).
+- **DF-41 (P2, gap) — LOGGED:** `tests/integration/setup.ts::createUser()` mints an id+token but never
+  INSERTs the user; with an FK to `users` that violates the constraint on insert. F2 worked around it by
+  registering real users via `POST /auth/register`. Fix: once a User model+table exist, `createUser` should
+  persist (or the isolation template should register via the auth endpoint).

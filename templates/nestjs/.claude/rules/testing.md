@@ -80,7 +80,7 @@ describe('ApplicationService', () => {
 import { Test } from '@nestjs/testing'
 import * as request from 'supertest'
 import { AppModule } from '../src/app.module'
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common'
 
 describe('ApplicationController (e2e)', () => {
   let app: INestApplication
@@ -92,7 +92,13 @@ describe('ApplicationController (e2e)', () => {
     }).compile()
 
     app = module.createNestApplication()
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY, // invalid body → 422, not 400
+      }),
+    )
     await app.init()
 
     // Register + login to get token

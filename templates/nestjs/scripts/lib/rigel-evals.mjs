@@ -18,6 +18,7 @@ export const AC_ID_RE = /\bAC-\d+\b/g
 
 const ACTIVE_DIR = 'docs/exec-plans/active'
 const READY_DIR = 'docs/product-specs/ready'
+const DRAFT_DIR = 'docs/product-specs/draft'
 export const ACCEPTANCE_DIR = 'tests/acceptance'
 export const REDGREEN_DIR = '.rigel/redgreen'
 export const RESULTS_DIR = '.rigel/ac-results'
@@ -40,11 +41,19 @@ export function specIdsFromPlan(planText) {
   return [...ids]
 }
 
-/** Resolve a SPEC-ID to its READY spec file path, or null. */
+/**
+ * Resolve a SPEC-ID to its READY **or DRAFT** spec file path, or null.
+ * Searches ready/ first (the promoted home), then draft/ — so callers like
+ * `redgreen:record` work while a spec is still in draft/ (e.g. /write-spec
+ * records before it promotes the spec from draft/ to ready/).
+ */
 export function findSpecFile(specId) {
-  if (!existsSync(READY_DIR)) return null
-  const hit = readdirSync(READY_DIR).find((f) => f.startsWith(specId) && f.endsWith('.md'))
-  return hit ? join(READY_DIR, hit) : null
+  for (const dir of [READY_DIR, DRAFT_DIR]) {
+    if (!existsSync(dir)) continue
+    const hit = readdirSync(dir).find((f) => f.startsWith(specId) && f.endsWith('.md'))
+    if (hit) return join(dir, hit)
+  }
+  return null
 }
 
 /**
@@ -165,7 +174,7 @@ export function resolveActiveSpec() {
   if (!specIds.length) return null
   const specId = specIds[0]
   const specFile = findSpecFile(specId)
-  if (!specFile) throw new Error(`Active plan references ${specId} but no READY spec file found in ${READY_DIR}`)
+  if (!specFile) throw new Error(`Active plan references ${specId} but no spec file found in ${READY_DIR} or ${DRAFT_DIR}`)
   const acs = parseAcceptanceCriteria(readFileSync(specFile, 'utf8'))
   return { planPath, planText, specId, specFile, acs }
 }

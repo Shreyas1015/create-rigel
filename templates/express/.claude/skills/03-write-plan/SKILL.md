@@ -86,7 +86,7 @@ exactly — the loop greps for it. **Delete any layer that doesn't apply to this
 - [ ] Layer 2: Config — `src/config/env.ts` update, `constants.ts` (no process.env elsewhere)
 - [ ] Layer 3: Models — `src/models/{Entity}.model.ts` × N (paranoid, UUIDv7, indexes)
 - [ ] Layer 4: Migrations — `db/migrations/YYYYMMDD-create-{table}.cjs` × N (runs clean, has down())
-- [ ] Layer 5: Repo — `src/repo/{entity}.repo.ts` × N (Zod parse, cursor pagination, ownership, no N+1)
+- [ ] Layer 5: Repo — `src/repo/{entity}.repo.ts` × N (Zod parse, cursor pagination, ownership, no N+1) + `tests/integration/{resource}.isolation.test.ts` for every owned resource (copy `isolation.test.template.ts`) — ships WITH the repo, since `tests/architecture/isolation.test.ts` gates it the moment an owner-scoped repo exists
 - [ ] Layer 6: Service — `src/services/{domain}.service.ts` × N (no express imports, ≥90% coverage)
 - [ ] Layer 7: Runtime — `src/runtime/routes/v1/{resource}.route.ts` × N (auth first, envelope, rate-limit)
 - [ ] Layer 8: Workers — `src/runtime/workers/{name}.worker.ts` × N (Zod payload, retry, observability)

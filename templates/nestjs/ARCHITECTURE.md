@@ -159,14 +159,15 @@ Controller → Service → Repository
 
 ## NestJS Exception Map
 
-| NestJS Exception               | HTTP Status | When to use                                             |
-| ------------------------------ | ----------- | ------------------------------------------------------- |
-| `NotFoundException`            | 404         | Resource not found                                      |
-| `ConflictException`            | 409         | Duplicate, invalid state transition                     |
-| `UnauthorizedException`        | 401         | Invalid credentials, expired token                      |
-| `ForbiddenException`           | 403         | Insufficient permissions                                |
-| `BadRequestException`          | 400         | Invalid input (caught before service by ValidationPipe) |
-| `InternalServerErrorException` | 500         | Unexpected failure                                      |
+| NestJS Exception               | HTTP Status | When to use                                      |
+| ------------------------------ | ----------- | ------------------------------------------------ |
+| `NotFoundException`            | 404         | Resource not found                               |
+| `ConflictException`            | 409         | Duplicate, invalid state transition              |
+| `UnauthorizedException`        | 401         | Invalid credentials, expired token               |
+| `ForbiddenException`           | 403         | Insufficient permissions                         |
+| `UnprocessableEntityException` | 422         | DTO validation failure via global ValidationPipe |
+| `BadRequestException`          | 400         | Malformed request, not DTO validation (bad JSON) |
+| `InternalServerErrorException` | 500         | Unexpected failure                               |
 
 ---
 

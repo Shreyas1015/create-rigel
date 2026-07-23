@@ -1,6 +1,9 @@
 # /garbage-collect
 Calls garbage-collector agent.
 
+gc is the **last step before `/open-pr`**: the agent commits + pushes on the **current feature
+branch** (never `main`, which is PR-only protected), so its cleanup rides the feature's PR onto `main`.
+
 Before closing the plan, grade the OUTCOME, not the checkboxes — run the AC vector, which runs
 the spec's acceptance tests and asserts every `AC-N` is PASS (test exists, was proven red, now
 green):

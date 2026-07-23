@@ -150,7 +150,17 @@ export const newId = (): string => uuidv7()
 
 ### main.ts — Global setup
 ```typescript
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }))
+// import { HttpStatus, ValidationPipe } from '@nestjs/common'
+// errorHttpStatusCode makes DTO validation failures return 422 (Unprocessable Entity), not the
+// ValidationPipe default of 400 — matches `.claude/rules/testing.md` (e2e asserts 422 on invalid body).
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+    errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+  }),
+)
 app.useGlobalFilters(new AllExceptionsFilter())
 app.useGlobalInterceptors(new LoggingInterceptor())
 // JwtAuthGuard registered as APP_GUARD in AppModule providers

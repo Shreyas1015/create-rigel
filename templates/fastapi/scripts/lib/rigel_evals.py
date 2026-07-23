@@ -33,6 +33,7 @@ _AC_NAME_RE = re.compile(r"(?i)ac[_-]?(\d+)")
 
 ACTIVE_DIR = "docs/exec-plans/active"
 READY_DIR = "docs/product-specs/ready"
+DRAFT_DIR = "docs/product-specs/draft"
 ACCEPTANCE_DIR = "tests/acceptance"
 REDGREEN_DIR = ".rigel/redgreen"
 RESULTS_DIR = ".rigel/ac-results"
@@ -66,13 +67,19 @@ def spec_ids_from_plan(plan_text: str) -> list[str]:
 
 
 def find_spec_file(spec_id: str) -> str | None:
-    """Resolve a SPEC-ID to its READY spec file path, or None."""
-    d = Path(READY_DIR)
-    if not d.exists():
-        return None
-    for f in sorted(d.iterdir()):
-        if f.name.startswith(spec_id) and f.suffix == ".md":
-            return str(f)
+    """Resolve a SPEC-ID to its READY *or DRAFT* spec file path, or None.
+
+    Searches ready/ first (the promoted home), then draft/ -- so callers like
+    ``redgreen:record`` work while a spec is still in draft/ (e.g. /write-spec
+    records before it promotes the spec from draft/ to ready/).
+    """
+    for ready_dir in (READY_DIR, DRAFT_DIR):
+        d = Path(ready_dir)
+        if not d.exists():
+            continue
+        for f in sorted(d.iterdir()):
+            if f.name.startswith(spec_id) and f.suffix == ".md":
+                return str(f)
     return None
 
 
@@ -244,7 +251,7 @@ def resolve_active_spec() -> dict | None:
     spec_file = find_spec_file(spec_id)
     if not spec_file:
         raise SystemExit(
-            f"Active plan references {spec_id} but no READY spec file found in {READY_DIR}"
+            f"Active plan references {spec_id} but no spec file found in {READY_DIR} or {DRAFT_DIR}"
         )
     acs = parse_acceptance_criteria(Path(spec_file).read_text(encoding="utf-8"))
     return {

@@ -66,7 +66,11 @@ Format: `| DEBT-XXX | P3 | [area] | [description] | PLAN-XXX | [date] |`
 - Update `Status: SHIPPED`
 - Update `docs/product-specs/index.md` table
 
-### 8. Final Commit
+### 8. Final Commit — on the feature branch (last step before `/open-pr`)
+
+> gc commits on the **current feature branch**, never `main` (which is PR-only protected). Its
+> cleanup lands on `main` via the **same PR as the feature** — garbage-collect is the last step
+> before `/open-pr`.
 
 ```bash
 git add -A
@@ -76,7 +80,7 @@ git commit -m "chore: garbage collect — close PLAN-XXX
 - [N] debt items logged
 - PLAN-XXX moved to completed
 - SPEC-XXX marked SHIPPED"
-git push origin main
+git push origin "$(git branch --show-current)"   # the feature branch — never main (PR-only protected)
 ```
 
 ### 9. Report

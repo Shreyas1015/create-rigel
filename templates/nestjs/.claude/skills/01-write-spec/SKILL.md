@@ -43,7 +43,7 @@ For **every** `AC-N` in the spec, write one test file
 ```typescript
 // tests/acceptance/SPEC-XXX/AC-1.test.ts
 import { Test } from '@nestjs/testing'
-import { INestApplication, ValidationPipe } from '@nestjs/common'
+import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common'
 import request from 'supertest'
 import { AppModule } from '../../../src/app.module'
 
@@ -53,7 +53,13 @@ describe('AC-1: user can create an application', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile()
     app = moduleRef.createNestApplication()
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }))
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY, // invalid body → 422, not 400
+      }),
+    )
     await app.init()
   })
   afterAll(async () => {

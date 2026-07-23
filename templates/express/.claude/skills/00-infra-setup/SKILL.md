@@ -316,7 +316,10 @@ return rateLimit({
 ```
 
 Create `src/runtime/middleware/requestId.ts` — X-Request-ID propagation.
-Create `src/runtime/middleware/errorHandler.ts` — sanitised errors + logging.
+Create `src/runtime/middleware/errorHandler.ts` — sanitised errors + logging. A `ZodError` (or any
+validation failure) maps to **422 `VALIDATION_ERROR`** (Unprocessable Entity), never 400 — this is the
+status `.claude/rules/testing.md` asserts. Keep a body-parser `SyntaxError` (malformed JSON) as 400
+Bad Request. See the status mapping in `.claude/rules/api.md`.
 Create `src/runtime/middleware/idempotency.ts` — Redis-backed idempotency for mutations
 (makes the `security-auditor` A04 "idempotency keys on mutation endpoints" check real).
 Create `src/runtime/openapi.ts` — the OpenAPI registry that `scripts/openapi.export.ts` reads.

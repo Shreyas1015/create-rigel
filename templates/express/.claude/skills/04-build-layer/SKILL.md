@@ -94,6 +94,11 @@ Write only the files for this layer. Follow the layer rules exactly.
 - Ownership: `findOne({ where: { id, userId } })` — never `findByPk(id)` alone
 - Zod schemas for all entity shapes
 - Export from `src/repo/index.ts`
+- **Isolation test ships WITH this layer, not the Tests layer.** For every owned
+  (userId-scoped) repo, also write `tests/integration/{resource}.isolation.test.ts`
+  (copy `tests/integration/isolation.test.template.ts`). `tests/architecture/isolation.test.ts`
+  fails the gate the moment an owner-scoped repo exists without its isolation test, so
+  deferring it to the Tests layer breaks the Repo-layer gate.
 
 **Service layer** — `src/services/`
 - One file per domain: `{domain}.service.ts`
@@ -122,9 +127,10 @@ Write only the files for this layer. Follow the layer rules exactly.
 - `tests/unit/services/{service}.test.ts` — service layer
 - `tests/unit/utils/{util}.test.ts` — utils
 - `tests/integration/{feature}.test.ts` — route-level
-- `tests/integration/{resource}.isolation.test.ts` — REQUIRED for every owned resource
-  (copy `tests/integration/isolation.test.template.ts`); `tests/architecture/isolation.test.ts`
-  fails the gate if a userId-scoped repo has no matching isolation test
+- `tests/integration/{resource}.isolation.test.ts` — REQUIRED for every owned resource,
+  but it ships WITH the Repo layer above (the `tests/architecture/isolation.test.ts` gate
+  fails the moment an owner-scoped repo exists), not deferred here. Listed for reference only;
+  if you reach the Tests layer and it's missing, add it now
 - Meet coverage thresholds from `.claude/rules/testing.md`
 
 ---

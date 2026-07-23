@@ -81,6 +81,13 @@ res.json({ error: err.message })       // wrong format
 **Error code enum** (the only allowed `error.code` values):
 `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FORBIDDEN`, `CONFLICT`, `RATE_LIMITED`, `INTERNAL_ERROR`.
 
+**HTTP status mapping** (the `errorHandler` sets these — a Zod/validation failure is **422**, never 400):
+`VALIDATION_ERROR` → **422** (Zod parse / invalid body — Unprocessable Entity), `NOT_FOUND` → 404,
+`UNAUTHORIZED` → 401, `FORBIDDEN` → 403, `CONFLICT` → 409, `RATE_LIMITED` → 429, `INTERNAL_ERROR` → 500.
+A `ZodError` MUST map to `422 VALIDATION_ERROR`. The one exception is a malformed-JSON body
+(body-parser `SyntaxError`), which stays **400 Bad Request** — it never parsed, so it isn't a
+validation failure. This matches `.claude/rules/testing.md` (`expect(res.status).toBe(422)`).
+
 **`meta` shape** (pinned by `tests/unit/utils/response.util.test.ts`): success carries
 `{ requestId, timestamp }`; errors carry `{ requestId }` only. The timestamp asymmetry is intentional —
 error responses stay minimal. This is identical across the harness family; do not add fields ad-hoc.
@@ -116,11 +123,21 @@ return res.json(ok(result, req.requestId))
 ### Idempotency (mutation endpoints)
 
 Mutating routes (POST/PUT/PATCH/DELETE) accept an optional `Idempotency-Key` header, handled by
-`src/runtime/middleware/idempotency.ts` (Redis-backed). Wire it in front of the handler:
+`src/runtime/middleware/idempotency.ts` (Redis-backed). Mount it at the **router level** — it already
+no-ops on GET and keyless requests, so it's safe across the whole router:
 
 ```typescript
-router.post('/', idempotency, userRateLimit, async (req, res, next) => { ... })
+router.use(idempotency)   // all mutating routes on this router; no-ops on GET/keyless
+// userRateLimit is likewise mounted at the router level (see Rate Limits above)
+router.post('/', async (req, res, next) => { ... })
 ```
+
+> **Why router-level, not inline.** Under Express 5 + `exactOptionalPropertyTypes`, chaining inline
+> middleware before the handler (`router.post('/:id', idempotency, handler)`) makes `req.params`
+> infer as `string | string[] | undefined`, so `req.params.id` fails `tsc` (TS2345). A
+> single-handler route infers `{ id: string }` cleanly. Keep handlers single-argument by mounting
+> shared middleware with `router.use(...)`. If you genuinely must chain middleware inline on a
+> parameterized route, annotate the handler explicitly: `(req: Request<{ id: string }>, res, next)`.
 
 - **First call** with a given key → handler runs; response is cached under `{userId}:{method}:{path}:{key}`.
 - **Replay** (same key) → cached response returned with header `Idempotent-Replay: true`.

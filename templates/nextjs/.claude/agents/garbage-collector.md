@@ -52,10 +52,14 @@ npx vitest run --coverage 2>&1 | grep -A5 "Coverage"
 
 ### 8. Mark Spec SHIPPED in spec file + index
 
-### 9. Final Commit
+### 9. Final Commit — on the feature branch (last step before `/open-pr`)
+
+> gc commits on the **current feature branch**, never `main` (which is PR-only protected). Its
+> cleanup (close plan, ship spec, QUALITY_SCORE, tech-debt) lands on `main` via the **same PR as
+> the feature** — so garbage-collect is the last step before `/open-pr`.
 
 ```bash
 git add -A
 git commit -m "chore: garbage collect — close PLAN-XXX"
-git push origin main
+git push origin "$(git branch --show-current)"   # the feature branch — never main (PR-only protected)
 ```

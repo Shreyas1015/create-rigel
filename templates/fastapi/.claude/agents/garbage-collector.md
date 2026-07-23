@@ -47,7 +47,12 @@ Any shortcuts → add to `docs/exec-plans/tech-debt-tracker.md`.
 - `docs/product-specs/ready/SPEC-XXX.md` → `Status: SHIPPED`
 - Update `docs/product-specs/index.md`
 
-### 8. Final Commit
+### 8. Final Commit — on the feature branch (last step before `/open-pr`)
+
+> gc commits on the **current feature branch**, never `main` (which is PR-only protected). Its
+> cleanup lands on `main` via the **same PR as the feature** — garbage-collect is the last step
+> before `/open-pr`.
+
 ```bash
 git add -A
 git commit -m "chore: garbage collect — close PLAN-XXX
@@ -55,7 +60,7 @@ git commit -m "chore: garbage collect — close PLAN-XXX
 - QUALITY_SCORE.md updated
 - PLAN-XXX → completed/
 - SPEC-XXX marked SHIPPED"
-git push origin main
+git push origin "$(git branch --show-current)"   # the feature branch — never main (PR-only protected)
 ```
 
 ### 9. Report
