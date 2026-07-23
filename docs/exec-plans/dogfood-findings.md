@@ -262,3 +262,27 @@ live before relying on it.
   INSERTs the user; with an FK to `users` that violates the constraint on insert. F2 worked around it by
   registering real users via `POST /auth/register`. Fix: once a User model+table exist, `createUser` should
   persist (or the isolation template should register via the auth endpoint).
+
+---
+
+## Run 6 — Part B AC-5: golden reference builds
+
+### G1 (SPEC-G1-backend, express) — BUILT · GRADED GREEN · ADMITTED
+A fresh express app (3rd clean-template dogfood) scaffolded from the fixed template, implementing
+G1's spec (bookmarks create/list/delete, `{id,userId,url,title,createdAt}`, 422/401/404/cursor),
+graded against a dedicated `g1ref` DB: `npm run gate` PASS, `ac:vector` AC-1..4 all PASS, 30 tests
+green. `reference/{grade.json,README.md,solution/}` emitted; `load-golden` → G1 admitted. Harness
+commit `777dce1`.
+
+### New findings from the fresh-scaffold build
+- **DF-42 (P1-ish, defect) — TODO:** `/infra-setup` never creates `.env`, but `src/config/env.ts`
+  does `process.exit(1)` when `DATABASE_URL`/`REDIS_URL`/`JWT_SECRET` are absent — so a clean
+  builder following the skill can't run infra-setup's own `npm run dev` / `/health` gate steps or
+  any DB test until they hand-create `.env`. Fix: infra-setup writes `.env` from `.env.example`
+  with test-safe defaults (dev `JWT_SECRET`), or the scaffolder emits one.
+- **DF-43 (P2, footgun) — TODO:** the harness resolves spec ids via `/\bSPEC-\d+\b/`, and
+  `ac:vector` (no id arg) prints "no active plan/spec — nothing to grade" and **exits 0** when an
+  active plan's id doesn't resolve (e.g. a non-numeric `SPEC-G1-backend`) — a green-looking exit
+  that graded nothing. Fix: let `ac:vector` accept an explicit spec id (like `redgreen:record`),
+  and/or exit non-zero when an active plan exists but its id didn't resolve. (G1 was built under a
+  numeric `SPEC-001` id with G1's content to sidestep this — the grade is legitimate.)

@@ -1,0 +1,22 @@
+{
+  "specId": "SPEC-001",
+  "recordedCommit": "64746c7a4c5f00a59d34774b0f00ba811d68a4ee",
+  "tests": {
+    "AC-1": {
+      "status": "red",
+      "commit": "64746c7a4c5f00a59d34774b0f00ba811d68a4ee"
+    },
+    "AC-2": {
+      "status": "red",
+      "commit": "64746c7a4c5f00a59d34774b0f00ba811d68a4ee"
+    },
+    "AC-3": {
+      "status": "red",
+      "commit": "64746c7a4c5f00a59d34774b0f00ba811d68a4ee"
+    },
+    "AC-4": {
+      "status": "red",
+      "commit": "64746c7a4c5f00a59d34774b0f00ba811d68a4ee"
+    }
+  }
+}
