@@ -156,3 +156,22 @@ All OPEN (candidate fix batch before F2). CLASS unless noted.
 git loop on real remotes · protect-branch drift · cross-user isolation (404) · cursor
 pagination · background job · external-API Zod boundary · frontend states · vision-judge ·
 contract drift · holdout tamper · Impeccable slop→exit2 ordering · token-change→drift.
+
+---
+
+## Run 4 — Port fixes into the live repo (F2 prerequisite)
+
+Before building F2, the pipeline + git-loop fixes (made in create-rigel *after* `rigel-bookmarks-api`
+was scaffolded from the post-DF-1..16 templates) were ported into the live repo via the real git loop
+on branch `chore/PLAN-001-pipeline-sync`:
+
+- **Ported:** `db/config.cjs` + `.sequelizerc`, `.js`→`.cjs` migration, `provision-schema.mjs`
+  globalSetup, jest config (DF-20/22/24); solo-friendly `git-policy.json` + `protect-branch.sh` +
+  `check-protection-drift.sh` (DF-29); `03-write-plan`/`04-build-layer` branch-cut + push-current
+  (DF-17/18); `.cjs` skill/rule guidance.
+- **DF-29 — LIVE-VERIFIED:** re-ran `protect-branch.sh` → main + staging synced to solo-friendly;
+  `check-protection-drift.sh` ✓ on **both** branches; **PR #2 opened and squash-merged solo** with no
+  approval deadlock. The DF-29 fix works end-to-end on a real remote, not just in the template.
+- **DF-17/18 — LIVE-VERIFIED (partial):** the chore branch was cut off `main` and pushed as the
+  current branch (never `main`); `/open-pr` landed it. Full loop re-verified again by F2.
+- **Gate:** db-free gate green post-port (zero-tests guard: 10 tests executed).
