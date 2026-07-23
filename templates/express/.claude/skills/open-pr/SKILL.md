@@ -79,9 +79,16 @@ stage server, and the canary/smoke plan for after it deploys (the `promotion.urg
 
 ## Step 5 — Create the PR
 
+Title the PR after the **plan**, not the last commit — a multi-commit branch's final commit is
+often a `test:`/`chore:` and makes a misleading PR title.
+
 ```bash
+plan_file=$(ls docs/exec-plans/active/*.md 2>/dev/null | head -1)
+pr_title=$(sed -n 's/^#[[:space:]]*\(PLAN-[0-9]\{3\}.*\)$/\1/p' "$plan_file" | head -1)
+[ -n "$pr_title" ] || pr_title="${plan_id:-PLAN}: $(git log -1 --pretty=%s)"   # fallback
+
 gh pr create --base "$base" --head "$branch" \
-  --title "$(git log -1 --pretty=%s)" \
+  --title "$pr_title" \
   --body-file <(...assembled body...)
 ```
 

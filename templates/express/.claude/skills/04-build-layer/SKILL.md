@@ -28,9 +28,9 @@ echo "Active plan: $PLAN"
 cat "$PLAN"
 ```
 
-Parse the **Build Order** table in the plan.
-Find the first row with `[ ]` (unchecked) — this is the layer to build.
-If all rows are `[x]` (checked) → all layers complete, run `/garbage-collect`.
+Parse the **Layer Build Order** checklist in the plan.
+Find the first item still `- [ ]` (unchecked) — this is the layer to build.
+If every item is `- [x]` (checked) → all layers complete, run `/garbage-collect`.
 
 ---
 

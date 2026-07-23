@@ -69,6 +69,18 @@ const token = req.headers.authorization?.split(' ')[1]
 const payload = jwt.verify(token, process.env.JWT_SECRET) // multiple violations
 ```
 
+## Password Hashing — argon2 (default export)
+
+```typescript
+// ✅ argon2 has NO named exports — import the default and call methods off it
+import argon2 from 'argon2'
+const hash = await argon2.hash(plaintext)          // argon2id, sensible defaults
+const ok = await argon2.verify(hash, plaintext)    // (hash, plaintext) — order matters
+
+// ❌ Wrong — there is no named `hash`/`argon2` export; this is `undefined`
+import { hash } from 'argon2'
+```
+
 ## Error Responses — Never Expose Internals
 
 ```typescript

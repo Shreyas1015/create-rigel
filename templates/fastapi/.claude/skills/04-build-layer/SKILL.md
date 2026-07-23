@@ -15,7 +15,9 @@ PLAN=$(ls docs/exec-plans/active/*.md 2>/dev/null | head -1)
 cat "$PLAN"
 ```
 
-Parse the Build Order table. Find first row with `[ ]`. If all `[x]` → run `/garbage-collect`.
+Parse the **Layer Build Order** checklist in the plan. Find the first item still `- [ ]`
+(unchecked) — this is the layer to build. If every item is `- [x]` → all layers complete, run
+`/garbage-collect`.
 
 ---
 

@@ -73,17 +73,26 @@ await sequelize.query(`SELECT * FROM applications WHERE user_id = '${userId}'`)
 
 ## Password Hashing — argon2 Only
 
+argon2 exposes its whole API on the module object — import it as a namespace (or default) and
+call the methods off that binding. There are **no first-class named exports** to destructure:
+`import { hash } from 'argon2'` is a trap (it resolves to `undefined` under native ESM and is a
+foot-gun in general). `argon2.hash(pw)` returns an argon2id hash; `argon2.verify(hash, pw)` takes
+the hash first, plaintext second.
+
 ```typescript
+// ✅ Import the module, call methods off it
 import * as argon2 from 'argon2'
 
 // Hash
-const hash = await argon2.hash(password)
+const hash = await argon2.hash(password)          // argon2id, sensible defaults
 
-// Verify
+// Verify — (hash, plaintext) order matters
 const valid = await argon2.verify(hash, password)
 
-// ❌ Never
-import * as bcrypt from 'bcrypt'   // GPU-vulnerable
+// ❌ Never — argon2 has no named export; this binding is undefined
+import { hash } from 'argon2'
+// ❌ Never — GPU-vulnerable
+import * as bcrypt from 'bcrypt'
 ```
 
 ## Error Responses — Never Expose Internals

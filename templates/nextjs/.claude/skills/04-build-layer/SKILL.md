@@ -10,7 +10,9 @@ PLAN=$(ls docs/exec-plans/active/*.md 2>/dev/null | head -1)
 [[ -z "$PLAN" ]] && echo "No active plan. Run /write-plan first." && exit 1
 cat "$PLAN"
 ```
-Find first `[ ]` row. If all `[x]` → run `/garbage-collect`.
+Parse the **Layer Build Order** checklist in the plan. Find the first item still `- [ ]`
+(unchecked) — this is the layer to build. If every item is `- [x]` → all layers complete, run
+`/garbage-collect`.
 
 ---
 
@@ -98,7 +100,7 @@ Every interactive element: aria-label, focus-visible.
 Call `gate-checker` agent.
 
 **If FAIL:** auto-fix each ITEM, log what was fixed, re-run gate (max 3 attempts), following the role-escalation rule below.
-**If PASS:** tick checkbox in plan, write ADR if non-obvious decision.
+**If PASS:** tick the layer's box in the plan (`- [ ] Layer N` → `- [x] Layer N`), write ADR if non-obvious decision.
 
 ### Gate escalation — role routing (see `.claude/model-routing.json`)
 

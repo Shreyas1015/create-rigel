@@ -97,6 +97,12 @@ await Application.findAll({ where: { userId }, paranoid: false })
 - [ ] FK columns have index
 - [ ] ORDER BY columns have index
 - [ ] Partial index for `WHERE deleted_at IS NULL` queries
+- [ ] Exported **and** registered in `src/models/index.ts` via `sequelize.addModels([...])`
+
+> **Import models through the barrel.** Repos/services must `import { Foo } from '../models'`
+> (i.e. `src/models/index.ts`, which runs `addModels`). Importing the model file directly
+> (`../models/Foo.model`) bypasses registration → `SequelizeInitializationError: Model not
+> initialized` at first query.
 
 ## Migration Checklist (every new migration)
 - [ ] New indexes use `CONCURRENTLY`

@@ -65,18 +65,18 @@ Run `/api-sync` to ensure `src/types/api.generated.ts` is current.
 
 ## Layer Build Order
 
-| # | Layer | Files | Gate Focuses On |
-|---|---|---|---|
-| 1 | Types | `src/types/domain.types.ts` additions | Zero imports, no API duplication |
-| 2 | Lib | `src/lib/env.ts` update (if new vars), constants | process.env only in env.ts |
-| 3 | Hooks | `src/hooks/use-{domain}.ts` × N | openapi-fetch only, error handling, query keys |
-| 4 | Store | `src/store/{domain}-store.ts` (if client state needed) | UI state only, no server data |
-| 5 | Features | `src/features/{domain}/` — components + forms | Loading/error/empty states, a11y |
-| 6 | Components | `src/components/shared/` — new shared components | Props typed, no domain logic |
-| 7 | App | `app/(dashboard)/{route}/page.tsx` + layout changes | No business logic in pages |
-| 8 | Tests | `tests/unit/`, `tests/e2e/` | Coverage gates, E2E critical paths |
+`/build-layer` builds these **in order**, finds the first unchecked `- [ ]` item, and ticks its
+box (`- [ ]` → `- [x]`) once that layer's gate passes. Keep the `- [ ] Layer N: {Name}` prefix
+exactly — the loop greps for it. **Delete any layer that doesn't apply to this feature.**
 
-*(Remove layers that don't apply to this feature)*
+- [ ] Layer 1: Types — `src/types/domain.types.ts` additions (zero imports, no API duplication)
+- [ ] Layer 2: Lib — `src/lib/env.ts` update (if new vars), `constants.ts` (process.env only in env.ts)
+- [ ] Layer 3: Hooks — `src/hooks/use-{domain}.ts` × N (openapi-fetch only, error handling, query keys)
+- [ ] Layer 4: Store — `src/store/{domain}-store.ts` (if client state needed) (UI state only, no server data)
+- [ ] Layer 5: Features — `src/features/{domain}/` components + forms (loading/error/empty states, a11y)
+- [ ] Layer 6: Components — `src/components/shared/` new shared components (props typed, no domain logic)
+- [ ] Layer 7: App — `app/(dashboard)/{route}/page.tsx` + layout changes (no business logic in pages)
+- [ ] Layer 8: Tests — `tests/unit/`, `tests/e2e/` (coverage gates, E2E critical paths)
 
 ---
 

@@ -78,19 +78,19 @@ Save to: `docs/exec-plans/active/PLAN-XXX-{slug}.md`
 
 ## Layer Build Order
 
-| # | Layer | Files | Gate Focuses On |
-|---|---|---|---|
-| 1 | Types | `src/types/{entity}.types.ts`, `common.types.ts` | Zero imports, zero logic |
-| 2 | Config | `src/config/env.ts` update, `constants.ts` | No process.env elsewhere |
-| 3 | Models | `src/models/{Entity}.model.ts` × N | paranoid, UUIDv7, indexes |
-| 4 | Migrations | `db/migrations/YYYYMMDD-create-{table}.cjs` × N | Runs clean, has down() |
-| 5 | Repo | `src/repo/{entity}.repo.ts` × N | Zod parse, cursor pagination, ownership, no N+1 |
-| 6 | Service | `src/services/{domain}.service.ts` × N | No express imports, ≥90% coverage |
-| 7 | Runtime | `src/runtime/routes/v1/{resource}.route.ts` × N | Auth first, envelope, rate-limit |
-| 8 | Workers | `src/runtime/workers/{name}.worker.ts` × N | Zod payload, retry, observability |
-| 9 | Tests | `tests/unit/`, `tests/integration/` | Coverage gates, load test |
+`/build-layer` builds these **in order**, finds the first unchecked `- [ ]` item, and ticks its
+box (`- [ ]` → `- [x]`) once that layer's gate passes. Keep the `- [ ] Layer N: {Name}` prefix
+exactly — the loop greps for it. **Delete any layer that doesn't apply to this feature.**
 
-*(Remove rows that don't apply to this feature)*
+- [ ] Layer 1: Types — `src/types/{entity}.types.ts`, `common.types.ts` (zero imports, zero logic)
+- [ ] Layer 2: Config — `src/config/env.ts` update, `constants.ts` (no process.env elsewhere)
+- [ ] Layer 3: Models — `src/models/{Entity}.model.ts` × N (paranoid, UUIDv7, indexes)
+- [ ] Layer 4: Migrations — `db/migrations/YYYYMMDD-create-{table}.cjs` × N (runs clean, has down())
+- [ ] Layer 5: Repo — `src/repo/{entity}.repo.ts` × N (Zod parse, cursor pagination, ownership, no N+1)
+- [ ] Layer 6: Service — `src/services/{domain}.service.ts` × N (no express imports, ≥90% coverage)
+- [ ] Layer 7: Runtime — `src/runtime/routes/v1/{resource}.route.ts` × N (auth first, envelope, rate-limit)
+- [ ] Layer 8: Workers — `src/runtime/workers/{name}.worker.ts` × N (Zod payload, retry, observability)
+- [ ] Layer 9: Tests — `tests/unit/`, `tests/integration/` (coverage gates, load test)
 
 ---
 

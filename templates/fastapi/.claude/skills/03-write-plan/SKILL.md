@@ -62,17 +62,19 @@ Save to: `docs/exec-plans/active/PLAN-XXX-{slug}.md`
 
 ## Layer Build Order
 
-| # | Layer | Files | Gate Focuses On |
-|---|---|---|---|
-| 1 | Types | `src/types/{entity}_schema.py`, `exceptions.py` | Zero imports, zero logic |
-| 2 | Config | `src/config/settings.py` update, `constants.py` | No os.environ elsewhere |
-| 3 | Models | `src/models/{entity}.py` × N | deleted_at, uuid7, indexes |
-| 4 | Migrations | `alembic/versions/...` × N | Runs clean, has downgrade() |
-| 5 | Repo | `src/repo/{entity}_repo.py` × N | model_validate, cursor, ownership, no N+1 |
-| 6 | Service | `src/services/{domain}_service.py` × N | No fastapi, ≥90% coverage |
-| 7 | Runtime | `src/runtime/routers/v1/{resource}.py` × N | Depends(require_auth), typed return |
-| 8 | Workers | `src/runtime/workers/{name}_worker.py` × N | model_validate payload, retry, logs |
-| 9 | Tests | `tests/unit/`, `tests/integration/` | Coverage gates |
+`/build-layer` builds these **in order**, finds the first unchecked `- [ ]` item, and ticks its
+box (`- [ ]` → `- [x]`) once that layer's gate passes. Keep the `- [ ] Layer N: {Name}` prefix
+exactly — the loop greps for it. **Delete any layer that doesn't apply to this feature.**
+
+- [ ] Layer 1: Types — `src/types/{entity}_schema.py`, `exceptions.py` (zero imports, zero logic)
+- [ ] Layer 2: Config — `src/config/settings.py` update, `constants.py` (no os.environ elsewhere)
+- [ ] Layer 3: Models — `src/models/{entity}.py` × N (deleted_at, uuid7, indexes)
+- [ ] Layer 4: Migrations — `alembic/versions/...` × N (runs clean, has downgrade())
+- [ ] Layer 5: Repo — `src/repo/{entity}_repo.py` × N (model_validate, cursor, ownership, no N+1)
+- [ ] Layer 6: Service — `src/services/{domain}_service.py` × N (no fastapi, ≥90% coverage)
+- [ ] Layer 7: Runtime — `src/runtime/routers/v1/{resource}.py` × N (Depends(require_auth), typed return)
+- [ ] Layer 8: Workers — `src/runtime/workers/{name}_worker.py` × N (model_validate payload, retry, logs)
+- [ ] Layer 9: Tests — `tests/unit/`, `tests/integration/` (coverage gates)
 
 ---
 

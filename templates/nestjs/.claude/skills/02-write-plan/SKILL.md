@@ -37,17 +37,20 @@ spec → the AC ids through exactly that line, so it is not optional:
 Also copy the spec's Acceptance Criteria (with their `AC-N` ids) into the plan so the vector at
 feature-completion has them in the Progress Log.
 
-Layer order for each NestJS feature:
-| # | Layer | Gate |
-|---|---|---|
-| 1 | Model | paranoid, UUIDv7, indexes |
-| 2 | Migration | runs clean, has down() |
-| 3 | DTOs | class-validator + @ApiProperty on every field |
-| 4 | Repository | Zod parse, cursor pagination, ownership, no N+1 |
-| 5 | Service | no HTTP, NestJS exceptions, ≥90% coverage |
-| 6 | Controller | @ApiTags, @ApiOperation, @ApiResponse, one-liner handlers |
-| 7 | Module | SequelizeModule.forFeature, registered in AppModule |
-| 8 | Tests | service unit (mock repo) + e2e (201, 401, 422) |
+## Layer Build Order
+
+`/build-layer` builds these **in order**, finds the first unchecked `- [ ]` item, and ticks its
+box (`- [ ]` → `- [x]`) once that layer's gate passes. Keep the `- [ ] Layer N: {Name}` prefix
+exactly — the loop greps for it. **Delete any layer that doesn't apply to this feature.**
+
+- [ ] Layer 1: Model — `src/{feature}/models/{feature}.model.ts` (paranoid, UUIDv7, indexes)
+- [ ] Layer 2: Migration — `db/migrations/YYYYMMDDHHMMSS-create-{feature}.js` (runs clean, has down())
+- [ ] Layer 3: DTOs — `src/{feature}/dto/` (class-validator + @ApiProperty on every field)
+- [ ] Layer 4: Repository — `src/{feature}/{feature}.repository.ts` (Zod parse, cursor pagination, ownership, no N+1)
+- [ ] Layer 5: Service — `src/{feature}/{feature}.service.ts` (no HTTP, NestJS exceptions, ≥90% coverage)
+- [ ] Layer 6: Controller — `src/{feature}/{feature}.controller.ts` (@ApiTags, @ApiOperation, @ApiResponse, one-liner handlers)
+- [ ] Layer 7: Module — `src/{feature}/{feature}.module.ts` (SequelizeModule.forFeature, registered in AppModule)
+- [ ] Layer 8: Tests — `src/{feature}/{feature}.service.spec.ts`, `test/{feature}.e2e-spec.ts` (service unit mock repo + e2e 201/401/422)
 
 4. **Cut the feature branch** from `main` (never build on `main` — it's protected), matching the
    policy pattern `^(feat|fix|chore|hotfix)/PLAN-\d{3}-[a-z0-9-]+$`, same `PLAN-XXX-{slug}`:

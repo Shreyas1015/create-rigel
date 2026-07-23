@@ -10,7 +10,9 @@ PLAN=$(ls docs/exec-plans/active/*.md 2>/dev/null | head -1)
 [[ -z "$PLAN" ]] && echo "No active plan. Run /write-plan first." && exit 1
 cat "$PLAN"
 ```
-Find first `[ ]` row. If all `[x]` → run `/garbage-collect`.
+Parse the **Layer Build Order** checklist in the plan. Find the first item still `- [ ]`
+(unchecked) — this is the layer to build. If every item is `- [x]` → all layers complete, run
+`/garbage-collect`.
 
 ---
 
@@ -226,6 +228,7 @@ Then add to `AppModule.imports`.
 
 ## Step 4 — Gate
 Call `gate-checker` agent. Auto-fix failures. Re-run up to 3 times.
+On PASS: tick this layer's box in the plan (`- [ ] Layer N` → `- [x] Layer N`), then write an ADR if a non-obvious decision was made.
 
 **Role escalation** (see `.claude/model-routing.json`) — track the gate FAIL count for THIS layer:
 - Attempts 1–2 (same layer): run fix-and-re-gate as a **worker**-role subagent (`sonnet`).

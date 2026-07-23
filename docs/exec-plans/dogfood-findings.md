@@ -175,3 +175,30 @@ on branch `chore/PLAN-001-pipeline-sync`:
 - **DF-17/18 — LIVE-VERIFIED (partial):** the chore branch was cut off `main` and pushed as the
   current branch (never `main`); `/open-pr` landed it. Full loop re-verified again by F2.
 - **Gate:** db-free gate green post-port (zero-tests guard: 10 tests executed).
+
+### Run-4 fix status — P2 doc nits + DF-30 investigation
+- **DF-27 — FIXED (express; propagating to nextjs/nestjs/fastapi):** the `/write-plan` plan template's
+  "Layer Build Order" was a checkbox-less table while `/build-layer` greps for the first `- [ ]` item and
+  ticks `- [ ] Layer N: {Name}`. Converted the template to a checklist with that exact prefix; aligned
+  `/build-layer` Step 1 wording (table → checklist). (An LLM agent worked around it before — hence P2 —
+  but the literal instruction was broken.)
+- **DF-28 — FIXED (express; propagating):** `/open-pr` now titles the PR from the active plan
+  (`PLAN-XXX — <title>`) instead of the last commit subject (which was often a trailing `test:`/`chore:`).
+- **DF-31 — FIXED (express; propagating where applicable):** `security.md` documents argon2's default-only
+  export (`import argon2 from 'argon2'`, `argon2.verify(hash, pw)`); `database.md` documents importing
+  models through the `src/models` `addModels` barrel (direct model-file import → "Model not initialized").
+- **DF-30 — INVESTIGATED, verdict deferred.** Triggers are correct (ci.yml `push:[main]`+`pull_request`;
+  git-policy.yml `pull_request:[main,staging]`), Actions is **enabled**, and all 4 workflows are **on
+  `main`** and registered active — yet the repo has **0 workflow runs total**, and PR #2's merge (a push
+  to `main`) produced none. Leading hypothesis: PR #1 introduced the workflows onto an empty `main` so it
+  couldn't trigger them (GitHub runs the *base* branch's workflow), and PR #2 was opened+squash-merged
+  within seconds so its `pull_request` runs were never scheduled before the head branch was deleted. The
+  **decisive probe is F2's PR** (open through a multi-minute build) — check `gh run list` after F2 lands.
+  If still 0 runs, this is a genuine "CI never fires" defect worth deeper investigation.
+
+### Observation (not a template defect) — migration file rename vs SequelizeMeta
+Renaming an already-applied migration `…-create-users.js` → `.cjs` orphaned its `SequelizeMeta` row
+(Sequelize keys on filename), so `db:migrate` re-ran it and collided ("relation … already exists"). This
+only bites when you *rename an applied migration* — which the templates never instruct. A fresh project
+scaffolds `.cjs` from the first feature, so it never happens. Surfaced only because the dogfood repo was
+retrofitted; resolved by resetting the throwaway test DB and migrating clean (`.cjs` applied in 0.011s).
