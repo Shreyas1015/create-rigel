@@ -1,0 +1,333 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "harness-service",
+    "version": "0.0.1",
+    "description": "Generated contract. Canonical response envelope + error-code enum are identical across the harness family — see .claude/rules/api.md."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "BookmarkCountResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["count"]
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "requestId": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              }
+            },
+            "required": ["requestId", "timestamp"]
+          }
+        },
+        "required": ["ok", "data", "meta"]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created; access token in body, refresh cookie set"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated; access token in body, refresh cookie set"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "responses": {
+          "200": {
+            "description": "New access token issued from the refresh cookie"
+          },
+          "401": {
+            "description": "Missing/invalid refresh cookie"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "responses": {
+          "200": {
+            "description": "The authenticated caller"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          }
+        }
+      }
+    },
+    "/bookmarks": {
+      "post": {
+        "tags": ["bookmarks"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  }
+                },
+                "required": ["url", "title"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bookmark created (status defaults to unread)"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          },
+          "422": {
+            "description": "Validation error (invalid url / missing title / bad tags)"
+          }
+        }
+      },
+      "get": {
+        "tags": ["bookmarks"],
+        "responses": {
+          "200": {
+            "description": "Cursor-paginated list of the caller's bookmarks (newest-first)"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          }
+        }
+      }
+    },
+    "/bookmarks/count": {
+      "get": {
+        "tags": ["bookmarks"],
+        "summary": "Count of the caller's bookmarks",
+        "responses": {
+          "200": {
+            "description": "The caller's bookmark count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkCountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          }
+        }
+      }
+    },
+    "/bookmarks/{id}": {
+      "get": {
+        "tags": ["bookmarks"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bookmark"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          },
+          "404": {
+            "description": "Not found (absent or not the caller's)"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["bookmarks"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "note": {
+                    "type": ["string", "null"]
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50
+                    },
+                    "maxItems": 20
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["unread", "reading", "archived"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated bookmark"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          },
+          "404": {
+            "description": "Not found (absent or not the caller's)"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["bookmarks"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Soft-deleted"
+          },
+          "401": {
+            "description": "Missing/invalid access token"
+          },
+          "404": {
+            "description": "Not found (absent or not the caller's)"
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

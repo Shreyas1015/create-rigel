@@ -307,3 +307,29 @@ admitted. Committed `408eefe`.
   the canonical `gate → ac:vector` order (`gate:final`), but a *re-gate after grading* fails until
   `prettier --write` runs. Fix: `ac:vector` should write the block pre-formatted, or exclude the
   plan md from the format gate, or gate:final should `prettier --write` the plan after appending.
+
+### G3 (SPEC-G3-fullstack, express api/ + nextjs web/) — BUILT · GRADED GREEN · ADMITTED
+The full contract-boundary slice: `api/` exposes `GET /api/v1/bookmarks/count`, its OpenAPI is
+exported, `web/` runs `/api-sync` to regenerate `api.generated.ts`, and `BookmarkCountBadge` reads
+the count via a typed hook (type imported from the generated contract, renders 0 not blank).
+**gate PASS in BOTH apps**; acVector AC-1..4 PASS (AC-1 api jest/g3ref, AC-2/3 web vitest+MSW, AC-4
+both gates + contract-drift diff). `load-golden` → **3 admitted, 0 rejected** (AC-5 complete).
+
+- **DF-46 (P2, defect — contract boundary) — TODO:** `.openapi()` on a Zod schema *imported from
+  the Types layer* throws `X.openapi is not a function` — `extendZodWithOpenApi(z)` only augments
+  schemas created AFTER it runs (inside `openapi.ts`), not ones built in `*.types.ts`. Every
+  template path today is description-only, so **G3 is the first product to register a typed
+  response component and the first to hit this**; the infra-setup guidance is incomplete. Fix:
+  build the response component inside `openapi.ts` and nest the imported schema as a plain child
+  (never call `.openapi()` on the import), or call `extendZodWithOpenApi` in the Types layer.
+- **DF-47 (P2, footgun — api-sync/AC-4) — TODO:** `/api-sync` copies `openapi.json` verbatim, but
+  the web repo's prettier reformats it, so a naive `git diff openapi.json` shows formatting-only
+  drift. The byte-stable artifact is `api.generated.ts`. Fix: `/api-sync` should `prettier --write
+  openapi.json` after copying (or exclude it from the format gate).
+- **DF-48 (P3, footgun) — TODO:** `GET /bookmarks/count` is shadowed by `GET /bookmarks/:id`
+  (matched as `id="count"` → 404) unless registered first. Standard Express, but a real trap for
+  aggregate sub-paths; the reference declares `/count` before `/:id`.
+- **DF-42 stands** (express `env.ts` still `exit(1)` without `.env`); **DF-43 reproduces** (built
+  under `SPEC-001`); **DF-45 did not reproduce** (plan `.md` is in `.prettierignore` per DF-15).
+
+**AC-5 DONE:** the golden set now admits all three references (G1 backend · G2 frontend · G3 fullstack).

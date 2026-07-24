@@ -1,0 +1,10 @@
+{
+  "specId": "SPEC-001",
+  "recordedCommit": "37ec4b2d269c9db1b7ca8da1ecd46d6b80a721b5",
+  "tests": {
+    "AC-1": {
+      "status": "red",
+      "commit": "37ec4b2d269c9db1b7ca8da1ecd46d6b80a721b5"
+    }
+  }
+}
