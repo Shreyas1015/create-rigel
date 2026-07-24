@@ -12,12 +12,17 @@ assert.equal(isGreenGrade({ gate: 'PASS', acVector: { 'AC-1': 'FAIL' } }), false
 assert.equal(isGreenGrade({ gate: 'PASS', acVector: {} }), false)
 assert.equal(isGreenGrade(null), false)
 
-// ── real golden set: references not built → all rejected, none admitted ──
+// ── real golden set: all three references are built + graded green → all admitted ──
+// (PLAN-006 AC-5: G1 backend, G2 frontend, G3 fullstack references shipped. The un-built /
+// red / green admission LOGIC is covered by the fixture block below, which stays hermetic.)
 {
   const { admitted, rejected } = loadGoldenSet()
-  assert.equal(admitted.length, 0, 'no reference solutions built yet → nothing admitted')
-  assert.ok(rejected.length >= 3, 'the three golden specs are present and rejected')
-  for (const r of rejected) assert.match(r.reason, /reference/, `${r.id}: ${r.reason}`)
+  assert.equal(rejected.length, 0, `golden set has a rejected spec: ${JSON.stringify(rejected)}`)
+  assert.ok(admitted.length >= 3, 'the three golden references are built and admitted')
+  for (const a of admitted) {
+    assert.ok(a.grade && a.meta, `${a.id}: missing grade/meta`)
+    assert.ok(a.grade.gate === 'PASS', `${a.id}: reference not green`)
+  }
 }
 
 // ── fixture set: green admitted, red rejected, unbuilt rejected ──

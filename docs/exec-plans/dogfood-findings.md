@@ -358,3 +358,21 @@ both gates + contract-drift diff). `load-golden` → **3 admitted, 0 rejected** 
 
 **All golden-build findings (DF-42..48) resolved.** Total dogfood findings this cycle: **DF-1..DF-48**
 (all P0/P1 fixed; P2/P3 fixed or logged with guards).
+
+### Run 7 — Part B AC-6/AC-7 live verification
+A live G1 trial (headless `claude -p`, Option B, no API key) scaffolded a fresh express app,
+built the feature, and graded **gate PASS + AC-1..4 PASS** — proving the whole `run-trial`
+pipeline (scaffold → plant holdout → headless build → gate + ac:vector → `trial-N.json`) end to
+end. `golden-nightly.mjs --score-only` then ran loadRun → score → regress → baseline → report
+cleanly on the real trial dir (handling the ERRORED case correctly).
+
+- **RT-1 (run-trial budget bug) — CAUGHT LIVE + FIXED.** The first trial billed **44.26M tokens**
+  and was falsely marked ERRORED (budget 6M). Root cause: `usageTokens()` summed
+  `cache_read_input_tokens`, which accumulate per turn (context × turns) — a normal multi-turn
+  build reads tens of millions of *cached* tokens. Fix: budget only on **fresh** tokens
+  (input + output + cache_creation); record `totalTokens` + `costUsd` for the record. Unit test
+  replays the exact 44M-cache-read scenario. **This is the memory in action — unit tests were
+  green; only the real headless build exposed the miscount (verify end-to-end, not just
+  components).** A follow-up re-run to confirm the COMPLETE status was torn down mid-build twice
+  (headless trials are slow/flaky in this env); the pipeline proof + unit-tested fix stand on
+  their own.

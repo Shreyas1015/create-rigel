@@ -53,12 +53,28 @@ With a single labeler, human-vs-human κ cannot be established, so judge-exclusi
 established" rather than fabricating one, and `promotion-check.mjs` keeps those dimensions out of
 any blocking config. Only the deterministic-overlap (bootstrap) dimension can be promoted solo.
 
-## Deferred (infra/API-heavy — not built in this pass)
+## Live trials (PLAN-006 Part B — built)
 
-- **Reference solutions** for the three golden specs (each is a full app that must grade green;
-  needs Docker+Postgres+Redis / `uv` / `create-next-app`). Until built, `load-golden.mjs`
-  refuses to admit the specs — the set stays honest.
-- **`run-trial.mjs`** live runner (headless agent execution + `ANTHROPIC_API_KEY` + token budget)
-  and the **golden nightly workflow**. The scoring/regression/champion/calibration/parity
-  machinery is complete and fully tested on fixtures; only the *generation* of live trials is
-  deferred.
+- **Reference solutions** for all three golden specs are **built and admitted** (AC-5):
+  `golden-specs/<id>/reference/{grade.json,solution/,README.md}`, each a real app graded GREEN
+  (gate PASS + every AC PASS) — G1 backend (Docker Postgres), G2 frontend (create-next-app +
+  design tokens), G3 fullstack (contract boundary). `load-golden.mjs --assert-all` exits 0.
+- **`run-trial.mjs`** (AC-6) — the live trial runner. **Option B by default: the local `claude`
+  CLI, no `ANTHROPIC_API_KEY`.** It scaffolds a fresh app, plants the frozen spec + holdout
+  acceptance tests from the reference, drives a headless `claude -p` build under a token budget,
+  grades with the template's own gate + `ac:vector`, and emits a `trial-N.json` for `score.mjs`.
+  A budget breach / infra flake / agent crash marks the trial ERRORED, never FAILED.
+- **`golden-nightly.mjs`** + **`.github/workflows/golden-nightly.yml`** (AC-7) — the nightly alarm:
+  run k trials per admitted spec → score → compare to the committed baseline
+  (`evals/trials/baselines/<spec>.json`) → open a regression issue on replicated worsening. The
+  workflow degrades gracefully when no live agent is available (no `claude`, no key); run it on a
+  self-hosted runner, or locally via cron (`node evals/harness/golden-nightly.mjs`).
+
+### Still data-gated (machinery built + fixture-tested; the statistical run accrues over nights)
+
+- **`champion.mjs` / `parity.mjs`** (AC-8) — the two-commit sign test and the grader
+  opus-vs-cheaper κ need paired trials / stratified artifacts to accumulate before they yield a
+  real block/review/deploy or tier-move decision. They NEVER auto-act.
+- **`calibrate.mjs`** (AC-9) — the deterministic-overlap (bootstrap) dimension calibrates from the
+  golden AC vectors for free; judge-exclusive dimensions (intent/abstraction/layout) stay
+  **advisory / reduced-confidence** under a single rater (see the solo-maintainer note above).

@@ -1,0 +1,116 @@
+name: Golden Nightly
+
+# AC-7 — the golden-set nightly ALARM (not a merge gate). Each night it runs k live trials of
+# every ADMITTED golden spec (evals/harness/run-trial.mjs), scores them (score.mjs), compares to
+# the committed baseline (regress.mjs), and — on a REPLICATED regression (fails ≥2/3 of a run's
+# non-errored trials AND the baseline passed^k) — writes an issue payload. A human reads the
+# transcript before a regression is believed (METR rule). It never auto-acts.
+#
+# TRIALS NEED A LIVE AGENT. Two ways to provide one:
+#   • Option B (default, no API key): a runner where the `claude` CLI is authenticated — a
+#     self-hosted runner or a dev machine. This is what the project uses.
+#   • Option A: set the `ANTHROPIC_API_KEY` repository secret; run-trial's headless agent uses it.
+# A GitHub-hosted runner has neither by default, so the job DEGRADES GRACEFULLY: it detects the
+# absence of both and skips with a notice (staying green) instead of failing. Point this at a
+# self-hosted runner (edit `runs-on`) or add the secret to actually generate trials.
+#
+# Local Option-B alternative (no Actions at all) — schedule on your own machine, e.g. cron:
+#   0 3 * * *  cd /path/to/create-rigel && node evals/harness/golden-nightly.mjs --k 3 \
+#              --date "$(date -u +%F)" >> evals/trials/nightly/cron.log 2>&1
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # 04:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      k:
+        description: "trials per spec"
+        required: false
+        default: "3"
+      specs:
+        description: "comma-separated golden spec ids (blank = all admitted)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write # to open a regression issue from the payload
+
+jobs:
+  golden-nightly:
+    runs-on: ubuntu-latest # ← change to a self-hosted label with `claude` for Option B
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: myapp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/myapp
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Can we run a live agent? (claude CLI or ANTHROPIC_API_KEY)
+        id: agent
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            echo "have=1" >> "$GITHUB_OUTPUT"; echo "::notice::using local claude CLI (Option B)"
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "have=1" >> "$GITHUB_OUTPUT"; echo "::notice::using ANTHROPIC_API_KEY (Option A)"
+          else
+            echo "have=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::no claude CLI and no ANTHROPIC_API_KEY — skipping golden nightly (point runs-on at a self-hosted runner or set the secret)."
+          fi
+
+      - name: Golden set is admitted (harness sanity)
+        if: steps.agent.outputs.have == '1'
+        run: node evals/harness/load-golden.mjs --assert-all
+
+      - name: Run golden nightly
+        if: steps.agent.outputs.have == '1'
+        id: nightly
+        run: |
+          node evals/harness/golden-nightly.mjs \
+            --k "${{ github.event.inputs.k || '3' }}" \
+            ${{ github.event.inputs.specs && format('--specs {0}', github.event.inputs.specs) || '' }} \
+            --date "$(date -u +%F)"
+
+      - name: Upload nightly artifacts
+        if: steps.agent.outputs.have == '1' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-nightly-${{ github.run_id }}
+          path: |
+            evals/trials/nightly/
+            evals/trials/*/regression-issue.json
+          if-no-files-found: ignore
+
+      - name: Open an issue on regression
+        if: steps.agent.outputs.have == '1' && failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in evals/trials/*/regression-issue.json; do
+            [ -f "$f" ] || continue
+            title=$(node -e "process.stdout.write(require('./'+process.argv[1]).title)" "$f")
+            node -e "process.stdout.write(require('./'+process.argv[1]).body)" "$f" > /tmp/body.md
+            gh issue create --title "$title" --body-file /tmp/body.md --label golden-regression || true
+          done
