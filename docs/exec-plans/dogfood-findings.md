@@ -286,3 +286,24 @@ commit `777dce1`.
   that graded nothing. Fix: let `ac:vector` accept an explicit spec id (like `redgreen:record`),
   and/or exit non-zero when an active plan exists but its id didn't resolve. (G1 was built under a
   numeric `SPEC-001` id with G1's content to sidestep this — the grade is legitimate.)
+
+### G2 (SPEC-G2-frontend, nextjs) — BUILT · GRADED GREEN · ADMITTED
+First real dogfood of the nextjs template. A fresh app (create-next-app + `infra-setup.sh` +
+design-token stack: tokens.json → Style Dictionary → Tailwind v4 `@theme`; MSW/Vitest/Playwright),
+implementing SPEC-G2 (a `/bookmarks` list page: `useBookmarks` TanStack hook over the typed
+api-client, `BookmarkList` `'use client'` feature with skeleton/empty states, server-component
+page). Graded (no DB): `npm run gate` PASS (typecheck·lint·format·coverage·assert:tests·waivers·
+design:drift), `ac:vector` AC-1..4 PASS, 100% coverage, MSW-mocked acceptance + design-token
+conformance (AC-4). `reference/{grade.json,README.md,solution/}` emitted; `load-golden` → G1+G2
+admitted. Committed `408eefe`.
+
+- **DF-42 does NOT reproduce as a blocker on nextjs:** `src/lib/env.ts` throws (browser context)
+  rather than `process.exit(1)`, and the gate/`ac:vector` inject `NEXT_PUBLIC_API_URL` via
+  `vitest.config.ts`, so the graded path never needs `.env` (only `dev`/`build`/Playwright do).
+  Still worth the infra-setup `.env` fix for the express side (DF-42).
+- **DF-43 reproduces** (SPEC-\d+ id resolver ignores `SPEC-G2-frontend`; built under `SPEC-001`).
+- **DF-45 (P2, new) — TODO:** `ac:vector` appends an AC-vector block to the active plan's `.md`;
+  a subsequent `prettier --check` in the gate then fails on that unformatted block. Benign under
+  the canonical `gate → ac:vector` order (`gate:final`), but a *re-gate after grading* fails until
+  `prettier --write` runs. Fix: `ac:vector` should write the block pre-formatted, or exclude the
+  plan md from the format gate, or gate:final should `prettier --write` the plan after appending.
