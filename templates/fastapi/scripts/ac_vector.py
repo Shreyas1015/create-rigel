@@ -26,6 +26,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.rigel_evals import (  # noqa: E402
     RESULTS_DIR,
     ac_ids_with_tests,
+    find_active_plan,
+    find_spec_file,
+    parse_acceptance_criteria,
     read_redgreen,
     resolve_active_spec,
     run_acceptance_tests,
@@ -34,14 +37,45 @@ from lib.rigel_evals import (  # noqa: E402
 
 
 def main() -> None:
-    resolved = resolve_active_spec()
-    if not resolved:
-        print("ac-vector: no active plan/spec -- nothing to grade.")
-        raise SystemExit(0)
+    # Optional explicit spec id (mirrors redgreen_record):
+    # `uv run python scripts/ac_vector.py SPEC-XXX`. With no arg it grades the spec
+    # resolved from the active plan.
+    arg_spec_id = sys.argv[1] if len(sys.argv) > 1 else None
 
-    plan_path = resolved["plan_path"]
-    spec_id = resolved["spec_id"]
-    acs = resolved["acs"]
+    plan_path: str | None
+    if arg_spec_id:
+        spec_file = find_spec_file(arg_spec_id)
+        if not spec_file:
+            print(f"[X] ac-vector: no spec file found for {arg_spec_id}", file=sys.stderr)
+            raise SystemExit(1)
+        spec_id = arg_spec_id
+        acs = parse_acceptance_criteria(Path(spec_file).read_text(encoding="utf-8"))
+        # Append to the active plan's Progress Log when one exists.
+        plan_path = find_active_plan()
+    else:
+        # Distinguish "no active plan at all" (nothing to grade -> exit 0) from "a plan IS
+        # active but its **Spec:** id did not resolve" (a false-green trap -> exit 1).
+        plan_path = find_active_plan()
+        if not plan_path:
+            print("ac-vector: no active plan/spec -- nothing to grade.")
+            raise SystemExit(0)
+        # plan_path is set, so resolve_active_spec() returning None can only mean the plan's
+        # **Spec:** id did not resolve to a SPEC-<n> id. (It raises SystemExit on a
+        # present-but-unresolvable spec *file*, which already exits non-zero.)
+        resolved = resolve_active_spec()
+        if not resolved:
+            print(
+                f"[X] ac-vector: active plan {plan_path} exists but its **Spec:** id did not "
+                "resolve to a SPEC-<n> id -- refusing to exit green without grading. Fix the "
+                "plan's **Spec:** line, or grade explicitly: "
+                "uv run python scripts/ac_vector.py SPEC-XXX.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        plan_path = resolved["plan_path"]
+        spec_id = resolved["spec_id"]
+        acs = resolved["acs"]
+
     if not acs:
         print(
             f"[X] ac-vector: {spec_id} has no AC-IDs in its Acceptance Criteria section",
@@ -82,8 +116,9 @@ def main() -> None:
     icon = {"PASS": "[PASS]", "FAIL": "[FAIL]", "MISSING": "[MISSING]", "INVALID": "[INVALID]"}
     lines = [f"- {v['id']}: {v['status']} {icon.get(v['status'], '')}".rstrip() for v in vector]
     block = "\n".join(["", f"### AC vector -- {spec_id} -- {now}", *lines, ""]) + "\n"
-    with open(plan_path, "a", encoding="utf-8") as fh:
-        fh.write(block)
+    if plan_path:
+        with open(plan_path, "a", encoding="utf-8") as fh:
+            fh.write(block)
 
     print(f"AC vector for {spec_id}:")
     for v in vector:

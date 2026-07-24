@@ -169,6 +169,42 @@ CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 ```
 
+**Also create a local `.env` from those defaults.** `settings.py` (below) is
+pydantic-settings with **required** `DATABASE_URL` / `REDIS_URL` / `JWT_SECRET` — it raises
+`ValidationError` and aborts at import/boot when they're absent, and the template ships only
+`.env.example` (never a `.env`). Without this, a fresh builder can't run `make dev` / the Gate
+Check's `/v1/health` (the app won't start) or any DB-backed test. Values match the generated
+`docker-compose.yml` (same postgres/redis creds + DB name as `.env.example`; `localhost` hosts for
+host-side `make dev`). **Idempotent — never clobber an existing `.env`** (it is git-ignored):
+
+```bash
+if [ ! -f .env ]; then
+  # 64-hex-char dev secret for the required JWT_SECRET. Dev-only.
+  JWT_DEV_SECRET="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+  cat > .env <<EOF
+APP_ENV=development
+PORT=8000
+DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app
+DATABASE_POOL_SIZE=10
+DATABASE_POOL_MIN=2
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=${JWT_DEV_SECRET}
+JWT_ACCESS_EXPIRY_SECONDS=900
+JWT_REFRESH_EXPIRY_SECONDS=604800
+CORS_ORIGINS=http://localhost:3000
+LOG_LEVEL=INFO
+SERVICE_NAME=your-service-name
+APP_VERSION=0.0.1
+OTEL_EXPORTER_OTLP_ENDPOINT=
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+EOF
+  echo "Wrote .env with dev defaults (git-ignored — never commit it)."
+else
+  echo ".env already exists — left untouched."
+fi
+```
+
 Create `src/config/settings.py` — pydantic-settings BaseSettings, `process.exit` equivalent on failure.
 Create `src/config/constants.py` — app-wide constants.
 Create `src/config/timeouts.py` — `DB_QUERY_MS=5000`, `EXTERNAL_API_MS=10000`.

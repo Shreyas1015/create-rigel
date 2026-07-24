@@ -22,6 +22,22 @@ If missing: tell human to copy openapi.json from backend to project root.
   - FastAPI backend: generate at http://localhost:8000/openapi.json
   - Express backend: copy from docs/generated/openapi.json
 
+### Step 1b — Normalize openapi.json formatting
+
+The backend emits `openapi.json` in its own shape, but this repo's gate/CI runs
+`format:check` (`prettier --check .`) over the whole tree — and `openapi.json` is **not** in
+`.prettierignore`. So a verbatim copy makes `format:check` fail and `git diff openapi.json` show
+formatting-only churn even when the contract is byte-identical. Reformat it once, in place, so the
+committed artifact is already prettier-clean:
+
+```bash
+npx prettier --write openapi.json
+```
+
+This only restyles whitespace — it never changes the contract. (If you'd rather not format it, the
+alternative is to add `openapi.json` to `.prettierignore`; the `prettier --write` above is preferred
+so the file stays consistent with the rest of the repo.)
+
 ### Step 2 — Regenerate
 ```bash
 npm run api:sync
@@ -48,3 +64,6 @@ git push origin main
 - NEVER edit api.generated.ts manually
 - Always run typecheck after sync — errors = contract drift to fix
 - Run before starting every new feature
+- `src/types/api.generated.ts` is the reliable, up-to-date contract artifact the app consumes —
+  `openapi.json` is only the transient input (prettier-normalized in Step 1b so it doesn't churn the
+  gate/`git diff`). Trust the generated types, not a hand-comparison of `openapi.json` formatting.

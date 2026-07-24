@@ -17,6 +17,24 @@ router.get('/applications', ...)   // mounted at /api/v1/applications
 app.get('/applications', ...)  // no version = breaking changes are impossible to manage
 ```
 
+### Route ordering — register literal sub-paths BEFORE `/:id`
+
+Express matches routes in registration order. Register specific/literal sub-paths (e.g. `/count`,
+`/search`) **before** any parameterized route (`/:id`) on the same router — otherwise
+`GET /bookmarks/count` is captured by `GET /bookmarks/:id` with `id="count"`, and the aggregate
+handler never runs (the `:id` handler 404s on the bogus id).
+
+```typescript
+// ✅ Literal paths first, parameterized last
+router.get('/count',  countHandler)   // GET /bookmarks/count
+router.get('/search', searchHandler)  // GET /bookmarks/search
+router.get('/:id',    getByIdHandler) // GET /bookmarks/:id
+
+// ❌ /:id registered first shadows /count and /search (id becomes "count" / "search")
+router.get('/:id',   getByIdHandler)
+router.get('/count', countHandler)    // unreachable
+```
+
 ### Required Handler Structure (every protected route)
 ```typescript
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -170,6 +188,37 @@ registry.registerPath({
   responses: { 201: { description: 'Created' /* ...envelope... */ } },
 })
 ```
+
+**Typed response components — never call `.openapi()` on a schema imported from the Types layer.**
+`extendZodWithOpenApi(z)` (called once at the top of `openapi.ts`) only augments Zod schemas **created
+after it runs**. A schema built in a `*.types.ts` file and imported into `openapi.ts` was created
+before this module loaded, so it has **no `.openapi()` method** — calling it throws
+`X.openapi is not a function`. Every current template path is description-only, so the **first product
+to register a typed response component hits this.** Fix: build the response envelope/component
+**inside `openapi.ts`** (post-extend) and nest the imported Types-layer schema as a plain child — keep
+the Types layer import-free of any OpenAPI concern.
+
+```typescript
+// src/runtime/openapi.ts — extendZodWithOpenApi(z) has ALREADY run at the top of this module
+import { ApplicationSchema } from '../types/application.types.js' // plain Zod — no .openapi()
+
+// ✅ Nest the imported schema as a plain child of an envelope component built HERE (post-extend):
+const ApplicationResponse = registry.register(
+  'ApplicationResponse',
+  z.object({
+    ok: z.literal(true),
+    data: ApplicationSchema, // imported schema used as a child — no .openapi() call on it
+    meta: z.object({ requestId: z.string(), timestamp: z.string() }),
+  }),
+)
+
+// ❌ Never call .openapi() on a schema imported from the Types layer — the method isn't there:
+//    ApplicationSchema.openapi('Application')  // TypeError: ApplicationSchema.openapi is not a function
+```
+
+> Alternative (NOT preferred): call `extendZodWithOpenApi(z)` inside the Types layer so imported
+> schemas gain `.openapi()`. Avoid it — it leaks OpenAPI concerns into Types. Prefer the
+> nest-in-`openapi.ts` pattern above and keep Types OpenAPI-free.
 
 CI fails if the committed contract drifts from the code (the `quality` job runs `openapi:export`
 and `git diff`). Regenerate and commit `docs/generated/openapi.*` whenever a route or schema changes.

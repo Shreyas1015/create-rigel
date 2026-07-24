@@ -268,6 +268,43 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 
 ---
 
+## Step 4c — Create a local `.env` (dev/test defaults)
+
+The Joi `validationSchema` (Step 4) makes `DATABASE_URL` / `REDIS_URL` **required** and
+`JWT_SECRET` **`min(32).required()`**, so `ConfigModule.forRoot` throws at boot when they're
+absent — and the template ships only `.env.example` (never a `.env`). Without this, a fresh
+builder can't run the Gate Check's `curl /health` / `/ready` (the app aborts on startup) or any
+DB-backed test. Write dev/test-safe defaults that match the generated `docker-compose.yml`
+(same postgres/redis creds + DB name as `.env.example`; `localhost` hosts for host-side `npm run
+start:dev`). **Idempotent — never clobber an existing `.env`** (it is git-ignored, never committed):
+
+```bash
+if [ ! -f .env ]; then
+  # 64-hex-char dev secret — comfortably clears Joi's JWT_SECRET.min(32). Dev-only.
+  JWT_DEV_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+  cat > .env <<EOF
+NODE_ENV=development
+PORT=3000
+DATABASE_URL=postgresql://app:app@localhost:5432/appdb
+DATABASE_POOL_MAX=10
+DATABASE_POOL_MIN=2
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=${JWT_DEV_SECRET}
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+CORS_ORIGINS=http://localhost:3001
+LOG_LEVEL=info
+EOF
+  echo "Wrote .env with dev defaults (git-ignored — never commit it)."
+else
+  echo ".env already exists — left untouched."
+fi
+```
+
+Keep these values in sync with the postgres/redis credentials your generated `docker-compose.yml`
+uses, so the same `.env` works both host-side and inside the compose network (there the app talks
+to the `postgres` / `redis` service names instead of `localhost`).
+
 ## Step 5 — Activate Git Hooks + Branch Policy
 
 The git hooks ship committed under `.githooks/` (toolchain-free POSIX shell that reads

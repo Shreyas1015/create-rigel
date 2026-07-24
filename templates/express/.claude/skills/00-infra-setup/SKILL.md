@@ -118,6 +118,46 @@ mkdir -p \
 ### Step 3 — Environment & Config Files
 
 Create `src/config/env.ts` — Zod-validated environment variables, `process.exit(1)` on validation failure.
+
+**Create a local `.env` from `.env.example`.** `env.ts` `process.exit(1)`s when `DATABASE_URL` /
+`REDIS_URL` / `JWT_SECRET` are absent, and the template ships only `.env.example` (never a `.env`).
+Without this, a fresh builder can't run this skill's own `npm run dev` / `/health` gate steps or any
+DB-backed test — the app aborts at boot. Write dev/test-safe defaults that match `docker-compose.yml`
+(same postgres/redis creds + `myapp` DB name; `localhost` hosts for host-side `npm run dev`). This is
+**idempotent — never clobber an existing `.env`** (`.env` is git-ignored, so it is never committed):
+
+```bash
+if [ ! -f .env ]; then
+  # 64-hex-char dev secret (comfortably ≥32 chars for env.ts's JWT_SECRET check). Dev-only.
+  JWT_DEV_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+  cat > .env <<EOF
+NODE_ENV=development
+PORT=3000
+# Matches docker-compose's postgres/redis. Host = localhost for host-side \`npm run dev\`;
+# inside the compose network the app uses the service names (postgres / redis) instead.
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
+DATABASE_POOL_MAX=10
+DATABASE_POOL_MIN=2
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=${JWT_DEV_SECRET}
+JWT_ACCESS_EXPIRY_SECONDS=900
+JWT_REFRESH_EXPIRY_SECONDS=604800
+CORS_ORIGINS=http://localhost:3000
+LOG_LEVEL=debug
+SERVICE_NAME=myapp
+APP_VERSION=0.0.1
+# Blank ⇒ OTel SDK no-ops (the correct default for local/dev/CI). Set to http://localhost:4318
+# after starting the LGTM stack to see traces/metrics in Grafana.
+OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_SERVICE_NAME=myapp
+OTEL_METRIC_EXPORT_INTERVAL_MS=10000
+EOF
+  echo "Wrote .env with dev defaults (git-ignored — never commit it)."
+else
+  echo ".env already exists — left untouched."
+fi
+```
+
 Create `src/config/constants.ts` — app-wide constants (VALID_TRANSITIONS, etc.).
 Create `src/config/timeouts.ts` — `DB_QUERY_MS=5000`, `EXTERNAL_API_MS=10000`, `REDIS_MS=1000`.
 Create `src/config/database.ts` — Sequelize instance with pool config + timeouts. Do **not** pass

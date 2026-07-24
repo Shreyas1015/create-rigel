@@ -16,3 +16,8 @@ src/types/api.generated.ts
 # readers in the .githooks + protect-branch.sh/check-protection-drift.sh. The format is a
 # load-bearing contract, not prose to reformat. (PLAN-006 DF-15)
 .rigel/
+# Agent-managed plan/spec markdown. /build-layer appends Progress-Log entries and `ac:vector`
+# appends an AC-vector block to the active plan .md — machine-appended content, not prose to
+# reformat. `format:check` here is `prettier --check .` (whole tree, gate + CI), which would
+# otherwise flag those appended blocks. Excluding keeps the gate green. (DF-45)
+docs/exec-plans/

@@ -333,3 +333,28 @@ both gates + contract-drift diff). `load-golden` → **3 admitted, 0 rejected** 
   under `SPEC-001`); **DF-45 did not reproduce** (plan `.md` is in `.prettierignore` per DF-15).
 
 **AC-5 DONE:** the golden set now admits all three references (G1 backend · G2 frontend · G3 fullstack).
+
+### Run-6 fix status — golden-build findings
+- **DF-42 — FIXED** (express/nestjs/fastapi): `/infra-setup` now creates `.env` from `.env.example`
+  idempotently with dev-safe defaults + a generated dev secret. nextjs N/A (browser-context env +
+  vitest injects vars).
+- **DF-43 — FIXED** (all 4): `ac:vector` now distinguishes "no active plan" (exit 0) from "active
+  plan exists but its spec id didn't resolve" (exit 1, clear message) — no more false green; also
+  accepts an explicit `SPEC-XXX` arg (mirrors `redgreen:record`). Fixed in `ac-vector` itself so
+  the shared resolver / `redgreen:record` are unaffected.
+- **DF-45 — FIXED on nextjs** (was mis-assessed as benign): nextjs `gate` runs `prettier --check .`
+  over the whole tree and DID read `docs/exec-plans/active/*.md` (DF-15 only ignored `.rigel/`, not
+  the plan md). Added `docs/exec-plans/` to nextjs `.prettierignore`. express/nestjs/fastapi have no
+  format step that reads `.md` → genuinely benign there.
+- **DF-46 — FIXED** (express): `api.md` documents the typed-response-component pattern — build the
+  response envelope inside `openapi.ts` (post-`extendZodWithOpenApi`) and nest imported Types-layer
+  schemas as plain children; never call `.openapi()` on an import. nestjs/fastapi N/A (different
+  OpenAPI mechanism).
+- **DF-47 — FIXED** (nextjs): `/api-sync` runs `prettier --write openapi.json` after copying so the
+  gate's `format:check` sees no formatting-only drift; notes `api.generated.ts` as the reliable
+  up-to-date artifact.
+- **DF-48 — FIXED** (express): `api.md` routing note — register literal sub-paths (`/count`) before
+  `/:id` or Express matches `id="count"` and 404s.
+
+**All golden-build findings (DF-42..48) resolved.** Total dogfood findings this cycle: **DF-1..DF-48**
+(all P0/P1 fixed; P2/P3 fixed or logged with guards).
