@@ -1,0 +1,17 @@
+/* GENERATED from tokens.json by Style Dictionary — do not edit by hand. */
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-primary: #4f46e5;
+  --color-primary-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+}

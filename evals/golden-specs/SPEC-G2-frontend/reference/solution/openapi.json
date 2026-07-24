@@ -1,0 +1,67 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bookmarks API",
+    "version": "1.0.0",
+    "description": "Contract SPEC-G2 depends on. Canonical wire shape: snake_case fields, cursor list envelope { items, has_more, next_cursor_id }."
+  },
+  "paths": {
+    "/api/v1/bookmarks": {
+      "get": {
+        "operationId": "listBookmarks",
+        "summary": "List the authenticated user's bookmarks",
+        "parameters": [
+          {
+            "name": "cursor_id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of bookmarks",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookmarkList" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Bookmark": {
+        "type": "object",
+        "required": ["id", "user_id", "url", "title", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user_id": { "type": "string", "format": "uuid" },
+          "url": { "type": "string", "format": "uri" },
+          "title": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BookmarkList": {
+        "type": "object",
+        "required": ["items", "has_more", "next_cursor_id"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Bookmark" }
+          },
+          "has_more": { "type": "boolean" },
+          "next_cursor_id": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
