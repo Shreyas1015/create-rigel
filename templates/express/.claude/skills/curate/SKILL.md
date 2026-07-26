@@ -28,31 +28,33 @@ cat .rigel/gate-failures.jsonl        # one JSON object per line: {ts, plan, sig
 ls docs/design-docs/lessons/*.md 2>/dev/null   # existing lessons (each has a `signatures:` list)
 ```
 
-## Step 2 — Group by signature
+## Step 2 — Run the deterministic scan (grouping + counting is NOT your job)
 
-Group the failure lines by their `signature` field (`{gate}:{discriminator}`, e.g.
-`arch:isolation-test-missing`). A signature is **stable across files** — the same class of
-failure in three different files is ONE group with three occurrences, not three lessons.
+```bash
+node scripts/curate-scan.mjs      # read-only; prints a JSON plan, writes nothing
+```
 
-## Step 3 — Match each signature group against existing lessons
+Grouping by signature and counting recurrence is done by the script, not by you — an LLM
+miscounts. The plan has four lists: `create`, `increment`, `disambiguate`, `promotionReady`.
+Signatures are **stable across files**, so the same class of failure in three files is one group
+with three occurrences, not three lessons.
 
-For each signature group, find the lesson whose `signatures:` list contains that signature:
+## Step 3 — Apply the plan (the only judgment left to you)
 
-- **Exactly one match** → that's the lesson. Increment its `seen` (by the number of *distinct
-  plans* the signature recurred in, not raw line count), set `last_seen` to the newest plan.
-- **No match** → create a new lesson from `lessons/_TEMPLATE.md`: next `LSN-` id, `status: OBSERVED`,
-  `seen: 1`, `first_seen`/`last_seen` = the plan(s), `signatures: [<the signature>]`, and fill
-  "What went wrong" from the failure `message`/`file`. Leave "Why"/"The rule" as honest stubs —
-  do NOT invent a root cause you didn't verify.
-- **More than one candidate** (only happens for a *coarse* signature like a bare `tsc:TS2345`
-  that several lessons claim) → run ONE short "same root cause?" check: compare the failure
-  `message` against each candidate's `summary`, pick the one that matches, else create a new
-  lesson. This LLM step fires ONLY here — never as the default path.
+- **`increment`** → for each, bump that lesson's `seen` to the given value and set `last_seen`.
+  Mechanical; just edit the frontmatter.
+- **`create`** → for each, create a lesson from `lessons/_TEMPLATE.md`: next `LSN-` id,
+  `status: OBSERVED`, the given `seen`/`plans`, `signatures: [<the signature>]`, and fill "What
+  went wrong" from the failure `message`/`file`. Leave "Why"/"The rule" as honest stubs — do NOT
+  invent a root cause you didn't verify.
+- **`disambiguate`** → the ONLY judgment step (a coarse signature like a bare `tsc:TS2345` that
+  several lessons claim). Compare the failure `message` against each candidate's `summary`; bump
+  the one that matches, else `create` a new lesson. This is the only place the model decides.
 
 ## Step 4 — Flag promotion-ready (do not promote)
 
-After updating, list any lesson that is **`seen >= 3` AND `status: DISTILLED`** as
-**promotion-ready**. Promotion is a human step (see `/garbage-collect` report + `memory.md`): a
+The scan's `promotionReady` list is any lesson at **`seen >= 3` AND `status: DISTILLED`**.
+Surface it. Promotion is a human step (see `/garbage-collect` report + `memory.md`): a
 person writes the ESLint rule / `post-write.sh` grep / gate step, sets `status: ENFORCED`, and
 deletes the prose body. `/curate` never promotes and never edits `status` above `OBSERVED` on its
 own — climbing the ladder (INVESTIGATED → VERIFIED → DISTILLED) is a human judgment recorded in
