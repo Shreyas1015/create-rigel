@@ -42,6 +42,14 @@ This is **advisory**: it does NOT gate plan-close. Do not fix code to satisfy th
 skip closing because of a judge FAIL — surface its block to the human and let them decide. (The
 judge stays log-only until a calibration report promotes a dimension to blocking.)
 
+### 5c. Curate lessons — run `/curate`
+Fold this feature's recorded gate failures into the lesson memory: run **`/curate`**. It reads
+`.rigel/gate-failures.jsonl`, groups by signature, increments `seen` on existing lessons or
+creates new `OBSERVED` ones, and flags any `seen >= 3` + `DISTILLED` lesson as **promotion-ready**
+(writing nothing outside `docs/design-docs/lessons/`). Surface any promotion-ready lesson in the
+report so a human can enforce it — `/curate` never promotes on its own. See
+`docs/design-docs/memory.md`.
+
 ### 6. Close Plan
 - All `[x]` confirmed
 - **Grade the outcome, not the checkboxes** — run the AC vector, which runs the spec's

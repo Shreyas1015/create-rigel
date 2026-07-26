@@ -180,6 +180,36 @@ ITEM 2: ...
 ─────────────────────────────────────────
 ```
 
+---
+
+## Record failures for the memory loop
+
+On a **FAIL**, after listing the items, persist each one so `/curate` can count recurrence
+across plans (the gate's stdout is ephemeral). For every FAIL item, append it with a **stable
+signature** `{gate}:{discriminator}` — stable across files, so the same class of failure in a
+different file counts once:
+
+```bash
+node scripts/record-failure.mjs <signature> "<short message>" [file:line]
+```
+
+Signature per check (use the most specific stable token the check gives you):
+
+| check | signature |
+|---|---|
+| file > 400 lines | `arch:file-too-long` |
+| console.log in src/ | `arch:console-log` |
+| process.env outside config | `arch:env-outside-config` |
+| TypeScript error | `tsc:<code>` (e.g. `tsc:TS2345`) |
+| ESLint error | `eslint:<rule-id>` (e.g. `eslint:no-restricted-imports`) |
+| circular import | `arch:circular-import` |
+| architecture test | the test's own id (e.g. `arch:isolation-test-missing`, `arch:paranoid-missing`) |
+| zero-tests guard | `assert:zero-tests` |
+| coverage below threshold | `coverage:below-threshold` |
+| test failing | `test:failing` |
+
+This is bookkeeping only — it never changes the PASS/FAIL verdict.
+
 ## After FAIL Output
 
 Do NOT ask the human what to do.

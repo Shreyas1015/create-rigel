@@ -58,3 +58,14 @@ was honored or the **abstraction** is right. After the vector is green, run the 
 This is **advisory**: it does NOT gate plan-close. Do not fix code just to satisfy the judge and
 do not skip closing because of a judge FAIL — surface its block to the human. (The judge stays
 log-only until a calibration report promotes a dimension to blocking.)
+
+---
+
+## Curate lessons — run `/curate` (before closing the plan)
+
+Fold this feature's recorded gate failures into the lesson memory: run **`/curate`**. It reads
+`.rigel/gate-failures.jsonl`, groups by signature, increments `seen` on existing lessons or
+creates new `OBSERVED` ones, and flags any `seen >= 3` + `DISTILLED` lesson as **promotion-ready**
+(writing nothing outside `docs/design-docs/lessons/`). Surface any promotion-ready lesson to the
+human so they can enforce it — `/curate` never promotes on its own. See
+`docs/design-docs/memory.md`.

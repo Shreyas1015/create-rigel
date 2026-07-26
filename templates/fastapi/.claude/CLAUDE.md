@@ -19,6 +19,8 @@ Read this file first on every session. Then read the active execution plan befor
 ## Session Start Checklist
 
 ```
+0. Scan docs/design-docs/lessons/ → past failures to avoid (read frontmatter `summary`;
+                                     open a body only when it applies). See docs/design-docs/memory.md.
 1. ls docs/exec-plans/active/     → active plan?
 2. If yes  → read it, find first [ ] layer, run /build-layer
 3. If no   → ask human: whole product or one feature?

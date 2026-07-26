@@ -141,3 +141,37 @@ STATUS: ✅ PASS  /  ❌ FAIL — N items
 ITEM 1: [file:line] [problem] → [exact fix]
 ─────────────────────────────────────────
 ```
+
+## Record failures for the memory loop
+
+On a **FAIL**, after listing the items, persist each one so `/curate` can count recurrence
+across plans (the gate's stdout is ephemeral). For every FAIL item, append it with a **stable
+signature** `{gate}:{discriminator}` — stable across files, so the same class of failure in a
+different file counts once:
+
+```bash
+node scripts/record-failure.mjs <signature> "<short message>" [file:line]
+```
+
+Signature per check (use the most specific stable token the check gives you):
+
+| check | signature |
+|---|---|
+| TypeScript error | `tsc:<code>` (e.g. `tsc:TS2345`) |
+| ESLint error (incl. layer-boundary `no-restricted-imports`) | `eslint:<rule-id>` (e.g. `eslint:no-restricted-imports`) |
+| Prettier formatting | `prettier:format` |
+| file > 400 lines | `arch:file-too-long` |
+| console.log in src/ or app/ | `arch:console-log` |
+| process.env outside lib/env.ts | `arch:env-outside-env` |
+| api.generated.ts manually edited | `arch:generated-edited` |
+| architecture test (vitest) | the test's own id (e.g. `arch:layers-test-missing`, `arch:traceability-missing`, `arch:assertion-integrity-missing`) |
+| zero-tests guard | `assert:zero-tests` |
+| coverage below threshold | `coverage:below-threshold` |
+| test failing | `test:failing` |
+
+This is bookkeeping only — it never changes the PASS/FAIL verdict.
+
+## After FAIL Output
+
+Do NOT ask the human what to do.
+Return the FAIL report to the `/build-layer` skill, which will auto-fix each item and re-call you.

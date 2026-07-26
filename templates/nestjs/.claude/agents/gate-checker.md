@@ -140,3 +140,36 @@ STATUS: ✅ PASS  /  ❌ FAIL — N items
 ITEM 1: [file:line] [problem] → [exact fix]
 ─────────────────────────────────────────
 ```
+
+## Record failures for the memory loop
+
+On a **FAIL**, after listing the items, persist each one so `/curate` can count recurrence
+across plans (the gate's stdout is ephemeral). For every FAIL item, append it with a **stable
+signature** `{gate}:{discriminator}` — stable across files, so the same class of failure in a
+different file counts once:
+
+```bash
+node scripts/record-failure.mjs <signature> "<short message>" [file:line]
+```
+
+Signature per check (use the most specific stable token the check gives you):
+
+| check | signature |
+|---|---|
+| TypeScript error | `tsc:<code>` (e.g. `tsc:TS2345`) |
+| ESLint error | `eslint:<rule-id>` (e.g. `eslint:no-restricted-imports`) |
+| file > 400 lines | `arch:file-too-long` |
+| console.* in src/ | `arch:console-log` |
+| process.env outside config/ | `arch:env-outside-config` |
+| HttpException in a service | `arch:httpexception-in-service` |
+| @InjectModel in a service | `arch:injectmodel-in-service` |
+| architecture test | the test's own id (e.g. `arch:paranoid-missing`, `arch:traceability-missing`, `arch:assertion-integrity-missing`) |
+| coverage below threshold | `coverage:below-threshold` |
+| spec / e2e test failing | `test:failing` |
+
+This is bookkeeping only — it never changes the PASS/FAIL verdict.
+
+## After FAIL Output
+
+Do NOT ask the human what to do.
+Return the FAIL report to the `/build-layer` skill, which will auto-fix each item and re-call you.

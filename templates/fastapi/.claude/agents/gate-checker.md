@@ -142,3 +142,40 @@ STATUS: ✅ PASS  /  ❌ FAIL — N items
 ITEM 1: [file:line] [problem] → [exact fix]
 ─────────────────────────────────────────
 ```
+
+## Record failures for the memory loop
+
+On a **FAIL**, after listing the items, persist each one so `/curate` can count recurrence
+across plans (the gate's stdout is ephemeral). For every FAIL item, append it with a **stable
+signature** `{gate}:{discriminator}` — stable across files, so the same class of failure in a
+different file counts once. The recorder is pure stdlib, so call it with a bare `python3`:
+
+```bash
+python3 scripts/record_failure.py <signature> "<short message>" [file:line]
+```
+
+Signature per check (use the most specific stable token the check gives you):
+
+| check | signature |
+|---|---|
+| ruff error | `ruff:<rule>` (e.g. `ruff:F401`) |
+| mypy error | `mypy:<code>` (e.g. `mypy:arg-type`) |
+| bandit finding | `bandit:<id>` (e.g. `bandit:B105`) |
+| file > 400 lines | `arch:file-too-long` |
+| print() in src/ | `arch:print` |
+| os.environ outside settings.py | `arch:env-outside-settings` |
+| HTTPException in a service | `arch:httpexception-in-service` |
+| service imports fastapi/models | `arch:service-impure` |
+| unvalidated repo return | `arch:repo-unvalidated-return` |
+| offset pagination in repo | `arch:offset-pagination` |
+| architecture test (pytest) | the test's own id (e.g. `arch:isolation-test-missing`, `arch:traceability-missing`, `arch:assertion-integrity-missing`) |
+| zero-tests guard | `assert:zero-tests` |
+| coverage below threshold | `coverage:below-threshold` |
+| test failing | `test:failing` |
+
+This is bookkeeping only — it never changes the PASS/FAIL verdict.
+
+## After FAIL Output
+
+Do NOT ask the human what to do.
+Return the FAIL report to the `/build-layer` skill, which will auto-fix each item and re-call you.
