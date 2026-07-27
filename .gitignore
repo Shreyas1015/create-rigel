@@ -29,3 +29,7 @@ yarn-error.log*
 # (trial-*.json) and calibration REPORTS (proof, cited by judge-config) are committed.
 evals/trials/**/scorecard.json
 evals/trials/**/regression-issue.json
+
+# Python bytecode (generated — never tracked; see LSN-0008)
+__pycache__/
+*.py[cod]
