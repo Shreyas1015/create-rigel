@@ -42,3 +42,6 @@ reports/mutation/
 
 # Sequelize CLI
 .sequelizerc.local
+
+# Ephemeral session resume pointer (local only — see docs/design-docs/memory.md)
+STATE.md

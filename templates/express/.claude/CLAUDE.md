@@ -36,6 +36,8 @@ If `npm show` / network is unavailable, fall back to the skill as written (degra
 ```
 0. Scan docs/design-docs/lessons/      → past failures to avoid (read frontmatter `summary`;
                                           open a body only when it applies). See docs/design-docs/memory.md.
+0b. cat STATE.md (if present)          → where the last session stopped + open failures.
+                                          Ephemeral hint only — if it disagrees with the plan, the PLAN wins.
 1. ls docs/exec-plans/active/          → is there an active plan?
 2. If yes  → read it, find first unchecked layer, run /build-layer
 3. If no   → ask human: whole product or one feature?

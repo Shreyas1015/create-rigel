@@ -15,7 +15,12 @@ The deterministic gate already says exactly what broke and where — so unlike s
 LLM to guess, the `VERIFIED` stage here is free. Your job is bookkeeping, not diagnosis: group
 recorded failures by their **signature** and fold them into the lesson files.
 
-**Hard rule: write nothing outside `docs/design-docs/lessons/`.** Read the loop in
+**Write scope (hard rule).** You may write ONLY:
+1. files under `docs/design-docs/lessons/`, and
+2. a single one-line entry under a skill's `## Known failure modes` heading — **only** for a lesson
+   that is already `DISTILLED` or `ENFORCED` (Step 5).
+
+**Never** touch source code, tests, gates, or any other part of a skill. Read the loop in
 `docs/design-docs/memory.md` first.
 
 ---
@@ -60,18 +65,45 @@ deletes the prose body. `/curate` never promotes and never edits `status` above 
 own — climbing the ladder (INVESTIGATED → VERIFIED → DISTILLED) is a human judgment recorded in
 the lesson file.
 
-## Step 5 — Clear the consumed record
+## Step 5 — Surface stale lessons (report; never auto-delete)
+
+The scan's `staleCandidates` are lessons still `OBSERVED` that haven't recurred for 5+ plans —
+they were one-offs, not classes. **Report them for a human to delete.** Do not delete them
+yourself: deletion is cheap to do and expensive to get wrong, and it belongs in a reviewed diff.
+
+Un-deleted stale prose is how these systems rot — a lessons directory nobody trusts because half of
+it is noise. Surfacing candidates every cycle is what keeps it honest.
+
+## Step 6 — Push distilled lessons into the skill that owns them
+
+A lesson only helps if it reaches the agent **at the point of work**, not just at session start.
+For each lesson that is `DISTILLED` or `ENFORCED` and not already referenced, append ONE line under
+the `## Known failure modes` heading of the single skill that owns that layer (create the heading at
+the end of the skill if absent):
+
+```markdown
+## Known failure modes
+- LSN-0031: Every @Table needs paranoid: true — soft delete, not hard delete.
+```
+
+Rules: one line per lesson, its `summary` verbatim, one skill only (the one whose layer the failure
+belongs to), never for an `OBSERVED` lesson (unverified content must not reach the harness's own
+instructions), and never rewrite anything already in the skill.
+
+## Step 7 — Clear the consumed record
 
 ```bash
 # The failures are now reflected in lessons/. Truncate so the next feature starts clean.
 : > .rigel/gate-failures.jsonl
 ```
 
-## Step 6 — Report
+## Step 8 — Report
 
 ```
 Curated N failure signature(s):
   +K new OBSERVED lessons: [LSN-…]
   ↑M lessons incremented:  [LSN-… seen=x]
   ⚑ promotion-ready:        [LSN-… (seen>=3, DISTILLED)]  → hand to a human to enforce
+  ⌫ stale candidates:       [LSN-… (OBSERVED, N plans cold)] → human deletes
+  ↳ skills updated:         [04-build-layer ← LSN-…]
 ```

@@ -18,9 +18,13 @@ name: Golden Nightly
 #   0 3 * * *  cd /path/to/create-rigel && node evals/harness/golden-nightly.mjs --k 3 \
 #              --date "$(date -u +%F)" >> evals/trials/nightly/cron.log 2>&1
 
+# NOT SCHEDULED. The cron was removed: on a GitHub-hosted runner there is no authenticated
+# `claude` CLI and no ANTHROPIC_API_KEY, so every nightly run skipped and still reported
+# GREEN — a daily false-green that verifies nothing (exactly what LSN-0004 condemns).
+# Run it MANUALLY (Actions → Golden Nightly → Run workflow) on a runner that has a live
+# agent, or locally: `node evals/harness/golden-nightly.mjs --k 3 --date "$(date -u +%F)"`.
+# Restore the cron only when it points at a runner that can actually execute trials.
 on:
-  schedule:
-    - cron: "0 4 * * *" # 04:00 UTC daily
   workflow_dispatch:
     inputs:
       k:
