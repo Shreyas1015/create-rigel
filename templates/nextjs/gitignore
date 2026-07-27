@@ -52,3 +52,6 @@ reports/mutation/
 # ARE committed. (DF-4)
 .claude/skills/impeccable/
 .github/skills/impeccable/
+
+# Ephemeral session resume pointer (local only — see docs/design-docs/memory.md)
+STATE.md

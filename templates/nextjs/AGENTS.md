@@ -37,6 +37,8 @@ Stack (latest LTS — no version pins): Next.js · React · TypeScript (strict) 
 | `/push-layer` | Commit + push with conventional message |
 | `/layer-check` | Ad-hoc architecture violation scan |
 | `/garbage-collect` | End-of-feature cleanup |
+| `/debug` | Same gate failure twice → hypothesis loop, not another guess |
+| `/curate` | Fold recorded gate failures into `docs/design-docs/lessons/` |
 | `/doc-garden` | Fix stale documentation |
 | `/api-sync` | Regenerate `api.generated.ts` from OpenAPI spec file |
 | `/perf-budget` | Run Lighthouse CI + bundle analysis |

@@ -22,6 +22,8 @@ Read this file first on every session. Then read the active execution plan.
 ```
 0. Scan docs/design-docs/lessons/    → past failures to avoid (read frontmatter `summary`;
                                         open a body only when it applies). See docs/design-docs/memory.md.
+0b. cat STATE.md (if present)        → where the last session stopped + open failures.
+                                        Ephemeral hint only — if it disagrees with the plan, the PLAN wins.
 1. ls docs/exec-plans/active/        → active plan?
 2. ls src/types/api.generated.ts     → contract exists?
 3. If plan exists → find first [ ] layer → /build-layer

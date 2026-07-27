@@ -4,7 +4,14 @@ import assert from 'node:assert/strict'
 import { scan } from './curate-scan.mjs'
 
 const fail = (signature, plan, message = 'm', file = 'f') => ({ signature, plan, message, file })
-const lesson = (id, signatures, status = 'OBSERVED', seen = 1) => ({ id, signatures, status, seen, file: `${id}.md` })
+const lesson = (id, signatures, status = 'OBSERVED', seen = 1, lastSeen = 'PLAN-001') => ({
+  id,
+  signatures,
+  status,
+  seen,
+  lastSeen,
+  file: `${id}.md`,
+})
 
 // ── no matching lesson → create, seen = distinct plans ──
 {
@@ -57,6 +64,30 @@ const lesson = (id, signatures, status = 'OBSERVED', seen = 1) => ({ id, signatu
 {
   const p = scan([], [lesson('LSN-0003', ['sig'], 'DISTILLED', 4)])
   assert.deepEqual(p.promotionReady.map((x) => x.id), ['LSN-0003'])
+}
+
+// ── stale: OBSERVED + untouched for >=5 plans → delete candidate (never auto-deleted) ──
+{
+  const p = scan([], [lesson('LSN-0002', ['sig'], 'OBSERVED', 1, 'PLAN-001')], 6)
+  assert.deepEqual(p.staleCandidates.map((s) => s.id), ['LSN-0002'])
+  assert.equal(p.staleCandidates[0].plansSince, 5)
+}
+
+// ── NOT stale: climbed the ladder, or recently seen, or recurred in this very run ──
+{
+  // DISTILLED lessons never go stale — they generalised, they're just waiting to be enforced
+  assert.equal(scan([], [lesson('LSN-A', ['s'], 'DISTILLED', 1, 'PLAN-001')], 9).staleCandidates.length, 0)
+  // seen 2 plans ago → under the threshold
+  assert.equal(scan([], [lesson('LSN-B', ['s'], 'OBSERVED', 1, 'PLAN-004')], 6).staleCandidates.length, 0)
+  // recurred in THIS run → incremented, not stale
+  const p = scan([fail('s', 'PLAN-006')], [lesson('LSN-C', ['s'], 'OBSERVED', 1, 'PLAN-001')], 6)
+  assert.equal(p.increment.length, 1)
+  assert.equal(p.staleCandidates.length, 0, 'a lesson that just recurred is not stale')
+}
+
+// ── no current plan → no stale claims (can't compute age honestly) ──
+{
+  assert.equal(scan([], [lesson('LSN-D', ['s'], 'OBSERVED', 1, 'PLAN-001')], null).staleCandidates.length, 0)
 }
 
 console.log('curate-scan: all assertions passed')

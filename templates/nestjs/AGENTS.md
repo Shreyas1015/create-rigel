@@ -33,6 +33,8 @@ Stack: NestJS 11 · Node 22 · TypeScript 5 strict · Sequelize 6 + sequelize-ty
 | `/push-layer` | Commit + push with conventional message |
 | `/layer-check` | Ad-hoc architecture violation scan |
 | `/garbage-collect` | End-of-feature cleanup |
+| `/debug` | Same gate failure twice → hypothesis loop, not another guess |
+| `/curate` | Fold recorded gate failures into `docs/design-docs/lessons/` |
 | `/doc-garden` | Fix stale documentation |
 | `/api-sync` | Export live OpenAPI spec from running server |
 | `/load-test` | Run k6 smoke / stress / soak |

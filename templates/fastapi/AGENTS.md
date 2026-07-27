@@ -38,6 +38,8 @@ Stack: Python 3.14 · FastAPI 0.115 · SQLAlchemy 2 (async) · PostgreSQL · Red
 | `/push-layer` | Commit + push current layer with conventional message |
 | `/layer-check` | Ad-hoc architecture violation scan |
 | `/garbage-collect` | End-of-feature cleanup pass |
+| `/debug` | Same gate failure twice → hypothesis loop, not another guess |
+| `/curate` | Fold recorded gate failures into `docs/design-docs/lessons/` |
 | `/doc-garden` | Scan + fix stale documentation |
 | `/db-optimize` | EXPLAIN ANALYZE workflow for slow queries |
 | `/load-test` | Run k6 smoke / stress / soak test |

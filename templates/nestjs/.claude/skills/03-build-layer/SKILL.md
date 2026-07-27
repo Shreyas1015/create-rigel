@@ -230,6 +230,15 @@ Then add to `AppModule.imports`.
 Call `gate-checker` agent. Auto-fix failures. Re-run up to 3 times.
 On PASS: tick this layer's box in the plan (`- [ ] Layer N` → `- [x] Layer N`), then write an ADR if a non-obvious decision was made.
 
+### Same failure twice → hand off to `/debug` (do NOT re-guess)
+
+Before re-trying, compare this FAIL's **signature** to the previous attempt's (the gate-checker
+records them to `.rigel/gate-failures.jsonl`). If the **same signature repeats**, the previous fix
+was a guess and another guess is not a strategy — **run `/debug`**, which forces a stated
+hypothesis, a minimal reproduction, and gate-verified confirmation before any further edit.
+
+A *different* failure on the re-run is normal progress: keep going with the auto-fix loop.
+
 **Role escalation** (see `.claude/model-routing.json`) — track the gate FAIL count for THIS layer:
 - Attempts 1–2 (same layer): run fix-and-re-gate as a **worker**-role subagent (`sonnet`).
 - Attempt 3 (2 worker attempts already failed): **escalate** to an **orchestrator**-role subagent (`opus`), then append one line to `docs/exec-plans/lessons.log` (create if absent), verbatim:
@@ -250,5 +259,14 @@ PLAN-XXX Layer N/Total"
 git push origin "$(git branch --show-current)"   # the feature branch — never main (protected)
 ```
 
-## Step 7 — Report + Wait
+## Step 7 — Update `STATE.md` (the resume pointer)
+Overwrite `STATE.md` so the next session can pick up cold — it is ephemeral and git-ignored, so
+just rewrite it, never merge it:
+- **Last session** (today), **Active plan**, **Last layer completed** (the one that just passed).
+- **Next action**: the next unchecked layer, or `/garbage-collect` if all are `[x]`.
+- **Open failures**: any signature in `.rigel/gate-failures.jsonl` still unresolved — one line each
+  (`<signature> at <file:line> — what's blocked`). If a line has survived two sessions, say so and
+  run `/debug`.
+
+## Step 8 — Report + Wait
 Show progress, auto-fixed items, ADR. Wait for human `yes` before next layer.

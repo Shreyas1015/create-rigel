@@ -40,7 +40,7 @@ node scripts/curate-scan.mjs      # read-only; prints a JSON plan, writes nothin
 ```
 
 Grouping by signature and counting recurrence is done by the script, not by you — an LLM
-miscounts. The plan has four lists: `create`, `increment`, `disambiguate`, `promotionReady`.
+miscounts. The plan has five lists: `create`, `increment`, `disambiguate`, `promotionReady`, `staleCandidates`.
 Signatures are **stable across files**, so the same class of failure in three files is one group
 with three occurrences, not three lessons.
 

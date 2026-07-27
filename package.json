@@ -15,7 +15,10 @@
     "cli.js",
     "templates",
     "model-routing.json",
-    "README.md"
+    "README.md",
+    "!templates/**/__pycache__",
+    "!templates/**/*.py[cod]",
+    "!templates/**/*.tsbuildinfo"
   ],
   "engines": {
     "node": ">=18"

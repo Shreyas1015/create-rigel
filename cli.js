@@ -59,6 +59,13 @@ async function isNonEmptyDir(dir) {
   return entries.length > 0;
 }
 
+// A scaffolded project must never inherit generated junk that happens to be sitting in the
+// template dir on disk (LSN-0008). This is the LAST of three boundaries that each need it
+// stated separately — .gitignore stops git, the package.json `files` negations stop npm pack,
+// and this stops the copy. None of the three implies the others.
+const GENERATED = [/(^|\/)__pycache__$/, /\.py[cod]$/, /\.tsbuildinfo$/, /(^|\/)node_modules$/, /(^|\/)\.next$/, /(^|\/)\.DS_Store$/];
+const notGenerated = (src) => !GENERATED.some((re) => re.test(src));
+
 // npm ships templates with `gitignore` (not `.gitignore`, which npm strips).
 // Restore the leading dot in the scaffolded project.
 async function restoreDotfiles(dir) {
@@ -100,7 +107,7 @@ async function main() {
     }
 
     await mkdir(target, { recursive: true });
-    await cp(source, target, { recursive: true });
+    await cp(source, target, { recursive: true, filter: notGenerated });
     await restoreDotfiles(target);
 
     // Stamp the canonical model-routing table into the project's .claude/ so

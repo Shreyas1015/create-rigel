@@ -102,6 +102,15 @@ Call `gate-checker` agent.
 **If FAIL:** auto-fix each ITEM, log what was fixed, re-run gate (max 3 attempts), following the role-escalation rule below.
 **If PASS:** tick the layer's box in the plan (`- [ ] Layer N` → `- [x] Layer N`), write ADR if non-obvious decision.
 
+### Same failure twice → hand off to `/debug` (do NOT re-guess)
+
+Before re-trying, compare this FAIL's **signature** to the previous attempt's (the gate-checker
+records them to `.rigel/gate-failures.jsonl`). If the **same signature repeats**, the previous fix
+was a guess and another guess is not a strategy — **run `/debug`**, which forces a stated
+hypothesis, a minimal reproduction, and gate-verified confirmation before any further edit.
+
+A *different* failure on the re-run is normal progress: keep going with the auto-fix loop below.
+
 ### Gate escalation — role routing (see `.claude/model-routing.json`)
 
 Track the gate FAIL count for THIS layer across re-runs:
@@ -137,7 +146,20 @@ git push origin "$(git branch --show-current)"   # the feature branch — never 
 
 ---
 
-## Step 8 — Report to Human
+## Step 8 — Update `STATE.md` (the resume pointer)
+
+Overwrite `STATE.md` so the next session can pick up cold — it is ephemeral and git-ignored, so
+just rewrite it, never merge it:
+
+- **Last session** (today), **Active plan**, **Last layer completed** (the one that just passed).
+- **Next action**: the next unchecked layer, or `/garbage-collect` if all are `[x]`.
+- **Open failures**: any signature in `.rigel/gate-failures.jsonl` still unresolved — one line each
+  (`<signature> at <file:line> — what's blocked`). If a line has survived two sessions, say so and
+  run `/debug`.
+
+---
+
+## Step 9 — Report to Human
 ```
 ═══════════════════════════════════════════
 ✅ Layer N ({layer-name}) — COMPLETE

@@ -14,8 +14,21 @@ def fail(signature: str, plan: str, message: str = "m", file: str = "f") -> dict
     return {"signature": signature, "plan": plan, "message": message, "file": file}
 
 
-def lesson(id: str, signatures: list[str], status: str = "OBSERVED", seen: int = 1) -> dict:
-    return {"id": id, "signatures": signatures, "status": status, "seen": seen, "file": f"{id}.md"}
+def lesson(
+    id: str,
+    signatures: list[str],
+    status: str = "OBSERVED",
+    seen: int = 1,
+    last_seen: str = "PLAN-001",
+) -> dict:
+    return {
+        "id": id,
+        "signatures": signatures,
+        "status": status,
+        "seen": seen,
+        "lastSeen": last_seen,
+        "file": f"{id}.md",
+    }
 
 
 # ── no matching lesson → create, seen = distinct plans ──
@@ -68,5 +81,23 @@ assert len(p["increment"]) == 0
 # ── already seen>=3 + DISTILLED (no new failures) → still promotion-ready ──
 p = scan([], [lesson("LSN-0003", ["sig"], "DISTILLED", 4)])
 assert [x["id"] for x in p["promotionReady"]] == ["LSN-0003"]
+
+# ── stale: OBSERVED + untouched for >=5 plans → delete candidate (never auto-deleted) ──
+p = scan([], [lesson("LSN-0002", ["sig"], "OBSERVED", 1, "PLAN-001")], 6)
+assert [s["id"] for s in p["staleCandidates"]] == ["LSN-0002"]
+assert p["staleCandidates"][0]["plansSince"] == 5
+
+# ── NOT stale: climbed the ladder, or recently seen, or recurred in this very run ──
+# DISTILLED lessons never go stale — they generalised, they're just waiting to be enforced
+assert len(scan([], [lesson("LSN-A", ["s"], "DISTILLED", 1, "PLAN-001")], 9)["staleCandidates"]) == 0
+# seen 2 plans ago → under the threshold
+assert len(scan([], [lesson("LSN-B", ["s"], "OBSERVED", 1, "PLAN-004")], 6)["staleCandidates"]) == 0
+# recurred in THIS run → incremented, not stale
+p = scan([fail("s", "PLAN-006")], [lesson("LSN-C", ["s"], "OBSERVED", 1, "PLAN-001")], 6)
+assert len(p["increment"]) == 1
+assert len(p["staleCandidates"]) == 0, "a lesson that just recurred is not stale"
+
+# ── no current plan → no stale claims (can't compute age honestly) ──
+assert len(scan([], [lesson("LSN-D", ["s"], "OBSERVED", 1, "PLAN-001")], None)["staleCandidates"]) == 0
 
 print("curate-scan: all assertions passed")

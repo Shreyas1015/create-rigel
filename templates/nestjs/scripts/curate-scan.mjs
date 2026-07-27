@@ -10,7 +10,12 @@
 //   { create: [{signature, plans, seen, message, file}],
 //     increment: [{id, signature, seen, plans, lastSeen}],
 //     disambiguate: [{signature, plans, candidates:[id,...]}],
-//     promotionReady: [{id, seen, status}] }         // seen>=3 AND status DISTILLED
+//     promotionReady: [{id, seen, status}],          // seen>=3 AND status DISTILLED
+//     staleCandidates: [{id, lastSeen, plansSince, status}] }  // OBSERVED and long-untouched
+//
+// Stale = still OBSERVED (never climbed the ladder) and not seen for STALE_AFTER plans: it was a
+// one-off, not a class. Reported as a CANDIDATE only — a human deletes it. Un-deleted stale prose
+// is the documented rot mode of lesson systems; nothing here auto-deletes.
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -46,12 +51,37 @@ function readLessons() {
       .split(',')
       .map((s) => s.trim().replace(/^["']|["']$/g, ''))
       .filter(Boolean)
-    out.push({ file: f, id: get('id'), status: get('status'), seen: Number(get('seen') || 0), signatures })
+    out.push({
+      file: f,
+      id: get('id'),
+      status: get('status'),
+      seen: Number(get('seen') || 0),
+      lastSeen: get('last_seen') || null,
+      signatures,
+    })
   }
   return out
 }
 
-export function scan(failures, lessons) {
+const STALE_AFTER = 5 // plans an OBSERVED lesson may go untouched before it's a delete candidate
+const planNum = (p) => {
+  const m = /PLAN-(\d+)/.exec(p || '')
+  return m ? Number(m[1]) : null
+}
+
+/** Current plan number: the active plan, else the newest plan mentioned anywhere. */
+function currentPlan(failures, lessons) {
+  if (existsSync('docs/exec-plans/active')) {
+    for (const f of readdirSync('docs/exec-plans/active')) {
+      const n = planNum(f)
+      if (n) return n
+    }
+  }
+  const seen = [...failures.map((f) => planNum(f.plan)), ...lessons.map((l) => planNum(l.lastSeen))].filter(Boolean)
+  return seen.length ? Math.max(...seen) : null
+}
+
+export function scan(failures, lessons, nowPlan = null) {
   const bySig = new Map() // signature -> Set(plans)
   const sample = new Map() // signature -> {message,file} (first occurrence)
   for (const r of failures) {
@@ -62,7 +92,7 @@ export function scan(failures, lessons) {
     if (r.plan) bySig.get(r.signature).add(r.plan)
   }
 
-  const plan = { create: [], increment: [], disambiguate: [], promotionReady: [] }
+  const plan = { create: [], increment: [], disambiguate: [], promotionReady: [], staleCandidates: [] }
   for (const [signature, plansSet] of bySig) {
     const plans = [...plansSet].sort()
     const occ = Math.max(plansSet.size, 1) // distinct plans; a same-plan repeat still counts once
@@ -84,10 +114,27 @@ export function scan(failures, lessons) {
       plan.promotionReady.push({ id: l.id, seen: l.seen, status: l.status })
     }
   }
+
+  // stale: still OBSERVED and untouched for STALE_AFTER plans → a one-off, not a class.
+  // Never flagged if it recurred in THIS run (it just got incremented).
+  if (nowPlan) {
+    const touched = new Set(plan.increment.map((i) => i.id))
+    for (const l of lessons) {
+      if (l.status !== 'OBSERVED' || touched.has(l.id)) continue
+      const last = planNum(l.lastSeen)
+      if (last === null) continue
+      const since = nowPlan - last
+      if (since >= STALE_AFTER) {
+        plan.staleCandidates.push({ id: l.id, lastSeen: l.lastSeen, plansSince: since, status: l.status })
+      }
+    }
+  }
   return plan
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const plan = scan(readFailures(), readLessons())
+  const failures = readFailures()
+  const lessons = readLessons()
+  const plan = scan(failures, lessons, currentPlan(failures, lessons))
   process.stdout.write(JSON.stringify(plan, null, 2) + '\n')
 }

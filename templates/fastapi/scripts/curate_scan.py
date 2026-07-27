@@ -12,7 +12,15 @@
 #   { "create": [{signature, plans, seen, message, file}],
 #     "increment": [{id, signature, seen, plans, lastSeen}],
 #     "disambiguate": [{signature, plans, candidates:[id,...]}],
-#     "promotionReady": [{id, seen, status}] }         # seen>=3 AND status DISTILLED
+#     "promotionReady": [{id, seen, status}],          # seen>=3 AND status DISTILLED
+#     "staleCandidates": [{id, lastSeen, plansSince, status}] }  # OBSERVED and long-untouched
+#
+# Stale = still OBSERVED (never climbed the ladder) and not seen for STALE_AFTER plans: it was a
+# one-off, not a class. Reported as a CANDIDATE only — a human deletes it. Un-deleted stale prose
+# is the documented rot mode of lesson systems; nothing here auto-deletes.
+#
+# JSON keys stay camelCase to match templates/express/scripts/curate-scan.mjs byte for byte —
+# /curate reads the same plan shape whichever stack it runs in.
 
 import json
 import re
@@ -77,13 +85,35 @@ def read_lessons() -> list[dict]:
                 "id": get("id"),
                 "status": get("status"),
                 "seen": _to_int(get("seen") or 0),
+                "lastSeen": get("last_seen") or None,
                 "signatures": signatures,
             }
         )
     return out
 
 
-def scan(failures: list[dict], lessons: list[dict]) -> dict:
+STALE_AFTER = 5  # plans an OBSERVED lesson may go untouched before it's a delete candidate
+
+
+def plan_num(p: str | None) -> int | None:
+    m = re.search(r"PLAN-(\d+)", p or "")
+    return int(m.group(1)) if m else None
+
+
+def current_plan(failures: list[dict], lessons: list[dict]) -> int | None:
+    """Current plan number: the active plan, else the newest plan mentioned anywhere."""
+    active = Path("docs/exec-plans/active")
+    if active.exists():
+        for entry in sorted(active.iterdir()):
+            n = plan_num(entry.name)
+            if n:
+                return n
+    seen = [plan_num(f.get("plan")) for f in failures] + [plan_num(lesson.get("lastSeen")) for lesson in lessons]
+    seen = [n for n in seen if n]
+    return max(seen) if seen else None
+
+
+def scan(failures: list[dict], lessons: list[dict], now_plan: int | None = None) -> dict:
     by_sig: dict[str, set] = {}  # signature -> set(plans)
     sample: dict[str, dict] = {}  # signature -> {message, file} (first occurrence)
     for r in failures:
@@ -94,7 +124,13 @@ def scan(failures: list[dict], lessons: list[dict]) -> dict:
         if r.get("plan"):
             by_sig[sig].add(r["plan"])
 
-    plan: dict = {"create": [], "increment": [], "disambiguate": [], "promotionReady": []}
+    plan: dict = {
+        "create": [],
+        "increment": [],
+        "disambiguate": [],
+        "promotionReady": [],
+        "staleCandidates": [],
+    }
     for signature, plans_set in by_sig.items():
         plans = sorted(plans_set)
         occ = max(len(plans_set), 1)  # distinct plans; a same-plan repeat still counts once
@@ -104,15 +140,13 @@ def scan(failures: list[dict], lessons: list[dict]) -> dict:
         elif len(matches) == 1:
             lesson = matches[0]
             new_seen = lesson["seen"] + occ
-            plan["increment"].append(
-                {
-                    "id": lesson["id"],
-                    "signature": signature,
-                    "seen": new_seen,
-                    "plans": plans,
-                    "lastSeen": plans[-1] if plans else None,
-                }
-            )
+            entry = {"id": lesson["id"], "signature": signature, "seen": new_seen, "plans": plans}
+            # No plans → the JS twin's `plans[plans.length - 1]` is undefined and JSON.stringify
+            # DROPS the key. Omit it here too, or the two scanners emit different JSON for a
+            # failure recorded with no active plan.
+            if plans:
+                entry["lastSeen"] = plans[-1]
+            plan["increment"].append(entry)
             if new_seen >= 3 and lesson["status"] == "DISTILLED":
                 plan["promotionReady"].append({"id": lesson["id"], "seen": new_seen, "status": lesson["status"]})
         else:
@@ -128,9 +162,32 @@ def scan(failures: list[dict], lessons: list[dict]) -> dict:
             and not any(p["id"] == lesson["id"] for p in plan["promotionReady"])
         ):
             plan["promotionReady"].append({"id": lesson["id"], "seen": lesson["seen"], "status": lesson["status"]})
+
+    # stale: still OBSERVED and untouched for STALE_AFTER plans → a one-off, not a class.
+    # Never flagged if it recurred in THIS run (it just got incremented).
+    if now_plan:
+        touched = {i["id"] for i in plan["increment"]}
+        for lesson in lessons:
+            if lesson["status"] != "OBSERVED" or lesson["id"] in touched:
+                continue
+            last = plan_num(lesson.get("lastSeen"))
+            if last is None:
+                continue
+            since = now_plan - last
+            if since >= STALE_AFTER:
+                plan["staleCandidates"].append(
+                    {
+                        "id": lesson["id"],
+                        "lastSeen": lesson["lastSeen"],
+                        "plansSince": since,
+                        "status": lesson["status"],
+                    }
+                )
     return plan
 
 
 if __name__ == "__main__":
-    result = scan(read_failures(), read_lessons())
+    _failures = read_failures()
+    _lessons = read_lessons()
+    result = scan(_failures, _lessons, current_plan(_failures, _lessons))
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
