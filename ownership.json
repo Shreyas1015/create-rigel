@@ -1,0 +1,84 @@
+{
+  "//": [
+    "PLAN-008 AC-1 — the ownership contract, per template.",
+    "",
+    "This is the single source of truth for who owns what in a scaffolded repo. cli.js embeds a",
+    "SNAPSHOT of the matching entry into each project's .rigel/manifest.json, so a repo keeps the",
+    "contract it was born with until an update explicitly changes it.",
+    "",
+    "  managed — Rigel owns these byte-for-byte. `rigel verify` fails if they are hand-edited;",
+    "            `rigel update` overwrites them when untouched. Deliberately narrow: only the",
+    "            harness itself. Anything a user reasonably tunes belongs in `seed`.",
+    "  seed    — written once at scaffold, then the team owns it. Never overwritten, never diffed.",
+    "  user    — Rigel must never read or write these.",
+    "",
+    "Glob syntax is minimal on purpose (lib/manifest.mjs): `**` crosses separators, `*` does not,",
+    "everything else is literal. No negation, no braces — if a rule needs those, it's too clever."
+  ],
+  "common": {
+    "managed": [
+      ".claude/**",
+      ".githooks/**",
+      ".github/**",
+      "scripts/**",
+      ".rigel/git-policy.json"
+    ],
+    "seed": [
+      "AGENTS.md",
+      "ARCHITECTURE.md",
+      "STATE.md",
+      "README.md",
+      "QUICKSTART.md",
+      "gitignore",
+      ".gitignore",
+      "Makefile",
+      "Dockerfile",
+      ".dockerignore",
+      ".env.example",
+      "docker-compose.yml",
+      "eslint.config.mjs",
+      ".prettierrc",
+      ".prettierignore",
+      ".lintstagedrc.json",
+      ".gitattributes",
+      ".nvmrc",
+      ".gitleaks.toml",
+      ".mcp.json",
+      "stryker.conf.json",
+      "docs/design-docs/**",
+      "docs/*.md"
+    ],
+    "user": [
+      "src/**",
+      "tests/**",
+      "docs/product-specs/**",
+      "docs/exec-plans/**",
+      "docs/generated/**",
+      ".rigel/ac-results/**",
+      ".rigel/redgreen/**",
+      ".rigel/gate-failures.jsonl"
+    ]
+  },
+  "express": {
+    "seed": [
+      "package.json",
+      "tsconfig.json",
+      "tsconfig.build.json",
+      "jest.config.ts",
+      ".sequelizerc",
+      "db/config.cjs",
+      "infra/**"
+    ],
+    "user": ["db/migrations/**"]
+  },
+  "nextjs": {
+    "seed": ["package.json", "tsconfig.json", "lighthouserc.js", "tokens.json"]
+  },
+  "nestjs": {
+    "seed": ["package.json", "tsconfig.json"]
+  },
+  "fastapi": {
+    "seed": ["pyproject.toml", "alembic.ini"],
+    "user": ["alembic/versions/**"]
+  }
+}

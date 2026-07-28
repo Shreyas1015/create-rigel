@@ -2,12 +2,13 @@
 // create-rigel — scaffold an agent-first, gate-enforced starter project.
 // Zero runtime dependencies (Node builtins only), so it publishes with no build step.
 
-import { readdir, cp, rename, mkdir, stat } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { readdir, cp, rename, mkdir, stat, writeFile } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { buildManifest, resolveOwnership, MANIFEST_PATH } from "./lib/manifest.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = join(HERE, "templates");
@@ -66,6 +67,24 @@ async function isNonEmptyDir(dir) {
 const GENERATED = [/(^|\/)__pycache__$/, /\.py[cod]$/, /\.tsbuildinfo$/, /(^|\/)node_modules$/, /(^|\/)\.next$/, /(^|\/)\.DS_Store$/];
 const notGenerated = (src) => !GENERATED.some((re) => re.test(src));
 
+// Write `.rigel/manifest.json` — the provenance record `rigel verify` and `rigel update` read.
+async function writeManifest(target, stack) {
+  const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
+  const table = JSON.parse(readFileSync(join(HERE, "ownership.json"), "utf8"));
+  const manifest = buildManifest({
+    root: target,
+    template: stack,
+    version: pkg.version,
+    source: { kind: "npm", spec: `${pkg.name}@${pkg.version}` },
+    layer: null, // set by --template <giget-uri> (AC-4)
+    answers: {},
+    ownership: resolveOwnership(table, stack),
+    now: new Date().toISOString(),
+  });
+  await mkdir(join(target, ".rigel"), { recursive: true });
+  await writeFile(join(target, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + "\n");
+}
+
 // npm ships templates with `gitignore` (not `.gitignore`, which npm strips).
 // Restore the leading dot in the scaffolded project.
 async function restoreDotfiles(dir) {
@@ -114,6 +133,11 @@ async function main() {
     // /build-layer role escalation can resolve worker/orchestrator roles at runtime.
     // One source of truth (repo root) — never a per-template copy that can drift.
     await cp(join(HERE, "model-routing.json"), join(target, ".claude", "model-routing.json"));
+
+    // The return address (PLAN-008 AC-1). Written LAST, so its hashes cover everything above —
+    // including the stamped model-routing.json. Without this a repo is permanently unreachable:
+    // no `rigel verify`, no `rigel update`, ever. It cannot be added retroactively.
+    await writeManifest(target, stack);
 
     const rel = name === "." ? "." : name;
     console.log(`\n  ✓ Scaffolded a "${stack}" project into ${rel}\n`);
