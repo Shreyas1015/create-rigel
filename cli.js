@@ -134,6 +134,15 @@ async function main() {
     // One source of truth (repo root) — never a per-template copy that can drift.
     await cp(join(HERE, "model-routing.json"), join(target, ".claude", "model-routing.json"));
 
+    // Stamp the manifest library into the project so `rigel verify` runs offline with zero deps.
+    // Stamped, never duplicated per-template: one source of truth that cannot drift.
+    // fastapi gets the Python port — it has no node dependency and gate.sh runs on every commit.
+    await mkdir(join(target, "scripts", "lib"), { recursive: true });
+    await cp(
+      join(HERE, "lib", stack === "fastapi" ? "manifest.py" : "manifest.mjs"),
+      join(target, "scripts", "lib", stack === "fastapi" ? "rigel_manifest.py" : "rigel-manifest.mjs"),
+    );
+
     // The return address (PLAN-008 AC-1). Written LAST, so its hashes cover everything above —
     // including the stamped model-routing.json. Without this a repo is permanently unreachable:
     // no `rigel verify`, no `rigel update`, ever. It cannot be added retroactively.

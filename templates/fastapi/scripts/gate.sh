@@ -13,8 +13,17 @@ FAIL=0
 fail() { printf '%b\n' "❌ $1"; FAIL=1; }   # %b so embedded \n render as newlines
 pass() { printf '%b\n' "✓ $1"; }
 
+# 0. Rigel manifest — has anyone edited a file Rigel owns? Runs BEFORE the no-src early exit:
+# the manifest exists from scaffold time, and a tampered harness invalidates every check below it.
+if [[ -f .rigel/manifest.json ]]; then
+  if python3 scripts/rigel_verify.py; then :; else fail "rigel verify failed (see above)"; fi
+else
+  echo "· no .rigel/manifest.json — skipping rigel verify"
+fi
+
 if [[ ! -d src ]]; then
-  echo "No src/ yet — run /infra-setup first. Nothing to gate."
+  echo "No src/ yet — run /infra-setup first. Nothing else to gate."
+  [[ $FAIL -ne 0 ]] && exit 1
   exit 0
 fi
 

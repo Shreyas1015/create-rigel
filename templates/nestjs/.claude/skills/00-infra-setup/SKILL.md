@@ -193,7 +193,8 @@ Loads DATABASE_URL from .env for sequelize-cli.
 `docker-compose.yml` — app + postgres:16 + redis:7 with healthchecks.
 
 ### GitHub Actions
-`.github/workflows/ci.yml` — lint → typecheck → test → npm audit → secret-scan.
+`.github/workflows/ci.yml` — verify:rigel → lint → typecheck → test → npm audit → secret-scan.
+`verify:rigel` runs first and needs no `npm ci` (plain node + `.rigel/manifest.json`).
 
 ### Scaffold Docs
 `AGENTS.md`, `ARCHITECTURE.md`, `ADR-000-infrastructure.md`, `docs/product-specs/index.md`,
@@ -208,6 +209,9 @@ and `tests/` — plural — which do not collide with NestJS's generated `test/`
 
 - `scripts/lib/rigel-evals.mjs`, `scripts/redgreen-record.mjs`, `scripts/ac-vector.mjs`,
   `scripts/mutation-report.mjs` — the eval engine (pure Node, no deps).
+- `scripts/rigel-verify.mjs` — the PLAN-008 AC-2 harness-integrity check (`verify:rigel`). Its
+  only import, `scripts/lib/rigel-manifest.mjs`, is **stamped in by `create-rigel` at scaffold
+  time** — one source of truth; never author or edit either file here.
 - `tests/architecture/traceability.test.ts` — AC↔test traceability (AC-1, static half) + red-green
   integrity (AC-4). Runs in the per-layer gate.
 - `tests/architecture/assertion-integrity.test.ts` — AC-5, uses the TypeScript compiler API
@@ -254,12 +258,20 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 ```jsonc
 "typecheck": "tsc --noEmit",
 "test:arch": "jest tests/architecture/",
+"verify:rigel": "node scripts/rigel-verify.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
 "ac:vector": "node scripts/ac-vector.mjs",
-"gate": "npm run typecheck && npm run lint && npm run test:arch",
+"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch",
 "gate:final": "npm run gate && npm run ac:vector"
 ```
 
+- `verify:rigel` (PLAN-008 AC-2) re-hashes every file recorded in `.rigel/manifest.json` and
+  fails if a Rigel-owned file was edited, deleted, or left with conflict markers. It is **first**
+  in `gate`: the cheapest check, and a tampered harness invalidates everything after it. Purely
+  local — no network, no template download; it never fails merely because a newer create-rigel
+  exists. The escape hatch is a waiver in the manifest pinning the exact accepted content plus an
+  expiry; an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
+  stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
 - `test:arch` is the per-layer check home — it runs the two `tests/architecture/` eval tests plus
   any layer-boundary tests. `gate` **must** include it.
 - `redgreen:record` / `ac:vector` are the spec-phase and feature-completion checks (see

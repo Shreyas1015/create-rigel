@@ -1,10 +1,10 @@
 ---
 id: LSN-0008
-summary: "Generated artifacts must be excluded at EVERY boundary that copies files — git, npm pack, and the scaffolder. None implies the others."
+summary: "Exclude generated artifacts at EVERY copy boundary, with PATTERN-scoped rules — a path-scoped negation silently stops covering new directories."
 status: ENFORCED
-seen: 3
+seen: 4
 first_seen: PLAN-006
-last_seen: PLAN-007
+last_seen: PLAN-008
 signatures: []
-enforced_by: "repo .gitignore (git) + package.json files[] negations (npm pack) + cli.js notGenerated filter (scaffold copy) + scripts/check-package-contents.mjs (CI backstop, tamper-tested)"
+enforced_by: "repo .gitignore + package.json files[] pattern-scoped negations (!**/__pycache__, !**/*.py[cod]) + cli.js notGenerated filter + scripts/check-package-contents.mjs (CI, tamper-tested)"
 ---

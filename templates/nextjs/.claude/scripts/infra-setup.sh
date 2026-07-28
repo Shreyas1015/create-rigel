@@ -91,6 +91,9 @@ const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 // them; harness scripts win over everything (notably: lint = 'eslint .', not 'next lint').
 const defaults = { dev: 'next dev', build: 'next build', start: 'next start' };
 const harness = {
+  // Harness integrity (PLAN-008 AC-2): has anyone edited a file Rigel owns? Runs FIRST in
+  // the gate — it is the cheapest check and a tampered harness invalidates everything after it.
+  'verify:rigel': 'node scripts/rigel-verify.mjs',
   'api:sync': 'openapi-typescript openapi.json -o src/types/api.generated.ts',
   'test': 'vitest',
   'test:ui': 'vitest --ui',
@@ -106,7 +109,7 @@ const harness = {
   'lint:fix': 'eslint . --fix',
   'format': 'prettier --write .',
   'format:check': 'prettier --check .',
-  'gate': 'npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run assert:tests && npm run waivers:check && npm run design:drift',
+  'gate': 'npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run assert:tests && npm run waivers:check && npm run design:drift',
   // Deterministic evals (PLAN-003). The per-layer 'gate' already runs the STATIC
   // traceability + assertion-integrity arch tests (test:coverage → vitest includes
   // tests/architecture/). These add the red-green recorder and the feature-completion

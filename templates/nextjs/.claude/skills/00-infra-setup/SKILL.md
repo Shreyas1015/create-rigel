@@ -199,6 +199,10 @@ App-wide constants. No process.env.
   written by the script): `scripts/lib/rigel-evals.mjs`, `scripts/redgreen-record.mjs`,
   `scripts/ac-vector.mjs`, `scripts/mutation-report.mjs`. The nightly workflow
   `.github/workflows/mutation-nightly.yml` ships the same way.
+- **Harness integrity (PLAN-008 AC-2):** `scripts/rigel-verify.mjs` (the `verify:rigel` script)
+  ships committed and survives the same park-and-restore. Its only import,
+  `scripts/lib/rigel-manifest.mjs`, is **stamped in by `create-rigel` at scaffold time** — one
+  source of truth; never author or edit either file.
 
 ### src/utils/cn.util.ts
 `clsx` + `tailwind-merge` class merger. 100% tested.
@@ -412,6 +416,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "verify:rigel": "node scripts/rigel-verify.mjs",
     "api:sync": "openapi-typescript openapi.json -o src/types/api.generated.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -423,7 +428,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "gate": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
+    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
     "redgreen:record": "node scripts/redgreen-record.mjs",
     "ac:vector": "node scripts/ac-vector.mjs",
     "gate:final": "npm run gate && npm run ac:vector",
@@ -431,6 +436,15 @@ is the single command `/push-layer` and `/validate-layer` run.
   }
 }
 ```
+
+Harness integrity (PLAN-008 AC-2):
+- `verify:rigel` — `node scripts/rigel-verify.mjs`. Re-hashes every file recorded in
+  `.rigel/manifest.json` and fails if a Rigel-owned file was edited, deleted, or left with
+  conflict markers. It runs **first** in `gate`: cheapest check, and a tampered harness
+  invalidates every check after it. Purely local — no network, no template download. The
+  escape hatch is a waiver in the manifest pinning the exact accepted content plus an expiry;
+  an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
+  stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
 
 The deterministic-eval scripts (PLAN-003):
 - `gate` already runs the **STATIC** AC checks — `test:coverage` runs `vitest run --coverage`,

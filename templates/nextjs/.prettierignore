@@ -21,3 +21,12 @@ src/types/api.generated.ts
 # reformat. `format:check` here is `prettier --check .` (whole tree, gate + CI), which would
 # otherwise flag those appended blocks. Excluding keeps the gate green. (DF-45)
 docs/exec-plans/
+# Rigel-MANAGED paths (see `ownership` in .rigel/manifest.json). `verify:rigel` re-hashes
+# every file here against the manifest and FAILS the gate on any byte change — so a
+# `prettier --write .` (Step 8b of /infra-setup, and `npm run format`) that reformatted them
+# would make the gate permanently red on a fresh scaffold. These files are Rigel's to update,
+# not this repo's to reformat. (PLAN-008 AC-2)
+.claude/
+.github/
+.githooks/
+scripts/
