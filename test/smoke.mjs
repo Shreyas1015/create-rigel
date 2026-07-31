@@ -144,8 +144,47 @@ for (const stack of STACKS) {
   }
 }
 
+// A company layer must scaffold too — examples/company-layer/ is the format's only proof, so it
+// is exercised here rather than merely documented (PLAN-008 AC-5).
+{
+  const dir = mkdtempSync(join(tmpdir(), "create-rigel-layer-"));
+  const proj = join(dir, "svc");
+  try {
+    execFileSync("node", [CLI, proj, "--template", join(HERE, "..", "examples", "company-layer")], { stdio: "pipe" });
+    const manifest = JSON.parse(readFileSync(join(proj, ".rigel", "manifest.json"), "utf8"));
+    assert.equal(manifest.template, "express", "layer extends express");
+    assert.equal(manifest.layer?.name, "acme", "manifest records the layer");
+    assert.ok(
+      existsSync(join(proj, ".claude", "rules", "acme-security.md")),
+      "layer managed/ file was overlaid",
+    );
+    assert.ok(
+      manifest.ownership.managed.includes("eslint-rules/**"),
+      "layer ownership globs merged into the manifest",
+    );
+    assert.ok(
+      "eslint-rules/no-pii-in-logs.cjs" in manifest.files,
+      "layer file is hashed as managed, so verify protects it",
+    );
+    assert.ok(
+      existsSync(join(proj, "docs", "design-docs", "decisions", "ADR-000-acme-stack.md")),
+      "layer seed/ file was written",
+    );
+    assert.ok(
+      !("docs/design-docs/decisions/ADR-000-acme-stack.md" in manifest.files),
+      "seed files are NOT managed — the team owns them",
+    );
+    console.log("  ✓ company layer scaffolded (base + managed overlay + seed)");
+  } catch (err) {
+    failures++;
+    console.error(`  ✗ company layer: ${err instanceof Error ? err.message : err}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 if (failures > 0) {
-  console.error(`\n${failures} template(s) failed to scaffold.`);
+  console.error(`\n${failures} scaffold check(s) failed.`);
   process.exit(1);
 }
 console.log("\nAll templates scaffolded successfully.");

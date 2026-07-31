@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./lib/manifest.mjs";
+import { parseTemplateSpec, fetchLayer, readLayerConfig, applyLayer, mergeOwnership } from "./lib/layer.mjs";
 import {
   materialize,
   planUpdate,
@@ -73,7 +74,7 @@ async function isNonEmptyDir(dir) {
 }
 
 // Write `.rigel/manifest.json` — the provenance record `rigel verify` and `rigel update` read.
-async function writeManifest(target, stack) {
+async function writeManifest(target, stack, { layer = null, extraOwnership = {} } = {}) {
   const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
   const table = JSON.parse(readFileSync(join(HERE, "ownership.json"), "utf8"));
   const manifest = buildManifest({
@@ -81,9 +82,9 @@ async function writeManifest(target, stack) {
     template: stack,
     version: pkg.version,
     source: { kind: "npm", spec: `${pkg.name}@${pkg.version}` },
-    layer: null, // set by --template <giget-uri> (AC-4)
+    layer,
     answers: {},
-    ownership: resolveOwnership(table, stack),
+    ownership: mergeOwnership(resolveOwnership(table, stack), extraOwnership),
     now: new Date().toISOString(),
   });
   await mkdir(join(target, ".rigel"), { recursive: true });
@@ -182,7 +183,31 @@ async function main() {
       process.exit(1);
     }
 
-    const stack = await chooseStack(rl, args.template);
+    // --template may name a built-in stack OR point at a company layer (git URI / local dir).
+    const parsed = parseTemplateSpec(args.template, Object.keys(STACKS));
+    if (parsed.kind === "unknown") {
+      console.error(`\n  Unrecognised --template "${args.template}".`);
+      console.error(`  Use a built-in (${Object.keys(STACKS).join(", ")}) or a layer (gh:org/repo#sha, a git URL, or a path).\n`);
+      process.exit(1);
+    }
+
+    let stack, layer = null, extraOwnership = {}, layerDir = null;
+    if (parsed.kind === "builtin") {
+      stack = await chooseStack(rl, parsed.stack);
+    } else {
+      layerDir = await mkdtemp(join(tmpdir(), "rigel-layer-"));
+      console.log(`\n  Fetching company layer ${parsed.spec} …`);
+      const fetched = fetchLayer(parsed, layerDir);
+      const cfg = readLayerConfig(layerDir);
+      stack = cfg.extends;
+      if (!STACKS[stack]) {
+        console.error(`\n  Layer "${cfg.name ?? parsed.spec}" extends unknown template "${stack}".\n`);
+        process.exit(1);
+      }
+      extraOwnership = cfg.ownership ?? {};
+      layer = { uri: parsed.spec, url: fetched.url, sha: fetched.sha, name: cfg.name ?? null };
+    }
+
     const source = join(TEMPLATES_DIR, stack);
     if (!existsSync(source)) {
       console.error(`\n  Template "${stack}" is missing from this package. Aborting.\n`);
@@ -193,13 +218,20 @@ async function main() {
     // update would compare against files a scaffold never actually produced.
     await materialize(HERE, stack, target);
 
+    if (layerDir) {
+      const w = await applyLayer(layerDir, target);
+      await rm(layerDir, { recursive: true, force: true });
+      console.log(`  ✓ Layer applied: ${w.managed.length} managed, ${w.seed.length} seed file(s)`);
+    }
+
     // The return address (PLAN-008 AC-1). Written LAST, so its hashes cover everything above —
     // including the stamped model-routing.json. Without this a repo is permanently unreachable:
     // no `rigel verify`, no `rigel update`, ever. It cannot be added retroactively.
-    await writeManifest(target, stack);
+    await writeManifest(target, stack, { layer, extraOwnership });
 
     const rel = name === "." ? "." : name;
-    console.log(`\n  ✓ Scaffolded a "${stack}" project into ${rel}\n`);
+    const what = layer ? `"${layer.name ?? stack}" (${stack} + company layer)` : `a "${stack}" project`;
+    console.log(`\n  ✓ Scaffolded ${what} into ${rel}\n`);
     console.log("  Next steps:");
     if (name !== ".") console.log(`    cd ${name}`);
     console.log("    git init");

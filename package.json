@@ -7,7 +7,7 @@
     "create-rigel": "cli.js"
   },
   "scripts": {
-    "test": "node lib/manifest.test.mjs && node lib/manifest.parity.test.mjs && node lib/update.test.mjs && node test/smoke.mjs",
+    "test": "node lib/manifest.test.mjs && node lib/manifest.parity.test.mjs && node lib/update.test.mjs && node lib/layer.test.mjs && node test/smoke.mjs",
     "test:evals": "node evals/harness/lib/eval-lib.test.mjs && node evals/harness/load-golden.test.mjs && node evals/harness/score.test.mjs && node evals/harness/calibrate.test.mjs && node evals/harness/champion.test.mjs && node evals/harness/parity.test.mjs && node evals/harness/run-trial.test.mjs && node evals/harness/golden-nightly.test.mjs",
     "eval:promote-check": "node evals/harness/promotion-check.mjs"
   },
@@ -15,6 +15,7 @@
     "cli.js",
     "lib",
     "templates",
+    "examples",
     "model-routing.json",
     "ownership.json",
     "README.md",

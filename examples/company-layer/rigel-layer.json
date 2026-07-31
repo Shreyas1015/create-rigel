@@ -1,0 +1,7 @@
+{
+  "name": "acme",
+  "extends": "express",
+  "ownership": {
+    "managed": ["eslint-rules/**"]
+  }
+}
