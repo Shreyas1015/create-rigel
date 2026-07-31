@@ -53,6 +53,10 @@ def classify(path: str, ownership: dict):
     """`managed` wins, then `user`, then `seed`. The manifest is its own category."""
     if path == MANIFEST_PATH:
         return "manifest"
+    # Update sidecars are transient merge debris. If one were recorded as managed, deleting it —
+    # which the gate REQUIRES — would then fail verify as "missing". A deadlock; caught live.
+    if path.endswith(".rigel-new"):
+        return "debris"
     if matches_any(path, ownership.get("managed")):
         return "managed"
     if matches_any(path, ownership.get("user")):

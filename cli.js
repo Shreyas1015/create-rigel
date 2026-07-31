@@ -2,13 +2,25 @@
 // create-rigel — scaffold an agent-first, gate-enforced starter project.
 // Zero runtime dependencies (Node builtins only), so it publishes with no build step.
 
-import { readdir, cp, rename, mkdir, stat, writeFile } from "node:fs/promises";
+import { readdir, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { buildManifest, resolveOwnership, MANIFEST_PATH } from "./lib/manifest.mjs";
+import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./lib/manifest.mjs";
+import {
+  materialize,
+  planUpdate,
+  applyUpdate,
+  summarize,
+  rewriteManifest,
+  hashTree,
+  managedOnly,
+  writeJson,
+} from "./lib/update.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = join(HERE, "templates");
@@ -60,13 +72,6 @@ async function isNonEmptyDir(dir) {
   return entries.length > 0;
 }
 
-// A scaffolded project must never inherit generated junk that happens to be sitting in the
-// template dir on disk (LSN-0008). This is the LAST of three boundaries that each need it
-// stated separately — .gitignore stops git, the package.json `files` negations stop npm pack,
-// and this stops the copy. None of the three implies the others.
-const GENERATED = [/(^|\/)__pycache__$/, /\.py[cod]$/, /\.tsbuildinfo$/, /(^|\/)node_modules$/, /(^|\/)\.next$/, /(^|\/)\.DS_Store$/];
-const notGenerated = (src) => !GENERATED.some((re) => re.test(src));
-
 // Write `.rigel/manifest.json` — the provenance record `rigel verify` and `rigel update` read.
 async function writeManifest(target, stack) {
   const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
@@ -85,23 +90,82 @@ async function writeManifest(target, stack) {
   await writeFile(join(target, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + "\n");
 }
 
-// npm ships templates with `gitignore` (not `.gitignore`, which npm strips).
-// Restore the leading dot in the scaffolded project.
-async function restoreDotfiles(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = join(dir, e.name);
-    if (e.isDirectory()) {
-      await restoreDotfiles(full);
-    } else if (e.name === "gitignore") {
-      await rename(full, join(dir, ".gitignore"));
-    } else if (e.name === "npmignore") {
-      await rename(full, join(dir, ".npmignore"));
+// ── `create-rigel update` — bring an existing scaffold forward (PLAN-008 AC-3) ──
+async function cmdUpdate(argv) {
+  const root = process.cwd();
+  const dryRun = argv.includes("--dry-run");
+  const allowDirty = argv.includes("--allow-dirty");
+  const conflictMode = argv.includes("--conflict=theirs") ? "theirs" : "sidecar";
+
+  const manifest = readManifest(root);
+  if (!manifest) {
+    console.error(`\n  ✗ No ${MANIFEST_PATH} here — this isn't a Rigel project (or it predates provenance).\n`);
+    process.exit(2);
+  }
+
+  // The whole update must land as one reviewable diff. A dirty tree makes "what did Rigel change?"
+  // unanswerable, which is the only review mechanism there is.
+  if (!allowDirty && !dryRun) {
+    try {
+      const dirty = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim();
+      if (dirty) {
+        console.error("\n  ✗ Working tree is dirty. Commit or stash first, or pass --allow-dirty.");
+        console.error("    The update should land as one reviewable `git diff`.\n");
+        process.exit(2);
+      }
+    } catch {
+      /* not a git repo — nothing to protect */
     }
+  }
+
+  const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
+  const stack = manifest.template;
+  const ownership = manifest.ownership;
+
+  const theirsDir = await mkdtemp(join(tmpdir(), "rigel-update-"));
+  try {
+    await materialize(HERE, stack, theirsDir);
+
+    const theirs = managedOnly(hashTree(theirsDir), ownership);
+    const mine = managedOnly(hashTree(root), ownership);
+    const plan = planUpdate({
+      recorded: manifest.files ?? {},
+      mine,
+      theirs,
+      deletedByUser: manifest.deletedByUser ?? [],
+    });
+
+    const total = plan.overwrite.length + plan.added.length + plan.removed.length + plan.conflict.length;
+    console.log(`\n  ${manifest.template}  ${manifest.updatedWith} → ${pkg.version}\n`);
+    const summary = summarize(plan);
+    console.log(summary || "  Already up to date — nothing to change.\n");
+
+    if (dryRun) {
+      console.log("\n  (--dry-run: nothing was written)\n");
+      return;
+    }
+    if (total === 0) return;
+
+    await applyUpdate({ root, theirsDir, plan, conflictMode });
+    const next = rewriteManifest({ manifest, version: pkg.version, root, ownership });
+    next.deletedByUser = [...new Set([...(manifest.deletedByUser ?? []), ...plan.skippedDeleted])].sort();
+    await writeJson(join(root, MANIFEST_PATH), next);
+
+    console.log(`\n  ✓ Updated to ${pkg.version}. Review with \`git diff\`, then commit.`);
+    if (plan.conflict.length) {
+      console.log(`  ⚠ ${plan.conflict.length} conflict(s): compare each *.rigel-new with the original,`);
+      console.log("    take what you want, then delete the sidecar (the gate fails while any remain).");
+    }
+    console.log("");
+  } finally {
+    await rm(theirsDir, { recursive: true, force: true });
   }
 }
 
 async function main() {
+  // Subcommands run inside an existing project; anything else scaffolds a new one.
+  if (process.argv[2] === "update") return cmdUpdate(process.argv.slice(3));
+
   const args = parseArgs(process.argv);
   const rl = createInterface({ input, output });
   try {
@@ -125,23 +189,9 @@ async function main() {
       process.exit(1);
     }
 
-    await mkdir(target, { recursive: true });
-    await cp(source, target, { recursive: true, filter: notGenerated });
-    await restoreDotfiles(target);
-
-    // Stamp the canonical model-routing table into the project's .claude/ so
-    // /build-layer role escalation can resolve worker/orchestrator roles at runtime.
-    // One source of truth (repo root) — never a per-template copy that can drift.
-    await cp(join(HERE, "model-routing.json"), join(target, ".claude", "model-routing.json"));
-
-    // Stamp the manifest library into the project so `rigel verify` runs offline with zero deps.
-    // Stamped, never duplicated per-template: one source of truth that cannot drift.
-    // fastapi gets the Python port — it has no node dependency and gate.sh runs on every commit.
-    await mkdir(join(target, "scripts", "lib"), { recursive: true });
-    await cp(
-      join(HERE, "lib", stack === "fastapi" ? "manifest.py" : "manifest.mjs"),
-      join(target, "scripts", "lib", stack === "fastapi" ? "rigel_manifest.py" : "rigel-manifest.mjs"),
-    );
+    // Scaffold and update share ONE materialisation path (lib/update.mjs). If they diverged, an
+    // update would compare against files a scaffold never actually produced.
+    await materialize(HERE, stack, target);
 
     // The return address (PLAN-008 AC-1). Written LAST, so its hashes cover everything above —
     // including the stamped model-routing.json. Without this a repo is permanently unreachable:
