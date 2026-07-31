@@ -1,6 +1,6 @@
 # PLAN-008 — The day-2 loop
 
-**Status:** ACTIVE
+**Status:** COMPLETE (v0.10.0)
 **Target release:** v0.10.0
 **Owner:** @Shreyas1015
 **Research:** 4 completed streams (org/adoption, service catalog, KB distribution, contract drift)
@@ -124,12 +124,12 @@ Component checks are not the release gate. Close with a real run:
 ---
 
 ## Progress log
-- [ ] AC-1 manifest, all four templates
-- [ ] AC-2 `rigel verify` + waivers + expiry, wired into the gate
-- [ ] AC-3 `rigel update` + sidecar conflicts
-- [ ] AC-4 `--template <giget-uri>` + manifest records the source
-- [ ] AC-5 company layer format + guide + worked example
-- [ ] AC-6 end-to-end verification
+- [x] AC-1 manifest, all four templates
+- [x] AC-2 `rigel verify` + waivers + expiry, wired into the gate
+- [x] AC-3 `rigel update` + sidecar conflicts
+- [x] AC-4 `--template <uri>` + manifest records the source
+- [x] AC-5 company layer format + guide + worked example
+- [x] AC-6 end-to-end verification
 
 ---
 
