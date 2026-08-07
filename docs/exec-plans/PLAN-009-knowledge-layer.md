@@ -1,6 +1,6 @@
 # PLAN-009 — The company knowledge layer
 
-**Status:** DRAFT (blocked on PLAN-008)
+**Status:** COMPLETE (v0.11.0)
 **Target release:** v0.11.0
 **Owner:** @Shreyas1015
 **Depends on:** PLAN-008 — the manifest, `rigel update`, and the company-layer format are the
@@ -129,10 +129,10 @@ plateau at 88–90% catalog completeness after months of funded effort).
 ---
 
 ## Progress log
-- [ ] AC-1 knowledge structure + distribution rules + empty skeleton in templates
-- [ ] AC-2 anchoring format + `knowledge:verify` (advisory)
-- [ ] AC-3 generated map: facts up, aggregate, index down, query helper
-- [ ] AC-4 end-to-end verification
+- [x] AC-1 knowledge structure + distribution rules + empty skeleton in templates
+- [x] AC-2 anchoring format + `rigel-knowledge` (advisory this release, blocking next)
+- [x] AC-3 generated map: facts up, aggregate, index down, query helper
+- [x] AC-4 end-to-end verification
 
 ---
 
