@@ -34,7 +34,8 @@
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all",
-    "verify:rigel": "node scripts/rigel-verify.mjs"
+    "verify:rigel": "node scripts/rigel-verify.mjs",
+    "knowledge": "node scripts/rigel-knowledge.mjs"
   },
   "keywords": [
     "express",

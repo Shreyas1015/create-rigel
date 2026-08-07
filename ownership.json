@@ -21,7 +21,8 @@
       ".githooks/**",
       ".github/**",
       "scripts/**",
-      ".rigel/git-policy.json"
+      ".rigel/git-policy.json",
+      "knowledge/**"
     ],
     "seed": [
       "AGENTS.md",
@@ -69,16 +70,31 @@
       "db/config.cjs",
       "infra/**"
     ],
-    "user": ["db/migrations/**"]
+    "user": [
+      "db/migrations/**"
+    ]
   },
   "nextjs": {
-    "seed": ["package.json", "tsconfig.json", "lighthouserc.js", "tokens.json"]
+    "seed": [
+      "package.json",
+      "tsconfig.json",
+      "lighthouserc.js",
+      "tokens.json"
+    ]
   },
   "nestjs": {
-    "seed": ["package.json", "tsconfig.json"]
+    "seed": [
+      "package.json",
+      "tsconfig.json"
+    ]
   },
   "fastapi": {
-    "seed": ["pyproject.toml", "alembic.ini"],
-    "user": ["alembic/versions/**"]
+    "seed": [
+      "pyproject.toml",
+      "alembic.ini"
+    ],
+    "user": [
+      "alembic/versions/**"
+    ]
   }
 }

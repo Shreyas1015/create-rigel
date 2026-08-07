@@ -150,7 +150,7 @@ for (const stack of STACKS) {
   const dir = mkdtempSync(join(tmpdir(), "create-rigel-layer-"));
   const proj = join(dir, "svc");
   try {
-    execFileSync("node", [CLI, proj, "--template", join(HERE, "..", "examples", "company-layer")], { stdio: "pipe" });
+    execFileSync("node", [CLI, proj, "--template", join(HERE, "..", "examples", "company-layer"), "--context", "billing"], { stdio: "pipe" });
     const manifest = JSON.parse(readFileSync(join(proj, ".rigel", "manifest.json"), "utf8"));
     assert.equal(manifest.template, "express", "layer extends express");
     assert.equal(manifest.layer?.name, "acme", "manifest records the layer");
@@ -173,6 +173,18 @@ for (const stack of STACKS) {
     assert.ok(
       !("docs/design-docs/decisions/ADR-000-acme-stack.md" in manifest.files),
       "seed files are NOT managed — the team owns them",
+    );
+
+    // PLAN-009 distribution rule: whole business + whole glossary + whole map, OWN context only.
+    const k = (p) => existsSync(join(proj, "knowledge", p));
+    assert.ok(k("business/company.md"), "whole business context");
+    assert.ok(k("business/capabilities/checkout.md"), "whole capabilities");
+    assert.ok(k("domain/glossary/shipment.md") && k("domain/glossary/order.md"), "WHOLE glossary");
+    assert.ok(k("map/services.json"), "whole map — offline cross-repo reasoning");
+    assert.ok(k("domain/contexts/billing.md"), "its OWN bounded context");
+    assert.ok(
+      !k("domain/contexts/identity.md"),
+      "another service's context must NOT be distributed (context bloat)",
     );
     console.log("  ✓ company layer scaffolded (base + managed overlay + seed)");
   } catch (err) {

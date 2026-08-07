@@ -34,12 +34,14 @@ const STACKS = {
 };
 
 function parseArgs(argv) {
-  const args = { name: undefined, template: undefined };
+  const args = { name: undefined, template: undefined, context: undefined };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--template" || a === "-t") args.template = rest[++i];
     else if (a.startsWith("--template=")) args.template = a.split("=")[1];
+    else if (a === "--context") args.context = rest[++i];
+    else if (a.startsWith("--context=")) args.context = a.split("=")[1];
     else if (!a.startsWith("-") && !args.name) args.name = a;
   }
   return args;
@@ -219,9 +221,17 @@ async function main() {
     await materialize(HERE, stack, target);
 
     if (layerDir) {
-      const w = await applyLayer(layerDir, target);
+      // --context selects which bounded-context doc this service receives; default to its own
+      // directory name, which is right often enough to be worth trying and harmless when wrong.
+      const context = args.context ?? (name === "." ? null : name.split("/").pop());
+      const w = await applyLayer(layerDir, target, { context });
       await rm(layerDir, { recursive: true, force: true });
-      console.log(`  ✓ Layer applied: ${w.managed.length} managed, ${w.seed.length} seed file(s)`);
+      let msg = `  ✓ Layer applied: ${w.managed.length} managed, ${w.seed.length} seed`;
+      if (w.knowledge.length) msg += `, ${w.knowledge.length} knowledge`;
+      console.log(msg + " file(s)");
+      if (w.knowledge.length && !w.knowledge.some((p) => p.startsWith("domain/contexts/"))) {
+        console.log(`  · no bounded-context doc for "${context}" — pass --context <name> if one exists`);
+      }
     }
 
     // The return address (PLAN-008 AC-1). Written LAST, so its hashes cover everything above —
