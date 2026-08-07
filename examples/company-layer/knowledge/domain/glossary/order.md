@@ -1,5 +1,6 @@
 ---
 term: Order
+owner: acme-orders
 anchors:
   - symbol: Order
 ---

@@ -80,7 +80,17 @@ elif [[ $rc -ne 0 ]]; then
   echo "🚫 zero-tests guard: pytest collection errored (exit $rc) — failing rather than assuming success."; FAIL=1
 fi
 
-# 13. contract gate (PLAN-010) — this service PUBLISHES an OpenAPI contract, so it owes its
+# 13. company knowledge (PLAN-009/011) — do the terms in knowledge/domain/ still name real code?
+# BLOCKING: a wiki rots in silence, anchored knowledge rots loudly, and prose that cannot fail a
+# build is just a doc. Pure python3 + stdlib ON PURPOSE — the JS stacks import the stamped
+# rigel-knowledge-lib.mjs, but `command -v node || skip` in a BLOCKING step is a false green on
+# every machine without node (LSN-0004). A term may declare `owner:` so only that service is held
+# to its anchors; this repo's identity is its directory name, the same one `create-rigel facts`
+# uses. `--advisory` downgrades it to a report for a migration window.
+echo "── knowledge anchors ──"
+python3 scripts/rigel_knowledge.py || FAIL=1
+
+# 14. contract gate (PLAN-010) — this service PUBLISHES an OpenAPI contract, so it owes its
 # consumers three things: the committed openapi.json is CURRENT (re-export + compare), no BREAKING
 # change vs origin/main (oasdiff; git history is the contract registry), and every .oasdiff-ignore
 # exemption carries a reason + an unexpired expiry. LAST because it is the only step that shells

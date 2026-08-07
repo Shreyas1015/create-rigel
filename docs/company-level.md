@@ -149,6 +149,60 @@ prompted to move will simply rot.
 
 ---
 
+## 4b. Anchored knowledge — prose that fails a build
+
+A company glossary is worth having and normally rots in silence. Rigel's version can't: every term
+names something real, and the gate resolves it.
+
+```markdown
+---
+term: Shipment
+owner: acme-billing          # ← who owns the CODE this term describes
+anchors:
+  - symbol: Shipment
+---
+A **Shipment** is a physical movement of goods. It is NOT an Order (the commercial agreement).
+One Shipment may fulfil many Orders. Cancelling an Order does **not** cancel its Shipment.
+```
+
+Rename `Shipment` to `Consignment` and forget the glossary, and the build goes red. **A wiki rots
+in silence; anchored knowledge rots loudly.** That is what earns prose a place in a gate-enforced
+repo — it can fail a build.
+
+### `owner:` — why it exists
+
+The **whole** glossary goes to every service, because shared vocabulary is the entire point. But a
+term's code lives in exactly one repo. Without `owner:`, `acme-web` would fail the gate for a term
+it merely *reads*.
+
+So: **everyone reads the term; only its owner is held to the anchor.** The check reports how many
+anchors belong elsewhere rather than hiding them, so the skip is visible:
+
+```
+✓ rigel knowledge: 1 anchor(s) across 1 entr(ies) still resolve
+  (2 anchor(s) belong to other services — read, not verified here)
+```
+
+A term with **no** `owner` is checked everywhere — a single-repo project needs no ceremony.
+
+### Anchor types
+
+| Anchor | Passes when |
+|---|---|
+| `path: src/models/Shipment.model.ts` | that file exists |
+| `symbol: Shipment` | something *defines* it — `class`/`interface`/`type`/`enum`/`const`/`let`/`var`/`function`/`def`/`struct` |
+
+A mere mention doesn't count: a comment saying *"we should add Shipment one day"* will not satisfy
+an anchor, or the check would be worthless.
+
+### Migration
+
+The check is **blocking**. When adopting it on a repo with an existing glossary, run
+`npm run knowledge -- --advisory` (or `python3 scripts/rigel_knowledge.py --advisory`) to see the
+damage without a red build, fix or `owner:`-tag the entries, then drop the flag.
+
+---
+
 ## 5. The service map — knowing what you'd break, offline
 
 An agent in one service normally knows nothing about the others. The map fixes that without

@@ -437,7 +437,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run contract:freshness",
+    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run knowledge && npm run contract:freshness",
     "redgreen:record": "node scripts/redgreen-record.mjs",
     "ac:vector": "node scripts/ac-vector.mjs",
     "gate:final": "npm run gate && npm run ac:vector",
@@ -471,9 +471,15 @@ Contract freshness (PLAN-010):
 
 Company knowledge (PLAN-009):
 - `knowledge` — `node scripts/rigel-knowledge.mjs`. Resolves every anchor in `knowledge/domain/`
-  against the repo and reports terms whose code moved. **ADVISORY this release and deliberately
-  NOT in `gate`** — a new check that misfires even once teaches everyone to ignore it. It flips
-  to blocking one release later. `npm run knowledge -- --strict` exits 1 on a dead anchor.
+  against the repo and fails on terms whose code moved. **BLOCKING — it is IN `gate`**, placed
+  immediately before `contract:freshness`. That is the whole reason prose is allowed in a Rigel
+  repo: a wiki rots in silence, anchored knowledge rots loudly.
+  The whole glossary is distributed to every service, but a term's code lives in exactly ONE
+  repo — so a term may declare `owner: <service>` and only that service resolves its anchors.
+  Everyone else reads it and is told how many anchors belong elsewhere. A term with no `owner`
+  is checked everywhere, so a single-repo project needs no ceremony. Service identity is the
+  repo directory name — the same identity `create-rigel facts` uses.
+  `npm run knowledge -- --advisory` reports without failing (a migration window only).
 
 The deterministic-eval scripts (PLAN-003):
 - `gate` already runs the **STATIC** AC checks — `test:coverage` runs `vitest run --coverage`,

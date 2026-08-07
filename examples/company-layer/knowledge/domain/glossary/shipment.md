@@ -1,5 +1,6 @@
 ---
 term: Shipment
+owner: acme-billing
 anchors:
   - symbol: Shipment
 ---

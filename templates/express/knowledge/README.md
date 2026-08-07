@@ -35,5 +35,20 @@ A **Shipment** is a physical movement of goods. It is NOT an Order (the commerci
 agreement). One Shipment may fulfil many Orders.
 ```
 
-Rename the model without updating this and the check reports it. A wiki rots in silence; anchored
+Rename the model without updating this and **the build fails**. A wiki rots in silence; anchored
 knowledge rots loudly.
+
+### `owner:` — when the code lives in another service
+
+The whole glossary reaches every service (shared vocabulary is the point), but a term's code lives
+in one repo. Add `owner: <service>` and only that service is held to the anchor; everyone else
+reads the term freely:
+
+```yaml
+term: Shipment
+owner: acme-billing
+```
+
+No `owner` means "check here" — a single-repo project needs nothing extra.
+
+Migrating an existing glossary? `npm run knowledge -- --advisory` reports without failing.

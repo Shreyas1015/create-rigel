@@ -28,8 +28,8 @@ gate:             ## deterministic gate — same checks the gate-checker agent r
 contract:         ## contract gate alone — spec freshness + breaking changes + exemption expiry
 	python3 scripts/contract_gate.py
 
-knowledge:        ## ADVISORY (PLAN-009): do knowledge/ anchors still resolve? needs node; NOT in gate
-	node scripts/rigel-knowledge.mjs
+knowledge:        ## BLOCKING (PLAN-009/011): do knowledge/ anchors still resolve? also runs inside `make gate`
+	python3 scripts/rigel_knowledge.py
 
 migrate:          ## apply migrations
 	uv run alembic upgrade head

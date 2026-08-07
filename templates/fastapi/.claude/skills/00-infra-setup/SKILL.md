@@ -274,13 +274,13 @@ format:    ; uv run ruff format src/ tests/
 typecheck: ; uv run mypy src/
 test:      ; uv run pytest
 gate:      ; bash scripts/gate.sh                       # deterministic, same checks as gate-checker agent
-knowledge: ; node scripts/rigel-knowledge.mjs           # PLAN-009 anchor check — ADVISORY, needs node, NOT in gate.sh
+knowledge: ; python3 scripts/rigel_knowledge.py         # PLAN-009/011 anchor check — BLOCKING (also step 13 of gate.sh)
 redgreen:  ; uv run python scripts/redgreen_record.py $(SPEC)   # AC-4: prove acceptance tests red (make redgreen SPEC=SPEC-XXX)
 ac-vector: ; uv run python scripts/ac_vector.py         # AC-1: feature-completion pass/fail vector (non-zero unless all PASS)
 gate-final: gate ac-vector                              # per-layer gate + the green AC vector (feature done)
 migrate:   ; uv run alembic upgrade head
 openapi:   ; set -a; [ -f .env ] && . ./.env; set +a; uv run python -c "import json,sys; from src.runtime.main import app; json.dump(app.openapi(), sys.stdout, indent=2); sys.stdout.write('\n')" > openapi.json.tmp && mv openapi.json.tmp openapi.json || { rm -f openapi.json.tmp; exit 1; }
-contract:  ; python3 scripts/contract_gate.py         # PLAN-010 contract gate alone (also step 13 of gate.sh)
+contract:  ; python3 scripts/contract_gate.py         # PLAN-010 contract gate alone (also step 14 of gate.sh)
 up:        ; docker compose up -d
 down:      ; docker compose down
 ```
@@ -290,7 +290,7 @@ Create `scripts/gate.sh` — runnable mirror of the gate-checker checks (file-si
 *before* python runs, so a failed export would leave an EMPTY committed contract — the exact
 artifact the contract gate re-runs this target to verify. Never "simplify" it back to a redirect.
 
-**The contract gate is step 13 of `gate.sh`** (PLAN-010). This service PUBLISHES an OpenAPI
+**The contract gate is step 14 of `gate.sh`** (PLAN-010). This service PUBLISHES an OpenAPI
 contract, so `python3 scripts/contract_gate.py` enforces three things, in this order:
 1. **FRESHNESS** — re-run `make openapi` and compare. A stale `openapi.json` makes `/api-sync`, the
    service map, and every check below it a lie, so this is first and always blocking.

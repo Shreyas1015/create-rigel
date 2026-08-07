@@ -268,7 +268,7 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "ac:vector": "node scripts/ac-vector.mjs",
 "openapi:export": "ts-node scripts/openapi.export.ts",
 "contract:gate": "node scripts/contract-gate.mjs",
-"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run contract:gate",
+"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run knowledge && npm run contract:gate",
 "gate:final": "npm run gate && npm run ac:vector"
 ```
 
@@ -279,11 +279,16 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
   exists. The escape hatch is a waiver in the manifest pinning the exact accepted content plus an
   expiry; an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
   stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
-- `knowledge` (PLAN-009) resolves every anchor in `knowledge/domain/` against the repo and
-  reports terms whose code moved (see `knowledge/README.md`). It is **ADVISORY this release and
-  deliberately NOT in `gate`** — a new check that misfires even once teaches everyone to ignore
-  it; it flips to blocking one release later. `npm run knowledge -- --strict` exits 1 on a dead
-  anchor.
+- `knowledge` (PLAN-009) resolves every anchor in `knowledge/domain/` against the repo and fails
+  on terms whose code moved (see `knowledge/README.md`). It is **BLOCKING — in `gate`**,
+  immediately before `contract:gate`. That is the whole reason prose is allowed in a Rigel repo:
+  a wiki rots in silence, anchored knowledge rots loudly.
+  The whole glossary is distributed to every service, but a term's code lives in exactly ONE
+  repo — so a term may declare `owner: <service>` and only that service resolves its anchors.
+  Everyone else reads it and is told how many anchors belong elsewhere. A term with no `owner` is
+  checked everywhere, so a single-repo project needs no ceremony. Service identity is the repo
+  directory name — the same identity `create-rigel facts` uses.
+  `npm run knowledge -- --advisory` reports without failing (a migration window only).
 - `test:arch` is the per-layer check home — it runs the two `tests/architecture/` eval tests plus
   any layer-boundary tests. `gate` **must** include it.
 - `openapi:export` / `contract:gate` (PLAN-010) — this service **publishes** a contract, so it owes

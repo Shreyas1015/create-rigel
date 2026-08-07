@@ -38,23 +38,37 @@ agreement). One Shipment may fulfil many Orders.
 Anchor the **model class** in `src/models/` (`class Shipment(Base):`), not the router — the router
 is transport, the model is the word. Anchors resolve against `src/`.
 
-Rename the model without updating this and the check reports it. A wiki rots in silence; anchored
+Rename the model without updating this and **the build fails**. A wiki rots in silence; anchored
 knowledge rots loudly.
+
+### `owner:` — when the code lives in another service
+
+The whole glossary reaches every service (shared vocabulary is the point), but a term's code lives
+in one repo. Add `owner: <service>` and only that service is held to the anchor; everyone else
+reads the term freely:
+
+```yaml
+term: Shipment
+owner: acme-billing
+```
+
+No `owner` means "check here" — a single-repo project needs nothing extra.
+
+Migrating an existing glossary? `python3 scripts/rigel_knowledge.py --advisory` reports without
+failing.
 
 ## Running the check
 
 ```bash
-make knowledge                              # advisory — prints stale anchors, always exits 0
-node scripts/rigel-knowledge.mjs --strict   # exits 1 on a dead anchor
+make knowledge                                     # blocking — exits 1 on a dead anchor
+python3 scripts/rigel_knowledge.py --advisory      # report only, for a migration window
 ```
 
-**This one check is Node, not Python** — unlike `scripts/rigel_verify.py`, which is ported because
-`scripts/gate.sh` depends on it. The anchor resolver is language-agnostic (it reads markdown
-frontmatter and greps source text for a definition, in any language), so it ships once as
-`scripts/rigel-knowledge.mjs` and `scripts/lib/rigel-knowledge-lib.mjs` for every stack. Nothing
-here runs under `uv run`.
+It is **step 13 of `scripts/gate.sh`**, so `make gate` runs it too.
 
-That makes **node an optional dependency of this repo**: if node is absent, `make knowledge` fails
-to start and nothing else is affected. The check is deliberately **not** in `scripts/gate.sh` — it
-is advisory this release (a new gate that misfires even once teaches everyone to ignore it), and a
-missing interpreter must never be able to fail your gate.
+**This check is Python here, not Node** — the JS stacks ship it as `scripts/rigel-knowledge.mjs`
+plus the stamped `scripts/lib/rigel-knowledge-lib.mjs`, but a FastAPI repo is not guaranteed to
+have node, and `command -v node || skip` inside a BLOCKING gate step is a false green (LSN-0004).
+`scripts/rigel_knowledge.py` is a self-contained stdlib port of the same resolver, with
+`scripts/rigel_knowledge_test.py` pinning the semantics against the JS. Nothing here needs
+`uv run` — plain `python3` is enough.

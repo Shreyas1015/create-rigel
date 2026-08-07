@@ -95,8 +95,10 @@ const harness = {
   // the gate — it is the cheapest check and a tampered harness invalidates everything after it.
   'verify:rigel': 'node scripts/rigel-verify.mjs',
   // Company-knowledge anchors (PLAN-009): do the terms in knowledge/ still name real code?
-  // ADVISORY this release — deliberately NOT in 'gate'. A new check that misfires even once
-  // teaches everyone to ignore it; it flips to blocking one release later.
+  // BLOCKING — it is IN 'gate'. A term whose code moved describes a world that stopped
+  // existing, and prose that cannot fail a build rots in silence. A term may declare
+  // 'owner:' so only that service resolves its anchors; everyone else reads it without
+  // being held to it. 'npm run knowledge -- --advisory' reports without failing.
   'knowledge': 'node scripts/rigel-knowledge.mjs',
   'api:sync': 'openapi-typescript openapi.json -o src/types/api.generated.ts',
   'test': 'vitest',
@@ -113,7 +115,7 @@ const harness = {
   'lint:fix': 'eslint . --fix',
   'format': 'prettier --write .',
   'format:check': 'prettier --check .',
-  'gate': 'npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run assert:tests && npm run waivers:check && npm run design:drift',
+  'gate': 'npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run assert:tests && npm run waivers:check && npm run design:drift && npm run knowledge',
   // Deterministic evals (PLAN-003). The per-layer 'gate' already runs the STATIC
   // traceability + assertion-integrity arch tests (test:coverage → vitest includes
   // tests/architecture/). These add the red-green recorder and the feature-completion
