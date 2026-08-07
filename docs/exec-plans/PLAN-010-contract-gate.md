@@ -1,6 +1,6 @@
 # PLAN-010 — The contract gate + `/postmortem`
 
-**Status:** ACTIVE
+**Status:** COMPLETE (v0.12.0)
 **Target release:** v0.12.0
 **Owner:** @Shreyas1015
 **Research:** the cross-service contract-drift stream (4 sub-reports, PLAN-008 research phase)
@@ -101,11 +101,11 @@ with a deadline, and a merged CI rule cannot silently expire.
 ---
 
 ## Progress log
-- [ ] AC-1 spec-freshness gate
-- [ ] AC-2 breaking-change gate (`--fail-on ERR`, exit-code discrimination, pinned version)
-- [ ] AC-3 escape hatch: stability levels, sunset, expiring ignore entries
-- [ ] AC-4 `/postmortem` skill
-- [ ] AC-5 end-to-end verification
+- [x] AC-1 spec-freshness gate
+- [x] AC-2 breaking-change gate (`--fail-on ERR`, exit-code discrimination, pinned version)
+- [x] AC-3 escape hatch: stability levels, sunset, expiring ignore entries
+- [x] AC-4 `/postmortem` skill
+- [x] AC-5 end-to-end verification
 
 ---
 
