@@ -37,6 +37,10 @@ SPEC = Path("openapi.json")
 IGNORE = Path(".oasdiff-ignore")
 
 FAILED = False
+BREAKING_FOUND = False
+AUTHORIZED = False
+EXEMPTIONS_ROTTEN = False
+SPECS_DIR = Path("docs/product-specs/ready")
 
 # Line-buffer stdout. Failures go to stderr (unbuffered) and successes to stdout (block-buffered
 # when piped, which `make gate` and CI always are) — so without this the ✗ lines all appear BEFORE
@@ -86,10 +90,49 @@ elif SPEC.read_bytes() != before:
 else:
     ok("contract is current (re-export produced no diff)")
 
+
+def ci_enforces() -> bool:
+    """Does any committed workflow actually install oasdiff? A fact, not a promise."""
+    d = Path(".github/workflows")
+    try:
+        return any(
+            f.suffix in (".yml", ".yaml") and "oasdiff" in f.read_text(encoding="utf-8")
+            for f in d.iterdir()
+        )
+    except OSError:
+        return False
+
+
+def declared_breaking() -> bool | None:
+    """The active spec's declared intent: True | False | None (no spec, or no declaration)."""
+    spec_file = None
+    try:
+        plans = Path("docs/exec-plans/active")
+        for pl in sorted(plans.iterdir()) if plans.is_dir() else []:
+            m = re.search(r"SPEC-[\w-]+", pl.read_text(encoding="utf-8"))
+            if not m:
+                continue
+            hit = next((f for f in sorted(SPECS_DIR.iterdir()) if f.name.startswith(m.group(0))), None)
+            if hit:
+                spec_file = hit
+                break
+        if spec_file is None and SPECS_DIR.is_dir():
+            ready = [f for f in sorted(SPECS_DIR.iterdir()) if f.suffix == ".md"]
+            if len(ready) == 1:
+                spec_file = ready[0]
+    except OSError:
+        return None
+    if spec_file is None or not spec_file.exists():
+        return None
+    m = re.search(r"^\s*breaking:\s*(true|false)\s*$", spec_file.read_text(encoding="utf-8"), re.M)
+    return m.group(1) == "true" if m else None
+
+
 # ── 3. exemptions expire (checked even if oasdiff is unavailable) ────────────────
 if IGNORE.exists():
     today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     n = 0
+    good = 0
     for raw in IGNORE.read_text(encoding="utf-8").split("\n"):
         line = raw.strip()
         if not line:
@@ -115,22 +158,60 @@ if IGNORE.exists():
             bad(f"{IGNORE}: exemption EXPIRED on {exp.group(1)} — re-justify it or fix the contract\n      {line}")
         if not reason:
             bad(f'{IGNORE}: entry has no "# reason:" — an unexplained exemption is a rubber stamp\n      {line}')
-    if n:
-        ok(f"{n} contract exemption(s) present and unexpired")
+        # PLAN-011 AC-4: naming who you are breaking it for IS the permission step. A person, not
+        # a team — diffuse ownership is how exemptions rot. "consumers: none" is a valid claim.
+        owner = re.search(r"#\s*owner:\s*\S", raw)
+        consumers = re.search(r"#\s*consumers:\s*\S", raw)
+        if not owner:
+            bad(f'{IGNORE}: entry has no "# owner: @person" — someone must own this break\n      {line}')
+        if not consumers:
+            bad(
+                f'{IGNORE}: entry has no "# consumers:" — name who this breaks (`create-rigel impact`\n'
+                f'      lists them), or write "# consumers: none" to claim there are none\n      {line}'
+            )
+        if reason and owner and consumers and exp and exp.group(1) >= today:
+            good += 1
+    EXEMPTIONS_ROTTEN = n > good  # some entry is expired or missing a required annotation
+    if good:
+        ok(f"{good} contract exemption(s) present and unexpired")
+    if n and not good:
+        print(f"  · {n} exemption(s) present, none currently valid")
 
 # ── 2. breaking changes ─────────────────────────────────────────────────────────
 if shutil.which("oasdiff") is None:
-    # CI installs oasdiff and enforces this; locally it's a notice. The enforcement point exists,
-    # which is what separates this from a check that verifies nothing anywhere.
-    print("  · oasdiff not installed — breaking-change check skipped locally (CI enforces it)")
-    print("    install: brew install oasdiff | go install github.com/oasdiff/oasdiff@latest")
+    # Whether CI covers this is a FACT about the repo, so check it rather than assert it — this
+    # template generates its own ci.yml and cannot promise the step is there. A check that
+    # verifies nothing must say so (LSN-0004).
+    print("  · oasdiff not installed — breaking changes were NOT CHECKED locally.")
+    if ci_enforces():
+        print("    CI installs it and will enforce this; to check before pushing:")
+    else:
+        bad("and NO workflow in .github/workflows installs oasdiff either — nothing is enforcing this.")
+        print("      Add to your CI, before the contract gate (needs fetch-depth: 0):", file=sys.stderr)
+        print('        curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"', file=sys.stderr)
+        print('        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"', file=sys.stderr)
+        print("    To check locally:")
+    print("      brew install oasdiff | go install github.com/oasdiff/oasdiff@latest")
 elif not rev_exists(f"{base}:{SPEC}"):
     print(f"  · no {base}:{SPEC} to compare against (new spec, or shallow clone) — skipped")
 else:
-    args = ["oasdiff", "breaking", "--fail-on", "ERR", f"{base}:{SPEC}", str(SPEC)]
-    if IGNORE.exists():
-        args += ["--err-ignore", str(IGNORE)]
-    r = subprocess.run(args, capture_output=True, text=True)
+    # Run oasdiff TWICE: "did the contract break?" and "does the gate block?" are different
+    # questions, and conflating them makes the gate lie. The raw run is the TRUTH; the ignored run
+    # is ENFORCEMENT. Without this an exemption erases the break from the declaration cross-check
+    # below, so `breaking: false` plus an exemption would pass — AC-4 defeating AC-3.
+    def argv(ignore: bool) -> list[str]:
+        a = ["oasdiff", "breaking", "--fail-on", "ERR", f"{base}:{SPEC}", str(SPEC)]
+        if ignore:
+            a += ["--err-ignore", str(IGNORE)]
+        return a
+
+    raw_run = subprocess.run(argv(False), capture_output=True, text=True)
+    r = subprocess.run(argv(True), capture_output=True, text=True) if IGNORE.exists() else raw_run
+    BREAKING_FOUND = raw_run.returncode == 1
+    # oasdiff has no concept of expiry — it suppresses an expired rule just the same. So a
+    # suppressed break is only AUTHORIZED if our own expiry/annotation check also passed.
+    suppressed = raw_run.returncode == 1 and r.returncode == 0
+    AUTHORIZED = suppressed and not EXEMPTIONS_ROTTEN
 
     # Verified severity boundary (oasdiff 1.28): ERR = endpoint removed, REQUIRED property removed,
     # required request param added, property type changed. WARN = OPTIONAL property removed.
@@ -141,11 +222,21 @@ else:
     warns = int(m.group(1)) if m else 0
 
     if r.returncode == 0:
-        ok("no breaking API changes")
+        if suppressed and not AUTHORIZED:
+            bad("breaking change(s) suppressed by an EXPIRED or incomplete exemption — NOT authorized:")
+            print("\n".join(f"      {ln.strip()}" for ln in (raw_run.stdout or "").strip().split("\n")[:6]), file=sys.stderr)
+        elif AUTHORIZED:
+            # Say what actually happened. "No breaking changes" would be false — the break is real
+            # and permitted, a different claim, and the difference is the whole audit trail.
+            ok("breaking change(s) present but AUTHORIZED by an unexpired exemption:")
+            print("\n".join(f"      {ln.strip()}" for ln in (raw_run.stdout or "").strip().split("\n")[:6]))
+        else:
+            ok("no breaking API changes")
         if warns > 0:
             print(f"  · {warns} non-blocking contract change(s) — a consumer may still care:")
             print("\n".join(f"      {ln.strip()}" for ln in stdout.strip().split("\n") if "warning" in ln))
     elif r.returncode == 1:
+        BREAKING_FOUND = True
         bad("BREAKING API change — consumers of this contract would break:")
         body = (stdout or r.stderr or "").strip()
         print("\n".join(f"      {ln}" for ln in body.split("\n")), file=sys.stderr)
@@ -162,5 +253,45 @@ else:
         # 100/101/102 = oasdiff itself failed. A spec that won't parse is not "a breaking change".
         bad(f"oasdiff could not run (exit {r.returncode}) — this is a TOOL failure, not a breaking change")
         print("      " + " ".join((r.stderr or "").strip().split("\n")[-2:]), file=sys.stderr)
+
+
+# ── 4. did the spec DECLARE this break? (PLAN-011 AC-3) ─────────────────────────
+# At spec time the code doesn't exist, so nothing can be predicted — but the author can DECLARE
+# intent, and HERE, where the diff is real, we check whether reality matched the claim.
+# Asymmetric on purpose: over-declaring is free, under-declaring fails. Caution costs nothing.
+_declared = declared_breaking()
+if _declared is None:
+    print("  · no active spec with an impact declaration — nothing to cross-check")
+elif BREAKING_FOUND and _declared is False:
+    bad(
+        "UNDECLARED BREAK — the spec says `breaking: false`, but the contract broke"
+        + (" (an exemption permits it, but the spec never claimed it)." if AUTHORIZED else ".")
+    )
+    print(
+        f"""
+    Either the change is wrong, or the declaration is. Fix one:
+      • revert the breaking part, or
+      • set  breaking: true  in the spec's impact block, name the affected consumers
+        (`create-rigel impact` lists them), and add an authorized exemption to {IGNORE}.""",
+        file=sys.stderr,
+    )
+elif BREAKING_FOUND and _declared is True and AUTHORIZED:
+    ok("declared `breaking: true`, and the break is authorized — reality matches the claim")
+elif BREAKING_FOUND and _declared is True:
+    # Declaring is not authorizing. The declaration says you MEANT to; the exemption says who you
+    # are breaking it for and by when. Both, or neither.
+    bad("declared `breaking: true` — but it is not AUTHORIZED yet")
+    print(
+        f"""
+    Add an exemption to {IGNORE} naming who this breaks and until when:
+      <the oasdiff error text above>   # reason: <why>  # owner: @you
+        # expires: YYYY-MM-DD  # consumers: <from `create-rigel impact`>
+    An expired exemption fails again, so this cannot quietly become permanent.""",
+        file=sys.stderr,
+    )
+elif not BREAKING_FOUND and _declared is True:
+    print("  · spec declared `breaking: true` but nothing broke — over-declaring is fine")
+else:
+    ok("no break, and none declared")
 
 sys.exit(1 if FAILED else 0)

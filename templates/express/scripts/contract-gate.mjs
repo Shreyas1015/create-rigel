@@ -106,10 +106,19 @@ if (existsSync(IGNORE)) {
 
 // ── 2. breaking changes ─────────────────────────────────────────────────────────
 if (!has('oasdiff')) {
-  // A skipped check is NOT a pass. CI installs oasdiff (see .github/workflows/ci.yml) so the
-  // enforcement point is real — but say plainly that nothing was checked here.
+  // A skipped check is NOT a pass. Whether CI covers this is a FACT about the repo, so check it
+  // rather than assert it — templates that generate their own ci.yml cannot promise it, and
+  // "CI enforces it" was already once false here. A check that verifies nothing must say so.
   console.log('  · oasdiff not installed — breaking changes were NOT CHECKED locally.')
-  console.log('    CI installs it and will enforce this; to check before pushing:')
+  if (ciEnforces()) {
+    console.log('    CI installs it and will enforce this; to check before pushing:')
+  } else {
+    bad('and NO workflow in .github/workflows installs oasdiff either — nothing is enforcing this.')
+    console.error('      Add to your CI, before `npm run contract:gate` (needs fetch-depth: 0):')
+    console.error('        curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"')
+    console.error('        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"')
+    console.log('    To check locally:')
+  }
   console.log('      brew install oasdiff   |   go install github.com/oasdiff/oasdiff@latest')
 } else if (!revExists(`${base}:${SPEC}`)) {
   console.log(`  · no ${base}:${SPEC} to compare against (new spec, or shallow clone) — skipped`)
@@ -244,6 +253,18 @@ function declaredBreaking() {
   if (!specFile || !existsSync(specFile)) return null
   const m = /^\s*breaking:\s*(true|false)\s*$/m.exec(readFileSync(specFile, 'utf8'))
   return m ? m[1] === 'true' : null
+}
+
+/** Does any committed workflow actually install oasdiff? A fact, not a promise. */
+function ciEnforces() {
+  const dir = '.github/workflows'
+  try {
+    return readdirSync(dir).some(
+      (f) => /\.ya?ml$/.test(f) && readFileSync(join(dir, f), 'utf8').includes('oasdiff'),
+    )
+  } catch {
+    return false
+  }
 }
 
 function has(bin) {

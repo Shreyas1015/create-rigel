@@ -19,6 +19,21 @@ tests / red-green proof must be created by `/write-spec` first (the `tests/archi
 traceability test would otherwise fail the very first gate). Do not hand-create these here —
 they belong to the spec phase and the holdout hook blocks writing them outside it.
 
+### Step 2c — Enforce the impact declaration
+
+A spec must state what it intends to break before it can be planned:
+
+```bash
+grep -q "^impact:" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX has no impact: block — run 'npx create-rigel impact', then declare"; exit 1; }
+grep -qE "^\s*breaking:\s*(true|false)" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX's impact block must declare breaking: true|false"; exit 1; }
+```
+
+Declaring is cheap and over-declaring is free; the only thing that costs you is being wrong, which
+the contract gate catches later. A spec that never states its intent gives the gate nothing to
+verify against.
+
 3. Write to docs/exec-plans/active/PLAN-XXX-{slug}.md
 
 The plan MUST carry a `**Spec:**` line pointing at the READY spec file — the deterministic-eval

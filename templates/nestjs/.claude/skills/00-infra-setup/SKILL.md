@@ -196,6 +196,24 @@ Loads DATABASE_URL from .env for sequelize-cli.
 `.github/workflows/ci.yml` — verify:rigel → lint → typecheck → test → npm audit → secret-scan.
 `verify:rigel` runs first and needs no `npm ci` (plain node + `.rigel/manifest.json`).
 
+**The `contract` job is required** — without it `scripts/contract-gate.mjs` fails loud, because a
+gate nothing enforces is worse than no gate (LSN-0004). Add it as its own job:
+```yaml
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }        # or origin/main won't resolve
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: npm run contract:gate
+```
+
 ### Scaffold Docs
 `AGENTS.md`, `ARCHITECTURE.md`, `ADR-000-infrastructure.md`, `docs/product-specs/index.md`,
 `docs/exec-plans/tech-debt-tracker.md`, `docs/QUALITY_SCORE.md`, `.env.example`, `.gitignore`.

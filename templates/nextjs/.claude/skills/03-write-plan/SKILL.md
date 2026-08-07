@@ -29,6 +29,21 @@ they belong to the spec phase and the holdout hook blocks writing them outside i
 > own `PLAN-XXX` that ends green (e.g. live feed; then drill-in; then filters/export). Plans are
 > numbered independently, so just create the next plan for the same spec.
 
+### Step 1c — Enforce the impact declaration
+
+A spec must state what it intends to break before it can be planned:
+
+```bash
+grep -q "^impact:" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX has no impact: block — run 'npx create-rigel impact', then declare"; exit 1; }
+grep -qE "^\s*breaking:\s*(true|false)" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX's impact block must declare breaking: true|false"; exit 1; }
+```
+
+Declaring is cheap and over-declaring is free. This app consumes contracts rather than publishing
+one, so there is no oasdiff cross-check here — the declaration is a written record of intent, and
+`breaking: true` means the PROVIDER repo owes a contract change before this ships.
+
 ## Step 2 — Get Next Plan Number
 ```bash
 ls docs/exec-plans/{active,completed}/ 2>/dev/null | grep "PLAN-" | sort | tail -1

@@ -33,6 +33,21 @@ they belong to the spec phase and the holdout hook blocks writing them outside i
 > `PLAN-XXX` that ends green (e.g. data model + CRUD; then an external integration; then
 > reporting). Plans are numbered independently, so just create the next plan for the same spec.
 
+### Step 1c — Enforce the impact declaration
+
+A spec must state what it intends to break before it can be planned:
+
+```bash
+grep -q "^impact:" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX has no impact: block — run 'npx create-rigel impact', then declare"; exit 1; }
+grep -qE "^\s*breaking:\s*(true|false)" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX's impact block must declare breaking: true|false"; exit 1; }
+```
+
+Declaring is cheap and over-declaring is free; the only thing that costs you is being wrong, which
+the contract gate catches later. A spec that never states its intent gives the gate nothing to
+verify against.
+
 ## Step 2 — Get Next Plan Number
 ```bash
 ls docs/exec-plans/{active,completed}/ 2>/dev/null | grep "PLAN-" | sort | tail -1

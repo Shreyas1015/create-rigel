@@ -319,6 +319,22 @@ Create `.github/workflows/ci.yml` with INDEPENDENT parallel jobs (security must 
 - `test`: `pytest --cov=src --cov-report=term-missing --cov-fail-under=70` (coverage is explicit here — NOT in addopts) + schemathesis contract tests (`--experimental=openapi-3.1`)
 - `security`: bandit -ll + pip-audit + gitleaks (secret scan) — runs even if `quality` fails
 - `image`: build Dockerfile → Trivy scan (fail on HIGH/CRITICAL) → generate SBOM (Syft, CycloneDX) → upload artifact
+
+**The `contract` job is required** — without it `scripts/contract_gate.py` fails loud, because a
+gate nothing enforces is worse than no gate (LSN-0004):
+```yaml
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }        # or origin/main won't resolve
+      - uses: astral-sh/setup-uv@v5
+      - name: Install oasdiff
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: make contract-gate
+```
 Use `actions/cache` / `astral-sh/setup-uv` cache. Pin action SHAs.
 Create `.github/workflows/load-test.yml` — k6 smoke on PR against ephemeral env + on staging deploy (P95/error budgets fail the job, not just report).
 Create `.github/dependabot.yml` — weekly `uv`/pip + GitHub Actions + Docker update PRs.

@@ -48,6 +48,29 @@ Save to: `docs/product-specs/draft/SPEC-XXX-{slug}.md`
 {list endpoints from the backend this feature consumes}
 {These determine what will be in the hooks layer}
 
+## Impact
+
+Run `npx create-rigel impact` first — it shows what in this repo depends on the files you'll
+touch, and (from `knowledge/map/`) which services this app consumes. Then **declare your intent**:
+
+```yaml
+impact:
+  touches: [OrderCard, orders-api]   # components / consumed APIs this feature changes
+  breaking: false                    # do you intend to break an existing consumer?
+  consumers_notified: []             # required when breaking: true — name them
+```
+
+This app **consumes** contracts; it does not publish one. So unlike the backend templates there is
+no `oasdiff` breaking-change gate here to cross-check the declaration against — adding one would be
+a check that verifies nothing. What the declaration buys you here is a written record of intent
+that a reviewer and `create-rigel impact` can be read against, and `breaking: true` is your signal
+that the **provider** repo owes a contract change first.
+
+`contract:freshness` still blocks: if `openapi.json` moved and the generated types weren't
+regenerated, the build is green against a contract the backend no longer serves.
+
+Do not guess what you touch — read it off `create-rigel impact` and the components above.
+
 ## Business Rules (Frontend)
 {Validation rules, state machine UI, conditional rendering}
 

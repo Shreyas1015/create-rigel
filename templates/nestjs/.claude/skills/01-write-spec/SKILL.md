@@ -13,6 +13,28 @@ Template:
 ## What We're Building
 ## Core Entities
 ## API Endpoints (will map to NestJS controllers)
+## Impact
+
+Run `npx create-rigel impact` first — it shows who consumes this service and what depends on the
+files you'll touch. Then **declare your intent**. This is a claim, not a prediction: the gate later
+checks whether reality matched it.
+
+```yaml
+impact:
+  touches: [Order, orders-api]   # entities / APIs this feature changes
+  breaking: false                # do you intend to break an existing consumer?
+  consumers_notified: []         # required when breaking: true — name them
+```
+
+- `breaking: false` and the contract gate finds a breaking change → **the build fails.** An
+  undeclared break is the thing this exists to catch.
+- `breaking: true` and nothing breaks → passes, noted. **Over-declaring is free**; only
+  under-declaring fails. Caution costs nothing.
+- `breaking: true` also requires an authorized exemption at gate time (see `.oasdiff-ignore`),
+  which is where you name who you're breaking it for and by when.
+
+Do not guess the entities — read them off `create-rigel impact` and the endpoints above.
+
 ## Business Rules
 ## State Machines (if any)
 ## Non-Functional Requirements
