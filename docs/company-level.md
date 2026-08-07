@@ -146,3 +146,76 @@ prompted to move will simply rot.
 - **No calendar-age build failures.** Only regenerate-and-compare, which is deterministic.
 - **No prose knowledge base.** Domain and business knowledge is coming in PLAN-009, and even then
   it is anchored to real code so it fails a build when it goes stale.
+
+---
+
+## 5. The service map — knowing what you'd break, offline
+
+An agent in one service normally knows nothing about the others. The map fixes that without
+cloning anything: each repo publishes **facts about itself**, the layer aggregates them, and
+everyone gets the merged index back.
+
+```
+each service ──(rigel facts)──▶ .rigel/service.json
+                                      │  committed to the layer as facts/<service>.json
+                                      ▼
+                 layer ──(rigel map:build)──▶ knowledge/map/services.json
+                                      │
+        every service ◀──(rigel update)──────┘
+```
+
+### Publish your facts
+
+```bash
+create-rigel facts        # writes .rigel/service.json
+```
+
+Everything in it is **derived**, never asked of a human: what you publish (from your
+`openapi:export` output), what you consume (from the contract `/api-sync` vendored, named by its
+own `info.title`), and your infra (from `docker-compose.yml` and `.env.example`). Anything a person
+has to remember to update is already wrong — that's why hand-written catalogs plateau around 88–90%
+complete.
+
+Commit it, then copy it into the layer as `facts/<service>.json`.
+
+### Build the index
+
+```bash
+create-rigel map:build    # in the layer repo
+```
+
+It resolves who-consumes-whom by matching consumed API names against published ones, computes the
+**reverse** edge (who consumes *you*), and folds in capability ownership from
+`knowledge/business/capabilities/*.md`. The output carries a `GENERATED — do not edit` header; gate
+it with regenerate-and-diff so a stale committed map fails CI.
+
+### Ask the question
+
+```bash
+create-rigel map acme-billing
+```
+
+```
+  acme-billing  (express)
+  provides     billing-api
+  CONSUMED BY  acme-web   ← these break if you change your contract
+  infra        postgres, redis
+  capability   checkout  (KPI conversion_rate, team-growth)
+```
+
+This runs in a repo that has never cloned `acme-billing`. **It prints a slice, never the whole
+file** — at 50 services a full listing would consume the context window every session for nothing.
+The map is data queried by a script, not a document loaded into context.
+
+### What it does not know
+
+- **Coupling that isn't in a contract.** A queue message, a shared database table, a hardcoded URL.
+  The map is only as complete as the artifacts it derives from.
+- **Whether a consumer actually uses the field you're changing.** It tells you *who* to talk to,
+  not what will break.
+- **Anything a service hasn't published facts for.** A repo that never ran `create-rigel facts` is
+  invisible.
+
+It is deliberately not cross-checked against live OpenTelemetry traces: the service-graph connector
+is alpha, drops spans routinely, and a gate that cries wolf would cost you trust in the gates that
+do work.
