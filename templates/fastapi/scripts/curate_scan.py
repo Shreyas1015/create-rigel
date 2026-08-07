@@ -13,7 +13,8 @@
 #     "increment": [{id, signature, seen, plans, lastSeen}],
 #     "disambiguate": [{signature, plans, candidates:[id,...]}],
 #     "promotionReady": [{id, seen, status}],          # seen>=3 AND status DISTILLED
-#     "staleCandidates": [{id, lastSeen, plansSince, status}] }  # OBSERVED and long-untouched
+#     "staleCandidates": [{id, lastSeen, plansSince, status}],   # OBSERVED and long-untouched
+#     "overdue": [{id, promoteBy, status}] }           # /postmortem promote_by deadline passed
 #
 # Stale = still OBSERVED (never climbed the ladder) and not seen for STALE_AFTER plans: it was a
 # one-off, not a class. Reported as a CANDIDATE only — a human deletes it. Un-deleted stale prose
@@ -22,6 +23,7 @@
 # JSON keys stay camelCase to match templates/express/scripts/curate-scan.mjs byte for byte —
 # /curate reads the same plan shape whichever stack it runs in.
 
+import datetime
 import json
 import re
 import sys
@@ -86,6 +88,7 @@ def read_lessons() -> list[dict]:
                 "status": get("status"),
                 "seen": _to_int(get("seen") or 0),
                 "lastSeen": get("last_seen") or None,
+                "promoteBy": get("promote_by") or None,
                 "signatures": signatures,
             }
         )
@@ -130,6 +133,7 @@ def scan(failures: list[dict], lessons: list[dict], now_plan: int | None = None)
         "disambiguate": [],
         "promotionReady": [],
         "staleCandidates": [],
+        "overdue": [],
     }
     for signature, plans_set in by_sig.items():
         plans = sorted(plans_set)
@@ -162,6 +166,18 @@ def scan(failures: list[dict], lessons: list[dict], now_plan: int | None = None)
             and not any(p["id"] == lesson["id"] for p in plan["promotionReady"])
         ):
             plan["promotionReady"].append({"id": lesson["id"], "seen": lesson["seen"], "status": lesson["status"]})
+
+    # overdue: a /postmortem lesson whose promote_by date has passed. A deadline nobody surfaces is
+    # a deadline nobody meets — this is what makes the postmortem's promise real.
+    # UTC date, to match the JS twin's `new Date().toISOString().slice(0, 10)`.
+    today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    for lesson in lessons:
+        if lesson["status"] == "ENFORCED" or not lesson.get("promoteBy"):
+            continue
+        if lesson["promoteBy"] < today:
+            plan["overdue"].append(
+                {"id": lesson["id"], "promoteBy": lesson["promoteBy"], "status": lesson["status"]}
+            )
 
     # stale: still OBSERVED and untouched for STALE_AFTER plans → a one-off, not a class.
     # Never flagged if it recurred in THIS run (it just got incremented).

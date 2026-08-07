@@ -81,6 +81,11 @@ jobs:
       OTEL_EXPORTER_OTLP_ENDPOINT: ""
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the contract gate diffs against origin/main. A shallow clone would make
+          # `origin/main:docs/generated/openapi.json` unresolvable, and the check would skip —
+          # silently passing every breaking change.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -109,6 +114,13 @@ jobs:
             echo "::error::OpenAPI contract drifted or was never committed. Run 'npm run openapi:export' and commit docs/generated/openapi.*"
             exit 1
           fi
+      - name: Install oasdiff (breaking-change detection)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Contract gate (breaking changes + exemption expiry)
+        # fetch-depth: 0 is set on checkout above, or origin/main won't resolve.
+        run: npm run contract:gate
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

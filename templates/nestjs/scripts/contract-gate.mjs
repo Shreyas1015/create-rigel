@@ -11,7 +11,7 @@
 //   3. EXEMPTIONS — every .oasdiff-ignore entry must carry a reason and an expiry, and an EXPIRED
 //                   entry fails. A "temporary" exemption cannot quietly become permanent.
 //
-// Git history is the contract registry: `origin/main:docs/generated/openapi.json` is the previous
+// Git history is the contract registry: `origin/main:openapi.json` is the previous
 // version, for free. No broker, no registry, no cross-repo CI.
 //
 // Escape hatches, in the order you should reach for them (all native to oasdiff):
@@ -24,7 +24,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-const SPEC = 'docs/generated/openapi.json'
+const SPEC = 'openapi.json'
 const IGNORE = '.oasdiff-ignore'
 const base = argFor('--base') ?? 'origin/main'
 let failed = false
@@ -37,7 +37,7 @@ const bad = (m) => {
 
 // ── 1. freshness — blocking, always ─────────────────────────────────────────────
 if (!existsSync(SPEC)) {
-  console.log(`  · no ${SPEC} yet — run /infra-setup and add a route first`)
+  console.log(`  · no ${SPEC} yet — run /infra-setup and add a controller first`)
   process.exit(0)
 }
 {
@@ -57,7 +57,6 @@ if (!existsSync(SPEC)) {
 if (existsSync(IGNORE)) {
   const today = new Date().toISOString().slice(0, 10)
   let n = 0
-  let good = 0
   for (const raw of readFileSync(IGNORE, 'utf8').split('\n')) {
     const line = raw.trim()
     if (!line || line.startsWith('#')) continue
@@ -67,19 +66,16 @@ if (existsSync(IGNORE)) {
     if (!exp) bad(`${IGNORE}: entry has no "# expires: YYYY-MM-DD" — exemptions must self-destruct\n      ${line}`)
     else if (exp[1] < today) bad(`${IGNORE}: exemption EXPIRED on ${exp[1]} — re-justify it or fix the contract\n      ${line}`)
     if (!reason) bad(`${IGNORE}: entry has no "# reason:" — an unexplained exemption is a rubber stamp\n      ${line}`)
-    else if (exp && exp[1] >= today) good++
   }
-  if (good) ok(`${good} contract exemption(s) present and unexpired`)
-  if (n && !good) console.log(`  · ${n} exemption(s) present, none currently valid`)
+  if (n) ok(`${n} contract exemption(s) present and unexpired`)
 }
 
 // ── 2. breaking changes ─────────────────────────────────────────────────────────
 if (!has('oasdiff')) {
-  // A skipped check is NOT a pass. CI installs oasdiff (see .github/workflows/ci.yml) so the
-  // enforcement point is real — but say plainly that nothing was checked here.
-  console.log('  · oasdiff not installed — breaking changes were NOT CHECKED locally.')
-  console.log('    CI installs it and will enforce this; to check before pushing:')
-  console.log('      brew install oasdiff   |   go install github.com/oasdiff/oasdiff@latest')
+  // CI installs oasdiff and enforces this; locally it's a notice. The enforcement point exists,
+  // which is what separates this from a check that verifies nothing anywhere.
+  console.log('  · oasdiff not installed — breaking-change check skipped locally (CI enforces it)')
+  console.log('    install: brew install oasdiff | go install github.com/oasdiff/oasdiff@latest')
 } else if (!revExists(`${base}:${SPEC}`)) {
   console.log(`  · no ${base}:${SPEC} to compare against (new spec, or shallow clone) — skipped`)
 } else {

@@ -8,7 +8,7 @@ Stack: Python 3.14 · FastAPI 0.115 · SQLAlchemy 2 (async) · PostgreSQL · Red
 
 | What you need | Where |
 |---|---|
-| Daily-driver commands | `Makefile` (`make bootstrap/dev/lint/test/gate/migrate/openapi`) |
+| Daily-driver commands | `Makefile` (`make bootstrap/dev/lint/test/gate/contract/migrate/openapi`) |
 | Runnable gate (same checks as gate-checker) | `scripts/gate.sh` (`make gate`) |
 | Layer rules + dependency diagram | `ARCHITECTURE.md` |
 | Engineering constitution (the WHY) | `docs/design-docs/core-beliefs.md` |
@@ -40,6 +40,7 @@ Stack: Python 3.14 · FastAPI 0.115 · SQLAlchemy 2 (async) · PostgreSQL · Red
 | `/garbage-collect` | End-of-feature cleanup pass |
 | `/debug` | Same gate failure twice → hypothesis loop, not another guess |
 | `/curate` | Fold recorded gate failures into `docs/design-docs/lessons/` |
+| `/postmortem` | A prod incident → one lesson with a promotion deadline |
 | `/doc-garden` | Scan + fix stale documentation |
 | `/db-optimize` | EXPLAIN ANALYZE workflow for slow queries |
 | `/load-test` | Run k6 smoke / stress / soak test |

@@ -266,7 +266,7 @@ Create `tests/load/stress.js` — k6 stress test (ramping VUs, P95/P99 threshold
 ## Step 9 — Makefile + gate script (single-command DX)
 Create `Makefile` with daily-driver targets — every doc command goes through these:
 ```make
-.PHONY: bootstrap dev lint format typecheck test gate gate-final knowledge redgreen ac-vector migrate openapi up down
+.PHONY: bootstrap dev lint format typecheck test gate gate-final contract knowledge redgreen ac-vector migrate openapi up down
 bootstrap: ; uv sync && uv run pre-commit install      # one-command setup
 dev:       ; uv run uvicorn src.runtime.main:app --reload
 lint:      ; uv run ruff check src/ tests/
@@ -279,11 +279,33 @@ redgreen:  ; uv run python scripts/redgreen_record.py $(SPEC)   # AC-4: prove ac
 ac-vector: ; uv run python scripts/ac_vector.py         # AC-1: feature-completion pass/fail vector (non-zero unless all PASS)
 gate-final: gate ac-vector                              # per-layer gate + the green AC vector (feature done)
 migrate:   ; uv run alembic upgrade head
-openapi:   ; set -a; [ -f .env ] && . ./.env; set +a; uv run python -c "import json,sys; from src.runtime.main import app; json.dump(app.openapi(), sys.stdout)" > openapi.json
+openapi:   ; set -a; [ -f .env ] && . ./.env; set +a; uv run python -c "import json,sys; from src.runtime.main import app; json.dump(app.openapi(), sys.stdout, indent=2); sys.stdout.write('\n')" > openapi.json.tmp && mv openapi.json.tmp openapi.json || { rm -f openapi.json.tmp; exit 1; }
+contract:  ; python3 scripts/contract_gate.py         # PLAN-010 contract gate alone (also step 13 of gate.sh)
 up:        ; docker compose up -d
 down:      ; docker compose down
 ```
 Create `scripts/gate.sh` — runnable mirror of the gate-checker checks (file-size, print, os.environ, ruff, mypy, bandit, architecture tests, coverage). Exits non-zero on any failure so pre-commit and humans can run the SAME gate the agent runs.
+
+**`openapi` writes atomically** (temp file + `mv`). A plain `> openapi.json` truncates the file
+*before* python runs, so a failed export would leave an EMPTY committed contract — the exact
+artifact the contract gate re-runs this target to verify. Never "simplify" it back to a redirect.
+
+**The contract gate is step 13 of `gate.sh`** (PLAN-010). This service PUBLISHES an OpenAPI
+contract, so `python3 scripts/contract_gate.py` enforces three things, in this order:
+1. **FRESHNESS** — re-run `make openapi` and compare. A stale `openapi.json` makes `/api-sync`, the
+   service map, and every check below it a lie, so this is first and always blocking.
+2. **BREAKING** — `oasdiff breaking --fail-on ERR origin/main:openapi.json openapi.json`. Git
+   history is the contract registry: the previous version is free, no broker, no cross-repo CI.
+   ERR (endpoint removed, required property removed, type changed) blocks; WARN (an OPTIONAL
+   property removed) is printed but does not block — a consumer may still care.
+3. **EXEMPTIONS** — every `.oasdiff-ignore` line needs a `# reason:` and a `# expires:`, and an
+   **expired** entry FAILS. A temporary exemption cannot quietly become permanent.
+It is **last** in `gate.sh` because it is the only step that shells out to another binary, and it
+skips the oasdiff half with a notice when `oasdiff` is absent (`brew install oasdiff`) — freshness
+and exemption checks always run. Escape hatches, in order: `x-stability-level: draft` →
+`deprecated` + `x-sunset` → an expiring `.oasdiff-ignore` line. Never a PR label: a skipped
+required check is a silently disabled gate.
+Seed `.oasdiff-ignore` with its header comment and no entries.
 
 ## Step 10 — Docker
 Create `Dockerfile` — multi-stage (deps → runner), non-root user, HEALTHCHECK.
@@ -374,7 +396,7 @@ git commit -m "chore(infra): phase 0 infrastructure setup
 - Alembic migrations configured
 - Dockerfile multi-stage, non-root user + .dockerignore
 - docker-compose: app + postgres:16 + redis:7; local LGTM observability stack
-- Makefile (bootstrap/dev/lint/test/gate/migrate/openapi) + scripts/gate.sh
+- Makefile (bootstrap/dev/lint/test/gate/contract/migrate/openapi) + scripts/gate.sh + `.oasdiff-ignore` (seeded, no entries)
 - CI: parallel quality/test/security/image jobs (ruff, mypy, pytest, schemathesis, bandit, pip-audit, gitleaks, Trivy, SBOM)
 - Dependabot (uv + actions + docker)
 - Architecture structural tests (AST-based)

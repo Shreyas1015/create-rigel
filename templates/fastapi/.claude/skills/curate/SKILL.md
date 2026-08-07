@@ -40,9 +40,10 @@ python3 scripts/curate_scan.py      # read-only; prints a JSON plan, writes noth
 ```
 
 Grouping by signature and counting recurrence is done by the script, not by you — an LLM
-miscounts. The plan has five lists: `create`, `increment`, `disambiguate`, `promotionReady`,
-`staleCandidates`. Signatures are **stable across files**, so the same class of failure in three
-files is one group with three occurrences, not three lessons.
+miscounts. The plan has six lists: `create`, `increment`, `disambiguate`, `promotionReady`, `staleCandidates`,
+`overdue`.
+Signatures are **stable across files**, so the same class of failure in three files is one group
+with three occurrences, not three lessons.
 
 ## Step 3 — Apply the plan (the only judgment left to you)
 
@@ -66,6 +67,10 @@ own — climbing the ladder (INVESTIGATED → VERIFIED → DISTILLED) is a human
 the lesson file.
 
 ## Step 5 — Surface stale lessons (report; never auto-delete)
+
+The scan's `overdue` list is any lesson whose `promote_by` deadline has passed and is not yet
+`ENFORCED` — these come from `/postmortem`, and surfacing them here is what stops a postmortem from
+becoming a document nobody acts on. Report them loudly.
 
 The scan's `staleCandidates` are lessons still `OBSERVED` that haven't recurred for 5+ plans —
 they were one-offs, not classes. **Report them for a human to delete.** Do not delete them
@@ -105,5 +110,6 @@ Curated N failure signature(s):
   ↑M lessons incremented:  [LSN-… seen=x]
   ⚑ promotion-ready:        [LSN-… (seen>=3, DISTILLED)]  → hand to a human to enforce
   ⌫ stale candidates:       [LSN-… (OBSERVED, N plans cold)] → human deletes
+  ⏰ OVERDUE promotion:     [LSN-… (promote_by <date> has passed)] → from /postmortem; build the check
   ↳ skills updated:         [04-build-layer ← LSN-…]
 ```

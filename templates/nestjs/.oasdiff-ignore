@@ -1,0 +1,6 @@
+# Contract exemptions — break glass only. Each line needs a "# reason:" and a "# expires:".
+# An EXPIRED entry FAILS the gate: a temporary exemption cannot quietly become permanent.
+# Prefer, in order: x-stability-level: draft  →  deprecated + x-sunset  →  a line here.
+#
+# Example (delete this comment block's example when you add a real one):
+#   GET /legacy removed the success response with the status '200'   # reason: no consumers left, verified in the map  # expires: 2026-12-31

@@ -57,6 +57,7 @@ function readLessons() {
       status: get('status'),
       seen: Number(get('seen') || 0),
       lastSeen: get('last_seen') || null,
+      promoteBy: get('promote_by') || null,
       signatures,
     })
   }
@@ -92,7 +93,7 @@ export function scan(failures, lessons, nowPlan = null) {
     if (r.plan) bySig.get(r.signature).add(r.plan)
   }
 
-  const plan = { create: [], increment: [], disambiguate: [], promotionReady: [], staleCandidates: [] }
+  const plan = { create: [], increment: [], disambiguate: [], promotionReady: [], staleCandidates: [], overdue: [] }
   for (const [signature, plansSet] of bySig) {
     const plans = [...plansSet].sort()
     const occ = Math.max(plansSet.size, 1) // distinct plans; a same-plan repeat still counts once
@@ -113,6 +114,14 @@ export function scan(failures, lessons, nowPlan = null) {
     if (l.seen >= 3 && l.status === 'DISTILLED' && !plan.promotionReady.some((p) => p.id === l.id)) {
       plan.promotionReady.push({ id: l.id, seen: l.seen, status: l.status })
     }
+  }
+
+  // overdue: a /postmortem lesson whose promote_by date has passed. A deadline nobody surfaces is
+  // a deadline nobody meets — this is what makes the postmortem's promise real.
+  const today = new Date().toISOString().slice(0, 10)
+  for (const l of lessons) {
+    if (l.status === 'ENFORCED' || !l.promoteBy) continue
+    if (l.promoteBy < today) plan.overdue.push({ id: l.id, promoteBy: l.promoteBy, status: l.status })
   }
 
   // stale: still OBSERVED and untouched for STALE_AFTER plans → a one-off, not a class.

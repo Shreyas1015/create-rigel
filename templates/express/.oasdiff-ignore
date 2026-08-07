@@ -1,6 +1,12 @@
-# Contract exemptions — break glass only. Each line needs a "# reason:" and a "# expires:".
-# An EXPIRED entry FAILS the gate: a temporary exemption cannot quietly become permanent.
-# Prefer, in order: x-stability-level: draft  →  deprecated + x-sunset  →  a line here.
+# Contract exemptions — break glass only.
 #
-# Example (delete this comment block's example when you add a real one):
-#   GET /legacy removed the success response with the status '200'   # reason: no consumers left, verified in the map  # expires: 2026-12-31
+# FORMAT: a line must contain BOTH the operation (`<METHOD> <path>`) AND oasdiff's error text.
+# Either alone silently fails to match, and the gate still blocks. Copy the message oasdiff
+# printed, verbatim, then append the two required comments:
+#
+#   GET /legacy removed the success response with the status '200'   # reason: no consumers left, verified via `create-rigel map`  # expires: 2026-12-31
+#
+# Every line needs "# reason:" and "# expires: YYYY-MM-DD". An EXPIRED entry FAILS the gate —
+# a temporary exemption cannot quietly become permanent.
+#
+# Prefer, in order:  x-stability-level: draft  →  deprecated + x-sunset  →  a line here.

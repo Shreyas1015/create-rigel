@@ -20,6 +20,7 @@ def lesson(
     status: str = "OBSERVED",
     seen: int = 1,
     last_seen: str = "PLAN-001",
+    promote_by: str | None = None,
 ) -> dict:
     return {
         "id": id,
@@ -27,6 +28,7 @@ def lesson(
         "status": status,
         "seen": seen,
         "lastSeen": last_seen,
+        "promoteBy": promote_by,
         "file": f"{id}.md",
     }
 
@@ -99,5 +101,19 @@ assert len(p["staleCandidates"]) == 0, "a lesson that just recurred is not stale
 
 # ── no current plan → no stale claims (can't compute age honestly) ──
 assert len(scan([], [lesson("LSN-D", ["s"], "OBSERVED", 1, "PLAN-001")], None)["staleCandidates"]) == 0
+
+# ── overdue: a /postmortem promote_by deadline that has passed ──
+past = scan([], [lesson("LSN-A", ["s"], "INVESTIGATED", 1, "PLAN-001", "2020-01-01")], 2)
+assert [o["id"] for o in past["overdue"]] == ["LSN-A"]
+
+future = scan([], [lesson("LSN-B", ["s"], "INVESTIGATED", 1, "PLAN-001", "2099-01-01")], 2)
+assert future["overdue"] == [], "a future deadline is not overdue"
+
+# once ENFORCED the deadline is moot — the check exists
+done = scan([], [lesson("LSN-C", ["s"], "ENFORCED", 1, "PLAN-001", "2020-01-01")], 2)
+assert done["overdue"] == []
+
+# a lesson with no deadline is never overdue (only /postmortem sets one)
+assert scan([], [lesson("LSN-D", ["s"], "OBSERVED", 1, "PLAN-001")], 2)["overdue"] == []
 
 print("curate-scan: all assertions passed")

@@ -64,7 +64,7 @@ Production-ready FastAPI template with layered architecture, SQLAlchemy 2 async,
 - **Multi-stage Dockerfile** + `.dockerignore` (non-root user, HEALTHCHECK)
 - **GitHub Actions CI** — parallel jobs: quality (ruff + mypy), test (pytest + schemathesis), security (bandit + pip-audit + gitleaks), image (Trivy scan + SBOM)
 - **Dependabot** (uv + GitHub Actions + Docker)
-- **Makefile** single-command DX (`make bootstrap/dev/lint/test/gate/migrate/openapi`) + runnable `scripts/gate.sh`
+- **Makefile** single-command DX (`make bootstrap/dev/lint/test/gate/contract/migrate/openapi`) + runnable `scripts/gate.sh`
 - **Agent-first workflow** (spec → plan → build loop with auto-gating)
 
 ---

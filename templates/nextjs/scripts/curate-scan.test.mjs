@@ -4,12 +4,13 @@ import assert from 'node:assert/strict'
 import { scan } from './curate-scan.mjs'
 
 const fail = (signature, plan, message = 'm', file = 'f') => ({ signature, plan, message, file })
-const lesson = (id, signatures, status = 'OBSERVED', seen = 1, lastSeen = 'PLAN-001') => ({
+const lesson = (id, signatures, status = 'OBSERVED', seen = 1, lastSeen = 'PLAN-001', promoteBy = null) => ({
   id,
   signatures,
   status,
   seen,
   lastSeen,
+  promoteBy,
   file: `${id}.md`,
 })
 
@@ -88,6 +89,22 @@ const lesson = (id, signatures, status = 'OBSERVED', seen = 1, lastSeen = 'PLAN-
 // ── no current plan → no stale claims (can't compute age honestly) ──
 {
   assert.equal(scan([], [lesson('LSN-D', ['s'], 'OBSERVED', 1, 'PLAN-001')], null).staleCandidates.length, 0)
+}
+
+// ── overdue: a /postmortem promote_by deadline that has passed ──
+{
+  const past = scan([], [lesson('LSN-A', ['s'], 'INVESTIGATED', 1, 'PLAN-001', '2020-01-01')], 2)
+  assert.deepEqual(past.overdue.map((o) => o.id), ['LSN-A'])
+
+  const future = scan([], [lesson('LSN-B', ['s'], 'INVESTIGATED', 1, 'PLAN-001', '2099-01-01')], 2)
+  assert.deepEqual(future.overdue, [], 'a future deadline is not overdue')
+
+  // once ENFORCED the deadline is moot — the check exists
+  const done = scan([], [lesson('LSN-C', ['s'], 'ENFORCED', 1, 'PLAN-001', '2020-01-01')], 2)
+  assert.deepEqual(done.overdue, [])
+
+  // a lesson with no deadline is never overdue (only /postmortem sets one)
+  assert.deepEqual(scan([], [lesson('LSN-D', ['s'], 'OBSERVED', 1, 'PLAN-001')], 2).overdue, [])
 }
 
 console.log('curate-scan: all assertions passed')

@@ -55,10 +55,36 @@ Check for hand-written types that duplicate the generated ones.
 
 ### Step 5 — Commit
 ```bash
+npm run contract:freshness    # proves the generated types match openapi.json
 git add src/types/api.generated.ts openapi.json
 git commit -m "chore(api): sync contract from backend openapi.json"
 git push origin main
 ```
+
+Commit `openapi.json` and `src/types/api.generated.ts` **in the same commit**. They are one
+artifact — the spec and its derivation — and `npm run gate` fails if they disagree.
+
+## The contract freshness check (PLAN-010)
+
+`npm run gate` runs `contract:freshness`, which regenerates the types from `openapi.json` into a
+temp file and fails if they differ from the committed `src/types/api.generated.ts`.
+
+This app **consumes** a contract, it does not publish one, so there is deliberately **no
+breaking-change check and no `.oasdiff-ignore`** here — that half belongs in the backend repo that
+owns the spec. What the frontend can get wrong is *derivation*, and there are exactly two ways:
+
+1. **`api.generated.ts` was hand-edited.** The rule below said never to; now something enforces it.
+2. **`openapi.json` was re-vendored and codegen was not re-run.** Every call site then typechecks
+   against the OLD contract and compiles clean. You find out in production, as a 4xx or an
+   `undefined` field.
+
+Both are a green build over the wrong contract, which is why this blocks.
+
+The check never rewrites `api.generated.ts` in place — a gate that silently repairs the drift it
+is measuring reports a pass and leaves you an uncommitted diff. The fix is yours: `npm run
+api:sync`, then commit. It no-ops with a notice when `openapi.json` is absent (not wired to a
+backend yet) or `openapi-typescript` isn't installed. If codegen itself blows up, it says so —
+a spec that won't parse is an input failure, not stale types.
 
 ## Rules
 - NEVER edit api.generated.ts manually

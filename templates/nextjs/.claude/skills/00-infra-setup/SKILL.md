@@ -426,6 +426,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "verify:rigel": "node scripts/rigel-verify.mjs",
     "knowledge": "node scripts/rigel-knowledge.mjs",
     "api:sync": "openapi-typescript openapi.json -o src/types/api.generated.ts",
+    "contract:freshness": "node scripts/contract-freshness.mjs",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
@@ -436,7 +437,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
+    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run contract:freshness",
     "redgreen:record": "node scripts/redgreen-record.mjs",
     "ac:vector": "node scripts/ac-vector.mjs",
     "gate:final": "npm run gate && npm run ac:vector",
@@ -453,6 +454,20 @@ Harness integrity (PLAN-008 AC-2):
   escape hatch is a waiver in the manifest pinning the exact accepted content plus an expiry;
   an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
   stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
+
+Contract freshness (PLAN-010):
+- `contract:freshness` — `node scripts/contract-freshness.mjs`. This app **consumes** a contract,
+  it does not publish one, so there is deliberately **no breaking-change check and no
+  `.oasdiff-ignore`** here: "did I break my consumers" has no consumers to break, and a check that
+  verifies nothing is worse than no check. What DOES apply is the freshness half.
+  `src/types/api.generated.ts` is derived from `openapi.json`, and two failures make the build
+  green against a contract the backend no longer serves: someone hand-edits the generated file
+  (`/api-sync` forbids it; nothing enforced it until now), or `openapi.json` is re-vendored without
+  re-running codegen, so every call site typechecks against the OLD contract. The check regenerates
+  to a **temp file** and compares — it never rewrites `api.generated.ts` in place, because a gate
+  that repairs the drift it measures reports a pass and leaves an uncommitted diff. Fix is
+  `npm run api:sync`, committed by a human. It no-ops with a notice when `openapi.json` is absent
+  (not yet wired to a backend) or `openapi-typescript` isn't installed.
 
 Company knowledge (PLAN-009):
 - `knowledge` — `node scripts/rigel-knowledge.mjs`. Resolves every anchor in `knowledge/domain/`

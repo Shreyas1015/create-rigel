@@ -2,7 +2,7 @@
 # Committed in the template (parked/restored by /infra-setup). Run `make help`.
 # NOTE: recipes are TAB-indented (Make requirement).
 .DEFAULT_GOAL := help
-.PHONY: help setup dev build start lint format typecheck test coverage e2e gate api-sync analyze docker-build
+.PHONY: help setup dev build start lint format typecheck test coverage e2e gate api-sync contract analyze docker-build
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -42,6 +42,9 @@ gate: ## Full layer gate (typecheck + lint + format:check + coverage)
 
 api-sync: ## Regenerate API types from openapi.json
 	npm run api:sync
+
+contract: ## Contract freshness — do the generated types still match openapi.json?
+	npm run contract:freshness
 
 analyze: ## Bundle analysis
 	npm run analyze

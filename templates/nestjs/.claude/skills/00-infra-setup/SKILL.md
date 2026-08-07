@@ -266,7 +266,9 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "knowledge": "node scripts/rigel-knowledge.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
 "ac:vector": "node scripts/ac-vector.mjs",
-"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch",
+"openapi:export": "ts-node scripts/openapi.export.ts",
+"contract:gate": "node scripts/contract-gate.mjs",
+"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run contract:gate",
 "gate:final": "npm run gate && npm run ac:vector"
 ```
 
@@ -284,6 +286,19 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
   anchor.
 - `test:arch` is the per-layer check home — it runs the two `tests/architecture/` eval tests plus
   any layer-boundary tests. `gate` **must** include it.
+- `openapi:export` / `contract:gate` (PLAN-010) — this service **publishes** a contract, so it owes
+  its consumers three things, in this order: the committed `openapi.json` is CURRENT (re-export and
+  compare — a stale spec makes `/api-sync`, the service map and every check below it a lie); no
+  BREAKING change versus `origin/main:openapi.json` (`oasdiff breaking --fail-on ERR`; git history
+  is the contract registry, so there is no broker to run); and every `.oasdiff-ignore` exemption
+  carries a `# reason:` and an unexpired `# expires:`. `contract:gate` is **last** in `gate` — it
+  is the only step that shells out to another binary. It skips the oasdiff step with a notice when
+  the binary is absent (`brew install oasdiff`), so it never blocks a laptop that lacks it; the
+  freshness and exemption checks always run. The escape hatches, in order of preference:
+  `x-stability-level: draft` → `deprecated` + `x-sunset` → an expiring `.oasdiff-ignore` line.
+  Never a PR label — a skipped required check is a silently disabled gate.
+  `openapi:export` runs in NestJS **preview mode**, so it builds the contract without instantiating
+  providers: no Postgres, no Redis, no docker needed for the gate.
 - `redgreen:record` / `ac:vector` are the spec-phase and feature-completion checks (see
   `/write-spec` and `/garbage-collect`). `ac:vector` is the green PASS/FAIL vector — a
   feature-completion check, **not** the per-layer gate.

@@ -19,7 +19,7 @@ Stack (latest LTS — no version pins): Next.js · React · TypeScript (strict) 
 | Architectural decisions | `docs/design-docs/decisions/` |
 | Tech debt | `docs/exec-plans/tech-debt-tracker.md` |
 | Domain health grades | `docs/QUALITY_SCORE.md` |
-| API contract (generated) | `src/types/api.generated.ts` ← READ ONLY |
+| API contract (generated) | `src/types/api.generated.ts` ← READ ONLY (enforced: `npm run contract:freshness`) |
 | Plan format | `docs/PLANS.md` |
 
 ---
@@ -39,6 +39,7 @@ Stack (latest LTS — no version pins): Next.js · React · TypeScript (strict) 
 | `/garbage-collect` | End-of-feature cleanup |
 | `/debug` | Same gate failure twice → hypothesis loop, not another guess |
 | `/curate` | Fold recorded gate failures into `docs/design-docs/lessons/` |
+| `/postmortem` | A prod incident → one lesson with a promotion deadline |
 | `/doc-garden` | Fix stale documentation |
 | `/api-sync` | Regenerate `api.generated.ts` from OpenAPI spec file |
 | `/perf-budget` | Run Lighthouse CI + bundle analysis |

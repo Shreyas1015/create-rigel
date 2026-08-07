@@ -80,6 +80,14 @@ elif [[ $rc -ne 0 ]]; then
   echo "🚫 zero-tests guard: pytest collection errored (exit $rc) — failing rather than assuming success."; FAIL=1
 fi
 
+# 13. contract gate (PLAN-010) — this service PUBLISHES an OpenAPI contract, so it owes its
+# consumers three things: the committed openapi.json is CURRENT (re-export + compare), no BREAKING
+# change vs origin/main (oasdiff; git history is the contract registry), and every .oasdiff-ignore
+# exemption carries a reason + an unexpired expiry. LAST because it is the only step that shells
+# out to another binary — it skips the oasdiff half with a notice when oasdiff is absent.
+echo "── contract gate ──"
+python3 scripts/contract_gate.py || FAIL=1
+
 echo "─────────────────────────────"
 if [[ $FAIL -ne 0 ]]; then
   echo "GATE: ❌ FAIL"

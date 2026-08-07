@@ -43,6 +43,7 @@ for `sequelize-typescript` compatibility)
 | `/garbage-collect` | End-of-feature cleanup pass                            |
 | `/debug`           | Same gate failure twice → hypothesis loop, not another guess |
 | `/curate`          | Fold recorded gate failures into `docs/design-docs/lessons/` |
+| `/postmortem`      | A prod incident → one lesson with a promotion deadline       |
 | `/doc-garden`      | Scan + fix stale documentation                         |
 | `/db-optimize`     | EXPLAIN ANALYZE workflow for slow queries              |
 | `/load-test`       | Run k6 smoke / stress / soak test                      |
