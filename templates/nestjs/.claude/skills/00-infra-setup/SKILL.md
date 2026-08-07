@@ -212,6 +212,10 @@ and `tests/` — plural — which do not collide with NestJS's generated `test/`
 - `scripts/rigel-verify.mjs` — the PLAN-008 AC-2 harness-integrity check (`verify:rigel`). Its
   only import, `scripts/lib/rigel-manifest.mjs`, is **stamped in by `create-rigel` at scaffold
   time** — one source of truth; never author or edit either file here.
+- `scripts/rigel-knowledge.mjs` — the PLAN-009 company-knowledge anchor check (`knowledge`),
+  with the `knowledge/` skeleton at the repo root. Its only import,
+  `scripts/lib/rigel-knowledge-lib.mjs`, is **stamped in by `create-rigel` at scaffold time** —
+  never author or edit it here.
 - `tests/architecture/traceability.test.ts` — AC↔test traceability (AC-1, static half) + red-green
   integrity (AC-4). Runs in the per-layer gate.
 - `tests/architecture/assertion-integrity.test.ts` — AC-5, uses the TypeScript compiler API
@@ -259,6 +263,7 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "typecheck": "tsc --noEmit",
 "test:arch": "jest tests/architecture/",
 "verify:rigel": "node scripts/rigel-verify.mjs",
+"knowledge": "node scripts/rigel-knowledge.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
 "ac:vector": "node scripts/ac-vector.mjs",
 "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch",
@@ -272,6 +277,11 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
   exists. The escape hatch is a waiver in the manifest pinning the exact accepted content plus an
   expiry; an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
   stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
+- `knowledge` (PLAN-009) resolves every anchor in `knowledge/domain/` against the repo and
+  reports terms whose code moved (see `knowledge/README.md`). It is **ADVISORY this release and
+  deliberately NOT in `gate`** — a new check that misfires even once teaches everyone to ignore
+  it; it flips to blocking one release later. `npm run knowledge -- --strict` exits 1 on a dead
+  anchor.
 - `test:arch` is the per-layer check home — it runs the two `tests/architecture/` eval tests plus
   any layer-boundary tests. `gate` **must** include it.
 - `redgreen:record` / `ac:vector` are the spec-phase and feature-completion checks (see

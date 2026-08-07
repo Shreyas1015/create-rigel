@@ -266,7 +266,7 @@ Create `tests/load/stress.js` — k6 stress test (ramping VUs, P95/P99 threshold
 ## Step 9 — Makefile + gate script (single-command DX)
 Create `Makefile` with daily-driver targets — every doc command goes through these:
 ```make
-.PHONY: bootstrap dev lint format typecheck test gate gate-final redgreen ac-vector migrate openapi up down
+.PHONY: bootstrap dev lint format typecheck test gate gate-final knowledge redgreen ac-vector migrate openapi up down
 bootstrap: ; uv sync && uv run pre-commit install      # one-command setup
 dev:       ; uv run uvicorn src.runtime.main:app --reload
 lint:      ; uv run ruff check src/ tests/
@@ -274,6 +274,7 @@ format:    ; uv run ruff format src/ tests/
 typecheck: ; uv run mypy src/
 test:      ; uv run pytest
 gate:      ; bash scripts/gate.sh                       # deterministic, same checks as gate-checker agent
+knowledge: ; node scripts/rigel-knowledge.mjs           # PLAN-009 anchor check — ADVISORY, needs node, NOT in gate.sh
 redgreen:  ; uv run python scripts/redgreen_record.py $(SPEC)   # AC-4: prove acceptance tests red (make redgreen SPEC=SPEC-XXX)
 ac-vector: ; uv run python scripts/ac_vector.py         # AC-1: feature-completion pass/fail vector (non-zero unless all PASS)
 gate-final: gate ac-vector                              # per-layer gate + the green AC vector (feature done)

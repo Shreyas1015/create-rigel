@@ -94,6 +94,10 @@ const harness = {
   // Harness integrity (PLAN-008 AC-2): has anyone edited a file Rigel owns? Runs FIRST in
   // the gate — it is the cheapest check and a tampered harness invalidates everything after it.
   'verify:rigel': 'node scripts/rigel-verify.mjs',
+  // Company-knowledge anchors (PLAN-009): do the terms in knowledge/ still name real code?
+  // ADVISORY this release — deliberately NOT in 'gate'. A new check that misfires even once
+  // teaches everyone to ignore it; it flips to blocking one release later.
+  'knowledge': 'node scripts/rigel-knowledge.mjs',
   'api:sync': 'openapi-typescript openapi.json -o src/types/api.generated.ts',
   'test': 'vitest',
   'test:ui': 'vitest --ui',

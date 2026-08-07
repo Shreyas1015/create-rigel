@@ -66,7 +66,7 @@ the harness on top of the generated app (our files win on the one overlap, `.git
 #    eslint.config.mjs is parked too — we restore OUR version on top so it wins over
 #    the one create-next-app generates (it carries the layer-boundary rules).
 HOLD=$(mktemp -d)
-for f in .claude .github .githooks .rigel scripts docs \
+for f in .claude .github .githooks .rigel scripts docs knowledge \
          .prettierrc .prettierignore .lintstagedrc.json .gitattributes .gitignore .mcp.json \
          eslint.config.mjs Dockerfile .dockerignore Makefile \
          lighthouserc.js AGENTS.md ARCHITECTURE.md QUICKSTART.md; do
@@ -203,6 +203,13 @@ App-wide constants. No process.env.
   ships committed and survives the same park-and-restore. Its only import,
   `scripts/lib/rigel-manifest.mjs`, is **stamped in by `create-rigel` at scaffold time** — one
   source of truth; never author or edit either file.
+- **Company knowledge (PLAN-009):** `knowledge/` (skeleton + README) and
+  `scripts/rigel-knowledge.mjs` (the `knowledge` script) ship committed and are parked/restored
+  in Step 1 like the rest of the harness. Its only import,
+  `scripts/lib/rigel-knowledge-lib.mjs`, is **stamped in by `create-rigel` at scaffold time** —
+  never author or edit it. `knowledge/**` is a MANAGED path, so it is in `.prettierignore`
+  alongside `scripts/`: a `prettier --write .` that reformatted `knowledge/README.md` would
+  make `verify:rigel` permanently red on a fresh scaffold.
 
 ### src/utils/cn.util.ts
 `clsx` + `tailwind-merge` class merger. 100% tested.
@@ -417,6 +424,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "build": "next build",
     "start": "next start",
     "verify:rigel": "node scripts/rigel-verify.mjs",
+    "knowledge": "node scripts/rigel-knowledge.mjs",
     "api:sync": "openapi-typescript openapi.json -o src/types/api.generated.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -445,6 +453,12 @@ Harness integrity (PLAN-008 AC-2):
   escape hatch is a waiver in the manifest pinning the exact accepted content plus an expiry;
   an expired waiver fails again, which is the point. `scripts/lib/rigel-manifest.mjs` is
   stamped into the project by `create-rigel` at scaffold time — never author or edit it here.
+
+Company knowledge (PLAN-009):
+- `knowledge` — `node scripts/rigel-knowledge.mjs`. Resolves every anchor in `knowledge/domain/`
+  against the repo and reports terms whose code moved. **ADVISORY this release and deliberately
+  NOT in `gate`** — a new check that misfires even once teaches everyone to ignore it. It flips
+  to blocking one release later. `npm run knowledge -- --strict` exits 1 on a dead anchor.
 
 The deterministic-eval scripts (PLAN-003):
 - `gate` already runs the **STATIC** AC checks — `test:coverage` runs `vitest run --coverage`,

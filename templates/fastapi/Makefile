@@ -2,7 +2,7 @@
 # Every command in the docs goes through a target here so humans and agents
 # run the exact same thing. Generated/maintained alongside /infra-setup.
 
-.PHONY: bootstrap dev lint format typecheck test gate migrate openapi up down lgtm
+.PHONY: bootstrap dev lint format typecheck test gate knowledge migrate openapi up down lgtm
 
 bootstrap:        ## one-command setup: sync deps + install git hooks
 	uv sync && uv run pre-commit install
@@ -24,6 +24,9 @@ test:             ## full test suite + coverage
 
 gate:             ## deterministic gate — same checks the gate-checker agent runs
 	bash scripts/gate.sh
+
+knowledge:        ## ADVISORY (PLAN-009): do knowledge/ anchors still resolve? needs node; NOT in gate
+	node scripts/rigel-knowledge.mjs
 
 migrate:          ## apply migrations
 	uv run alembic upgrade head
