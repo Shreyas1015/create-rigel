@@ -14,6 +14,10 @@ import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./
 import { parseTemplateSpec, fetchLayer, readLayerConfig, applyLayer, mergeOwnership } from "./lib/layer.mjs";
 import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS_PATH } from "./lib/map.mjs";
 import {
+  buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
+  serviceImpact, touchesContract, BLIND_SPOTS,
+} from "./lib/impact.mjs";
+import {
   materialize,
   planUpdate,
   applyUpdate,
@@ -246,6 +250,80 @@ function argFor(argv, flag) {
   return i === -1 ? undefined : argv[i + 1];
 }
 
+
+// ── `create-rigel impact` — the blast-radius LENS (PLAN-011 AC-1) ──
+// ALWAYS exits 0. Impact analysis over-reports by construction, and a cry-wolf gate would cost us
+// the gates that work. Exactness lives in the contract gate; this supplies context.
+async function cmdImpact(argv) {
+  const root = process.cwd();
+  const asJson = argv.includes("--json");
+  const depth = Number(argFor(argv, "--depth") ?? 2);
+  const explicit = argFor(argv, "--paths");
+  const base = argFor(argv, "--base");
+
+  const changed = explicit
+    ? explicit.split(",").map((s) => s.trim()).filter(Boolean)
+    : changedFiles(root, base);
+
+  const rev = reverseGraph(buildGraph(root));
+  const levels = changed.length ? dependents(rev, changed, depth) : [];
+  const service = basename(root);
+  const svc = serviceImpact(root, service);
+  const contractTouched = touchesContract(changed);
+
+  if (asJson) {
+    console.log(JSON.stringify({ changed, dependents: levels, service: svc, contractTouched, blindSpots: BLIND_SPOTS }, null, 2));
+    return;
+  }
+
+  console.log("");
+  if (!changed.length) {
+    console.log("  No changed source files. Pass --paths <a,b> to ask about specific files.\n");
+    return;
+  }
+
+  console.log(`  CHANGED       ${changed.length} file(s)`);
+  for (const c of changed.slice(0, 12)) console.log(`      ${c}`);
+  if (changed.length > 12) console.log(`      … and ${changed.length - 12} more`);
+
+  const total = levels.flat().length;
+  console.log("");
+  if (total === 0) {
+    console.log("  IN-REPO       nothing else imports these");
+  } else {
+    console.log(`  IN-REPO       ${total} file(s) depend on them (depth ${depth})`);
+    levels.forEach((lvl, i) => {
+      console.log(`    ${i === 0 ? "direct " : `+${i + 1} hop`}    ${lvl.length}`);
+      for (const f of lvl.slice(0, 8)) console.log(`      ${f}`);
+      if (lvl.length > 8) console.log(`      … and ${lvl.length - 8} more`);
+    });
+  }
+
+  console.log("");
+  if (svc?.unknownService) {
+    console.log(`  SERVICES      "${svc.unknownService}" is not in the map yet — run \`create-rigel facts\``);
+  } else if (!svc) {
+    console.log("  SERVICES      no company map in this repo (knowledge/map/services.json)");
+  } else if (svc.consumedBy.length && contractTouched) {
+    console.log(`  SERVICES      ⚠ this change touches the contract, and ${svc.consumedBy.length} service(s) consume it:`);
+    for (const c of svc.consumedBy) console.log(`      ${c}`);
+  } else if (svc.consumedBy.length) {
+    console.log(`  SERVICES      ${svc.consumedBy.length} consumer(s) exist, but no route/contract file changed:`);
+    for (const c of svc.consumedBy) console.log(`      ${c}`);
+  } else {
+    console.log("  SERVICES      nothing in the map consumes this service");
+  }
+
+  for (const c of svc?.capabilities ?? []) {
+    const kpi = c.kpi ? `  KPI ${c.kpi}${c.owner ? ` (${c.owner})` : ""}` : "";
+    console.log(`  BUSINESS      ${c.name}${kpi}`);
+  }
+
+  console.log("\n  NOT VISIBLE HERE — check these yourself:");
+  for (const b of BLIND_SPOTS) console.log(`      · ${b}`);
+  console.log("\n  This is a lens, not a gate. Breaking changes are enforced by the contract gate.\n");
+}
+
 async function main() {
   // Subcommands run inside an existing project; anything else scaffolds a new one.
   const sub = process.argv[2];
@@ -253,6 +331,7 @@ async function main() {
   if (sub === "facts") return cmdFacts();
   if (sub === "map:build") return cmdMapBuild(process.argv.slice(3));
   if (sub === "map") return cmdMap(process.argv.slice(3));
+  if (sub === "impact") return cmdImpact(process.argv.slice(3));
 
   const args = parseArgs(process.argv);
   const rl = createInterface({ input, output });
