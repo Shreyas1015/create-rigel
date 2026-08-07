@@ -34,6 +34,21 @@ test -d tests/acceptance/SPEC-XXX || { echo "BLOCK: no tests/acceptance/SPEC-XXX
 test -f .rigel/redgreen/SPEC-XXX.json || { echo "BLOCK: no .rigel/redgreen/SPEC-XXX.json — run: npm run redgreen:record -- SPEC-XXX"; exit 1; }
 ```
 
+### Step 1c — Enforce the impact declaration
+
+A spec must state what it intends to break before it can be planned:
+
+```bash
+grep -q "^impact:" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX has no impact: block — run 'npx create-rigel impact', then declare"; exit 1; }
+grep -qE "^\s*breaking:\s*(true|false)" docs/product-specs/ready/SPEC-XXX*.md || \
+  { echo "BLOCK: SPEC-XXX's impact block must declare breaking: true|false"; exit 1; }
+```
+
+Declaring is cheap and over-declaring is free; the only thing that costs you is being wrong, which
+the contract gate catches later. A spec that never states its intent gives the gate nothing to
+verify against.
+
 If either is missing, **stop** and tell the human the spec is not eligible: its acceptance
 tests / red-green proof must be created by `/write-spec` first (the `tests/architecture/`
 traceability test would otherwise fail the very first gate). Do not hand-create these here —

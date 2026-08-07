@@ -1,6 +1,17 @@
-# Contract exemptions — break glass only. Each line needs a "# reason:" and a "# expires:".
-# An EXPIRED entry FAILS the gate: a temporary exemption cannot quietly become permanent.
-# Prefer, in order: x-stability-level: draft  →  deprecated + x-sunset  →  a line here.
+# ⚠ EVERY LINE IN THIS FILE IS A LIVE RULE. oasdiff has NO comment syntax — it matches each line
+# as a substring against its error text. A leading "#" disables NOTHING. A worked example left in
+# here would silently suppress a real breaking change, which is why there is no example below.
+# `npm run contract:gate` prints the exact line to paste when it blocks you.
 #
-# Example (delete this comment block's example when you add a real one):
-#   GET /legacy removed the success response with the status '200'   # reason: no consumers left, verified in the map  # expires: 2026-12-31
+# FORMAT: the line must contain BOTH the operation (<METHOD> <path>) AND oasdiff's error text,
+# copied verbatim, then all four required annotations:
+#
+#   reason:    why this break is acceptable
+#   owner:     a PERSON, not a team — diffuse ownership is how exemptions rot
+#   expires:   YYYY-MM-DD. An EXPIRED entry FAILS the gate, so "temporary" cannot become permanent
+#   consumers: who this breaks, from `create-rigel impact`. "none" is a valid explicit claim.
+#
+# Naming the consumers IS the permission step: you cannot break something without writing down
+# who you are breaking it for.
+#
+# Prefer, in order:  x-stability-level: draft  ->  deprecated + x-sunset  ->  a line here.

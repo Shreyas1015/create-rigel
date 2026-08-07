@@ -92,7 +92,19 @@ if IGNORE.exists():
     n = 0
     for raw in IGNORE.read_text(encoding="utf-8").split("\n"):
         line = raw.strip()
-        if not line or line.startswith("#"):
+        if not line:
+            continue
+        if line.startswith("#"):
+            # oasdiff has NO comment syntax — it matches EVERY line as a substring against its
+            # error text. So a "#"-prefixed line that reads like an error message is a LIVE
+            # exemption wearing a comment's clothes, silently suppressing that exact break. This
+            # gate and oasdiff must never disagree about what a comment is.
+            if re.search(r"\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", line):
+                bad(
+                    f'{IGNORE}: this "commented-out" line is STILL A LIVE RULE — oasdiff has no\n'
+                    f"      comment syntax and matches every line as a substring. Delete it, or\n"
+                    f"      make it a real exemption.\n      {line}"
+                )
             continue
         n += 1
         exp = re.search(r"#\s*expires:\s*(\d{4}-\d{2}-\d{2})", raw)

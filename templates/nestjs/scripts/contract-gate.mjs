@@ -59,7 +59,20 @@ if (existsSync(IGNORE)) {
   let n = 0
   for (const raw of readFileSync(IGNORE, 'utf8').split('\n')) {
     const line = raw.trim()
-    if (!line || line.startsWith('#')) continue
+    if (!line) continue
+    if (line.startsWith('#')) {
+      // oasdiff has NO comment syntax — it matches EVERY line as a substring against its error
+      // text. So a '#'-prefixed line that reads like an error message is a LIVE exemption wearing a
+      // comment's clothes, silently suppressing that exact break. This gate and oasdiff must never
+      // disagree about what a comment is.
+      if (/\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\//.test(line)) {
+        bad(
+          `${IGNORE}: this "commented-out" line is STILL A LIVE RULE — oasdiff has no comment syntax\n` +
+            `      and matches every line as a substring. Delete it, or make it a real exemption.\n      ${line}`,
+        )
+      }
+      continue
+    }
     n++
     const exp = /#\s*expires:\s*(\d{4}-\d{2}-\d{2})/.exec(raw)
     const reason = /#\s*reason:\s*\S/.test(raw)
