@@ -37,6 +37,8 @@ jobs:
         run: node scripts/check-model-routing.js
       - name: No generated artifacts in the published package (LSN-0008)
         run: node scripts/check-package-contents.mjs
+      - name: nextjs park list covers every shipped top-level entry (LSN-0012)
+        run: node scripts/check-park-list.mjs
 
       - name: Eval harness tests (PLAN-004)
         run: npm run test:evals

@@ -69,7 +69,7 @@ HOLD=$(mktemp -d)
 for f in .claude .github .githooks .rigel scripts docs knowledge \
          .prettierrc .prettierignore .lintstagedrc.json .gitattributes .gitignore .mcp.json \
          eslint.config.mjs Dockerfile .dockerignore Makefile \
-         lighthouserc.js AGENTS.md ARCHITECTURE.md QUICKSTART.md; do
+         lighthouserc.js AGENTS.md ARCHITECTURE.md QUICKSTART.md STATE.md; do
   [ -e "$f" ] && mv "$f" "$HOLD"/
 done
 
