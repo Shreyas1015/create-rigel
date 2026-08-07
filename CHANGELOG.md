@@ -6,6 +6,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-07
+
+> Ships **PLAN-011 — blast radius**. The rule: the lens never blocks, the contract gate does.
+
+### Added
+- `create-rigel impact` — a blast-radius **lens** (exit code always 0). Joins reverse import
+  edges (TS/JS + Python, depth-limited), `knowledge/map/services.json` → `consumedBy`, and the
+  owning capability's KPI. Prints its own blind spots — queues, feature flags, string-keyed
+  routing, DI, ORM magic — because a report that implies completeness is worse than one that
+  admits its edges. File-level, like Bazel `rdeps` and Nx affected.
+- An `impact:` declaration block in every `/write-spec`; `/write-plan` refuses a spec without one.
+  The spec **declares** intent (the code doesn't exist yet, so nothing can be predicted); the gate
+  proves you were honest. Over-declaring is free, under-declaring fails.
+- The contract gate cross-checks declaration against reality, and authorizes a deliberate break
+  through the existing expiring-exemption pattern, now also requiring `# owner:` (a person) and
+  `# consumers:` (who you're breaking it for — this is the permission step).
+
+### Fixed
+- **`#` is not a comment in oasdiff.** Every line of an `--err-ignore` file is matched as a
+  substring, so the worked example inside the seeded `.oasdiff-ignore` header was a live rule
+  suppressing exactly the break it documented. The file now ships with no runnable example, and
+  all three backend gates reject a `#` line that looks like an operation. (LSN-0013)
+- **An exemption no longer defeats the declaration check.** oasdiff now runs twice — raw for the
+  truth, ignored for enforcement — so `breaking: false` plus an exemption still fails.
+- **"CI enforces it" is now checked, not claimed.** nestjs ships no `ci.yml`, and nestjs/fastapi
+  generate theirs at `/infra-setup`, so neither template could promise it. The gate reads
+  `.github/workflows` for a real oasdiff install and fails loud when nothing is enforcing it.
+- The gate no longer reports "no breaking API changes" when a break exists and is merely
+  authorized, nor "AUTHORIZED" when the authorizing exemption has expired.
+
+## [0.13.0] - 2026-08
+- Knowledge anchors are blocking, gated by `owner:` so a distributed glossary can't red-light
+  every consumer repo.
+
+## [0.12.0] - 2026-08
+- PLAN-010 — the contract gate (freshness, oasdiff breaking changes, exemption expiry) and
+  `/postmortem`.
+
+## [0.11.0] - 2026-08
+- PLAN-009 — the company knowledge layer: anchored knowledge and the service map.
+
+## [0.10.0] - 2026-07
+- PLAN-008 — the day-2 loop: provenance manifest, `verify:rigel`, 3-hash update, company layers.
+
+## [0.9.0] - 2026-07
+- Phase-3 completion: `/debug`, `STATE.md`, the promotion gate, stale-curation.
+
+## [0.8.1] - 2026-07
+- Strip generated artifacts from the published package (LSN-0008).
+
+## [0.8.0] - 2026-07
+- PLAN-007 — memory and self-improvement: lessons promoted to mechanical enforcement.
+
+## [0.7.1] - 2026-07
+- PLAN-006 close-out: dogfood DF-1..48 plus the golden trials.
+
 ## [0.7.0] - 2026-07-20
 
 > Ships PLAN-005 — the **design enforcement stack** for the `nextjs` template (the only one

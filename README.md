@@ -29,6 +29,7 @@ npm create rigel@latest my-app
 - [Quick start](#quick-start)
 - [Templates](#templates)
 - [Inside a scaffolded project](#inside-a-scaffolded-project)
+- [CLI commands, after scaffolding](#cli-commands-after-scaffolding)
 - [The workflow it enables](#the-workflow-it-enables)
 - [Requirements](#requirements)
 - [FAQ](#faq)
@@ -109,6 +110,28 @@ my-app/
 ```
 
 The **gate** (`npm run gate` / `scripts/gate.sh`) is the enforcement core: type-clean, lint-clean (zero warnings), no circular deps, no cross-layer imports, no files over the size limit, coverage above per-layer thresholds, and the cross-user isolation test present. It runs after every build layer and in CI.
+
+## CLI commands, after scaffolding
+
+Beyond `create-rigel <name>`, the same binary answers questions about a repo it generated:
+
+```bash
+npx create-rigel verify           # is what Rigel wrote still what's on disk? (provenance manifest)
+npx create-rigel update           # 3-hash update — no patch reconstruction, no .rej files
+npx create-rigel impact           # blast radius of your current change — a LENS, never a gate
+```
+
+`impact` answers *"if I change this, what else is involved?"* by joining three things the repo
+already knows: which files import the ones you touched, which services consume the API you
+publish (`knowledge/map/`), and which business capability owns it. It defaults to your working
+diff, is depth-limited, prints the blind spots it cannot see (queues, feature flags, string-keyed
+routing, DI, ORM magic), and **always exits 0**.
+
+Impact analysis over-reports by construction, and a gate that cries wolf gets disabled — taking
+the gates that work down with it. So the lens informs; the **contract gate** blocks, exactly, on
+`oasdiff`. Your spec declares `breaking: true|false`; the gate proves the declaration honest, and
+a deliberate break needs an exemption naming an owner, an expiry, and the consumers you're
+breaking it for.
 
 ## The workflow it enables
 

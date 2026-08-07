@@ -1,6 +1,6 @@
 # PLAN-011 — Blast radius
 
-**Status:** DRAFT — for review
+**Status:** COMPLETE — shipped in v0.14.0
 **Target release:** v0.14.0
 **Owner:** @Shreyas1015
 
@@ -135,11 +135,34 @@ evaporates on merge leaving nothing in the repo.
 ---
 
 ## Progress log
-- [ ] AC-1 `rigel impact` report (in-repo + cross-service + capability + blind-spot disclosure)
-- [ ] AC-2 declared `impact` block in `/write-spec`, required by `/write-plan`
-- [ ] AC-3 declaration-vs-reality check wired into the existing contract gate
-- [ ] AC-4 break authorization via the existing expiry-exemption pattern
-- [ ] AC-5 end-to-end verification
+- [x] AC-1 `rigel impact` report (in-repo + cross-service + capability + blind-spot disclosure)
+- [x] AC-2 declared `impact` block in `/write-spec`, required by `/write-plan` — all four templates
+      (nextjs gets a CONSUMER variant: it publishes no contract, so it says plainly there is no
+      oasdiff cross-check rather than implying one)
+- [x] AC-3 declaration-vs-reality check wired into the existing contract gate
+- [x] AC-4 break authorization via the existing expiry-exemption pattern + named consumers
+- [x] AC-5 end-to-end verification — packed tarball → real `create-rigel` scaffold → all five
+      states produce the right exit code and an honest message
+
+## What building it changed
+
+Three defects, all found by RUNNING the thing rather than reasoning about it (LSN-0003, now 9-for-9):
+
+1. **`#` is not a comment in oasdiff.** Every line in an `--err-ignore` file is matched as a
+   substring, so the worked example inside the seeded header was a LIVE rule suppressing exactly
+   the break it documented. v0.12.0 escaped only because its example wrote `'200'` where oasdiff
+   emits `` `200` `` — luck, not design. The seeded file now ships with no runnable example, and
+   all three gates reject a `#` line that looks like an operation. Recorded as LSN-0013.
+2. **AC-4 defeated AC-3.** An exemption erased the break from the declaration cross-check, so
+   `breaking: false` plus an exemption passed. oasdiff now runs twice — raw for the truth, ignored
+   for enforcement. An exempted break is still an undeclared break.
+3. **"CI enforces it" was a claim, not a fact.** nestjs has no committed `ci.yml` at all, and both
+   nestjs and fastapi generate theirs at `/infra-setup` time, so neither could ever promise it. The
+   gate now READS `.github/workflows` for an actual oasdiff install and fails when nothing does.
+
+Two honesty fixes fell out of the same runs: the gate no longer prints "no breaking API changes"
+when a break exists and is merely authorized, and an EXPIRED exemption no longer reports as
+"AUTHORIZED" (oasdiff suppresses it regardless — our own expiry check now gates that claim).
 
 ---
 
