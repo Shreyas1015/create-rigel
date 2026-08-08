@@ -1,10 +1,10 @@
 <div align="center">
 
-# ✦ rigel
+# rigel
 
-**Harness the power of AI coding agents into shipped, gated software.**
+**A project scaffolder for teams building with AI coding agents.**
 
-Scaffold an agent-first, gate-enforced starter project — Next.js · Express · FastAPI — each wired for [Claude Code](https://docs.claude.com/en/docs/claude-code) with a mechanical quality gate, path-scoped rules, specialist review agents, and a spec-driven workflow baked in.
+Generates a Next.js, Express, or FastAPI repo where an agent's work is constrained by rules it must follow and checked by a gate that fails the build — wired for [Claude Code](https://docs.claude.com/en/docs/claude-code), and useful without it.
 
 [![npm version](https://img.shields.io/npm/v/create-rigel.svg?logo=npm&color=cb3837)](https://www.npmjs.com/package/create-rigel)
 [![npm downloads](https://img.shields.io/npm/dm/create-rigel.svg)](https://www.npmjs.com/package/create-rigel)
@@ -18,14 +18,13 @@ Scaffold an agent-first, gate-enforced starter project — Next.js · Express ·
 npm create rigel@latest my-app
 ```
 
-> **rigel** — named for the *rig* that harnesses raw power, and for [Rigel](https://en.wikipedia.org/wiki/Rigel), one of the brightest stars in the sky. It rigs your project with guardrails so a powerful agent builds like a pro.
-
 ---
 
 ## Table of contents
 
 - [Why rigel?](#why-rigel)
 - [What you get](#what-you-get)
+- [When not to use rigel](#when-not-to-use-rigel)
 - [Quick start](#quick-start)
 - [Templates](#templates)
 - [Inside a scaffolded project](#inside-a-scaffolded-project)
@@ -48,15 +47,22 @@ Coding agents are great at *writing* code and bad at *stopping themselves from d
 
 ## What you get
 
-- 🧱 **Opinionated, layered architecture** per stack — a strict import matrix (types → config → models → repo → service → runtime → …) that keeps business logic testable and isolated.
-- ✅ **A mechanical gate** — `typecheck + lint (zero warnings) + circular-dep check + architecture tests + coverage thresholds` that must pass before every commit. Encode a rule or drop it.
-- 🤖 **A `.claude/` workflow** — path-scoped rules, a numbered skill pipeline, and specialist review agents (reviewer, security-auditor, arch-validator, db-optimizer, …) that run automatically.
-- 📐 **Spec-driven delivery** — a `docs/` taxonomy (product-specs → exec-plans → design-docs/ADRs) so intent lives in the repo and drives the build.
-- 🔒 **Security & correctness defaults** — validate-at-the-boundary, OWASP handler ordering, a mandatory cross-user isolation test (404, not 403), and a pre-write hook that blocks secrets and edits to generated contracts.
-- 🚦 **CI-ready** — pre-commit hooks and CI workflows so the gate runs on every push, not just locally.
-- 🧪 **Proof instead of claims** — acceptance tests must be proven *red* before a spec can be planned, and a runner that executes zero tests fails the gate instead of reporting green.
-- 📜 **A contract gate** — `oasdiff` catches breaking API changes; a deliberate break needs a named owner, an expiry, and the consumers you're breaking it for.
-- 🔄 **A day-2 story** — a provenance manifest lets `create-rigel update` pull template improvements into an existing repo without clobbering your edits.
+- **Opinionated, layered architecture** per stack — a strict import matrix (types → config → models → repo → service → runtime → …) that keeps business logic testable and isolated.
+- **A mechanical gate** — `typecheck + lint (zero warnings) + circular-dep check + architecture tests + coverage thresholds` that must pass before every commit. Encode a rule or drop it.
+- **A `.claude/` workflow** — path-scoped rules, a numbered skill pipeline, and specialist review agents (reviewer, security-auditor, arch-validator, db-optimizer, …) that run automatically.
+- **Spec-driven delivery** — a `docs/` taxonomy (product-specs → exec-plans → design-docs/ADRs) so intent lives in the repo and drives the build.
+- **Security & correctness defaults** — validate-at-the-boundary, OWASP handler ordering, a mandatory cross-user isolation test (404, not 403), and a pre-write hook that blocks secrets and edits to generated contracts.
+- **CI-ready** — pre-commit hooks and CI workflows so the gate runs on every push, not just locally.
+- **Proof instead of claims** — acceptance tests must be proven *red* before a spec can be planned, and a runner that executes zero tests fails the gate instead of reporting green.
+- **A contract gate** — `oasdiff` catches breaking API changes; a deliberate break needs a named owner, an expiry, and the consumers you're breaking it for.
+- **A day-2 story** — a provenance manifest lets `create-rigel update` pull template improvements into an existing repo without clobbering your edits.
+
+## When not to use rigel
+
+- **You want a minimal starting point.** These are opinionated repos with an enforced architecture and a gate that will reject code it doesn't like. If you want an empty folder and freedom, use the stack's own CLI.
+- **You're prototyping or building a throwaway.** The spec → plan → layer loop is overhead you won't recover on a weekend project. Its value shows up when code has to be maintained by people who didn't write it.
+- **Your team won't accept the architecture.** The import matrix and layer order are the point, not a default — a rule you intend to disable is worse than no rule.
+- **You need a stack that isn't here.** Only `nextjs`, `express`, and `fastapi` are maintained right now.
 
 ## Quick start
 
@@ -193,6 +199,8 @@ and knowledge by SHA — see [`docs/company-level.md`](./docs/company-level.md).
   - `fastapi` — Python 3.11+ and [`uv`](https://github.com/astral-sh/uv).
 
 ## FAQ
+
+**Why "rigel"?** For the *rig* that harnesses raw power, and for [Rigel](https://en.wikipedia.org/wiki/Rigel), one of the brightest stars in the sky.
 
 **Do I have to use Claude Code?** No — the templates are normal, runnable projects. The `.claude/` workflow is a bonus that makes AI-assisted development disciplined; the gate and architecture stand on their own.
 
