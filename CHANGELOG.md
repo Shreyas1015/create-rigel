@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-08-08
+
 ### Added
 - **`/debug` now ends in a regression test, mechanically.** It already forbade guessing, but its
   output was a fixed bug and a written record — nothing stopped the bug returning. A fix without a
