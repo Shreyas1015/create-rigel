@@ -217,6 +217,21 @@ for (const stack of STACKS) {
       );
     }
 
+    // PLAN-015: MCP declarations must ship WITH the checker that validates them. A .mcp.json
+    // nothing verifies is a list of capabilities the agent may silently not have.
+    {
+      assert.ok(has(dir, ".mcp.json"), `${stack}: missing .mcp.json`);
+      assert.ok(has(dir, "scripts/check-mcp.mjs"), `${stack}: missing scripts/check-mcp.mjs`);
+      assert.ok(has(dir, "scripts/lib/rigel-mcp.mjs"), `${stack}: MCP lib was not stamped in`);
+      const declared = JSON.parse(reads(dir, ".mcp.json")).mcpServers ?? {};
+      assert.ok(Object.keys(declared).length > 0, `${stack}: .mcp.json declares nothing`);
+      const gate = stack === "fastapi" ? reads(dir, "scripts/gate.sh") : reads(dir, "package.json");
+      const wired =
+        /check-mcp\.mjs|mcp:check/.test(gate) ||
+        /mcp:check/.test(reads(dir, ".claude/skills/00-infra-setup/SKILL.md"));
+      assert.ok(wired, `${stack}: mcp:check is not wired into the gate`);
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

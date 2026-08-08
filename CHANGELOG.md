@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-08
+
+### Added
+- **MCP servers ship declared and checked.** Every template now carries a `.mcp.json`, and
+  `npm run mcp:check` (a gate step) verifies it. Deliberately short: Claude Code already has file,
+  bash, git and web tools, so Filesystem/Git/Fetch MCP servers would only duplicate them and spend
+  context. **context7** earns its line everywhere — every skill with a non-empty `libraries:` list
+  owes a Skill Freshness Check, and answering "what changed in v6?" from training data is exactly
+  the stale-knowledge failure that check exists to catch. **playwright** is nextjs-only, where the
+  template already ships e2e tests and captures vision-judge screenshots.
+- **`scripts/check-mcp.mjs`** — a declared MCP server that cannot run is a *silent no-op*: a typo'd
+  command or renamed package loads as "configured" and then provides no tools, with no error, so the
+  agent quietly lacks a capability it was told it had and answers from stale training data instead.
+  Same false-green class as a runner that executes zero tests. It validates the file, every entry,
+  and every launcher on PATH — and states plainly what it did **not** prove (it never launches a
+  server or reaches the network; a gate that fails on a slow registry teaches people to skip it).
+
+### Changed
+- `.claude/settings.json` pinned `claude-opus-4-8` — a valid current model, but a *specific* version,
+  so the templates would never track newer ones. Now the `opus` alias, matching `model-routing.json`,
+  which already used aliases. No dated model ID remains anywhere in the repo.
+
+### Fixed
+- The PATH lookup in the MCP checker resolves `PATH` directly instead of `spawnSync(..., {shell: true})`,
+  which concatenates unescaped (Node DEP0190) and would turn an attacker-controlled `.mcp.json` into
+  command execution on whoever runs the check.
+
 ## [0.17.0] - 2026-08-08
 
 > **Convergence you can finish.** v0.16.0 made the distance between an adopted repo and a healthy

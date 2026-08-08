@@ -97,6 +97,11 @@ python3 scripts/rigel_knowledge.py || FAIL=1
 # out to another binary — it skips the oasdiff half with a notice when oasdiff is absent.
 # 13b. regression tests for recurring failures (PLAN-012) — a signature that has failed twice is
 # a /debug case, and a /debug case that ends without a regression test will come back.
+# 13a. MCP declarations (PLAN-015) — a declared server that cannot start provides no tools and
+# reports no error, so the agent silently loses a capability it was told it had.
+echo "── mcp declarations ──"
+node scripts/check-mcp.mjs || FAIL=1
+
 echo "── debug regressions ──"
 python3 scripts/debug_regression.py check || FAIL=1
 

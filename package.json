@@ -1,13 +1,13 @@
 {
   "name": "create-rigel",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Scaffold a Next.js, Express, or FastAPI project where an AI coding agent's work is constrained by rules and checked by a gate that fails the build. Wired for Claude Code.",
   "type": "module",
   "bin": {
     "create-rigel": "cli.js"
   },
   "scripts": {
-    "test": "node lib/manifest.test.mjs && node lib/manifest.parity.test.mjs && node lib/update.test.mjs && node lib/layer.test.mjs && node lib/knowledge.test.mjs && node lib/knowledge.parity.test.mjs && node lib/map.test.mjs && node lib/impact.test.mjs && node lib/install.test.mjs && node lib/doctor.test.mjs && node lib/candidates.test.mjs && node scripts/check-ci-mirrors-gate.mjs && node test/smoke.mjs && node test/adopt.mjs",
+    "test": "node lib/manifest.test.mjs && node lib/manifest.parity.test.mjs && node lib/update.test.mjs && node lib/layer.test.mjs && node lib/knowledge.test.mjs && node lib/knowledge.parity.test.mjs && node lib/map.test.mjs && node lib/impact.test.mjs && node lib/install.test.mjs && node lib/doctor.test.mjs && node lib/mcp.test.mjs && node lib/candidates.test.mjs && node scripts/check-ci-mirrors-gate.mjs && node test/smoke.mjs && node test/adopt.mjs",
     "test:evals": "node evals/harness/lib/eval-lib.test.mjs && node evals/harness/load-golden.test.mjs && node evals/harness/score.test.mjs && node evals/harness/calibrate.test.mjs && node evals/harness/champion.test.mjs && node evals/harness/parity.test.mjs && node evals/harness/run-trial.test.mjs && node evals/harness/golden-nightly.test.mjs",
     "eval:promote-check": "node evals/harness/promotion-check.mjs",
     "check:ci": "node scripts/check-ci-mirrors-gate.mjs"

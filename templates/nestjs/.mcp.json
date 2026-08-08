@@ -8,14 +8,6 @@
         "-y",
         "@upstash/context7-mcp"
       ]
-    },
-    "playwright": {
-      "//": "Drives a real browser. This template already ships Playwright e2e tests and captures screenshots for the vision-judge, so the agent being able to open the page it just built closes that loop instead of guessing from the DOM.",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@playwright/mcp@latest"
-      ]
     }
   }
 }
