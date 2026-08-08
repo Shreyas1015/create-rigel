@@ -1,7 +1,7 @@
 {
   "name": "create-rigel",
   "version": "0.14.0",
-  "description": "Scaffold an agent-first, gate-enforced starter project — Next.js, Express+TypeScript, NestJS, or FastAPI — wired for Claude Code.",
+  "description": "Scaffold a Next.js, Express, or FastAPI project where an AI coding agent's work is constrained by rules and checked by a gate that fails the build. Wired for Claude Code.",
   "type": "module",
   "bin": {
     "create-rigel": "cli.js"
@@ -36,10 +36,14 @@
     "starter",
     "nextjs",
     "express",
-    "nestjs",
     "fastapi",
     "claude-code",
-    "agentic"
+    "agentic",
+    "ai-agents",
+    "code-quality",
+    "openapi",
+    "contract-testing",
+    "monorepo-standards"
   ],
   "author": "Shreyas1015",
   "license": "MIT",

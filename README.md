@@ -143,7 +143,7 @@ After scaffolding, open the project in Claude Code and drive the pipeline:
 And when things go wrong, or you learn something:
 
 ```text
-/debug            # a hypothesis-driven loop that ends in a regression test, not a guess
+/debug            # one falsifiable hypothesis at a time, with a stop rule — not "try again differently"
 /curate           # turn a repeated gate failure into a written lesson
 /postmortem       # after an incident: what broke, and which check would have caught it
 ```
