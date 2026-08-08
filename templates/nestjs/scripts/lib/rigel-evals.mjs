@@ -155,7 +155,12 @@ export function writeJson(path, data) {
 
 export function gitHead() {
   try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    // stdio pipes stderr: in a repo with no commits git writes "fatal: ambiguous argument
+    // 'HEAD'" straight to the terminal, which reads as a crash in a call that recovers fine.
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
   } catch {
     return 'unknown'
   }

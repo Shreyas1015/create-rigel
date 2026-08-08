@@ -67,6 +67,19 @@ form a hypothesis about *that* instead. (In this stack, a test that passes alone
 suite is usually shared MSW handlers or a query cache that wasn't reset — that's a hypothesis, so
 state it as one.)
 
+### Step 3b — Turn the reproduction into a failing test, and prove it red
+
+**Do this BEFORE the fix.** A test written afterwards has never been observed failing, so it may
+assert nothing at all — that is the same false-green this repo already rejects for acceptance tests.
+
+```bash
+# write the test so it FAILS on the bug as it exists right now, then:
+node scripts/debug-regression.mjs red <signature> --test tests/regression/<name>.test.ts
+```
+
+It refuses a test that already passes. Once red is recorded, the fix has something to turn green,
+and `npm run gate` will not let this signature go untested.
+
 ## Step 4 — Verify the hypothesis against the gate (free ground truth)
 
 Most systems ask an LLM to guess whether the diagnosis is right. Here the gate answers. Make the
@@ -92,6 +105,16 @@ plans is exactly the signal `/curate` needs:
 ```bash
 node scripts/record-failure.mjs <signature> "<message>" <file:line>
 ```
+
+Then close the loop — the test from Step 3b must now pass:
+
+```bash
+node scripts/debug-regression.mjs green <signature>
+```
+
+This is not bookkeeping. `npm run gate` runs `debug:regression check`, and **any signature that has
+failed twice without a regression test proven red→green fails the build.** A recurring bug with no
+test will come back; this is what stops it.
 
 ## Step 6 — Distill (only if it generalises)
 

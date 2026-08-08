@@ -21,6 +21,7 @@ enforceable because Rigel's gate is ground truth: it says exactly what broke, wh
 - Weakening the gate, lowering a threshold, adding a lint disable, or marking a test `.skip`.
 - Deleting or editing the acceptance test that's failing (the holdout hook blocks this anyway).
 - Broad "shotgun" edits touching several files at once to see what sticks.
+- Declaring it fixed without a regression test. A fix without a test has a shelf life.
 
 ---
 
@@ -62,6 +63,19 @@ A shorter reproduction is a faster loop and it isolates the variable. If you can
 isolation, that is itself information: the failure is environmental or order-dependent — say so and
 form a hypothesis about *that* instead.
 
+### Step 3b — Turn the reproduction into a failing test, and prove it red
+
+**Do this BEFORE the fix.** A test written afterwards has never been observed failing, so it may
+assert nothing at all — that is the same false-green this repo already rejects for acceptance tests.
+
+```bash
+# write the test so it FAILS on the bug as it exists right now, then:
+node scripts/debug-regression.mjs red <signature> --test tests/regression/<name>.test.ts
+```
+
+It refuses a test that already passes. Once red is recorded, the fix has something to turn green,
+and `npm run gate` will not let this signature go untested.
+
 ## Step 4 — Verify the hypothesis against the gate (free ground truth)
 
 Most systems ask an LLM to guess whether the diagnosis is right. Here the gate answers. Make the
@@ -87,6 +101,16 @@ plans is exactly the signal `/curate` needs:
 ```bash
 node scripts/record-failure.mjs <signature> "<message>" <file:line>
 ```
+
+Then close the loop — the test from Step 3b must now pass:
+
+```bash
+node scripts/debug-regression.mjs green <signature>
+```
+
+This is not bookkeeping. `npm run gate` runs `debug:regression check`, and **any signature that has
+failed twice without a regression test proven red→green fails the build.** A recurring bug with no
+test will come back; this is what stops it.
 
 ## Step 6 — Distill (only if it generalises)
 

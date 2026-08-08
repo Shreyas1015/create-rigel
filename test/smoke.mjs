@@ -155,6 +155,23 @@ for (const stack of STACKS) {
       existsSync(join(dir, ".claude", "model-routing.json")),
       `${stack}: .claude/model-routing.json was not stamped`
     );
+    // PLAN-012: /debug must end in a regression test, and that is only true if the script and
+    // the gate wiring actually ship. Assert both — a skill that references a missing script is
+    // exactly the "documented but not enforced" failure this repo exists to prevent.
+    {
+      const py = stack === "fastapi";
+      const script = py ? "scripts/debug_regression.py" : "scripts/debug-regression.mjs";
+      assert.ok(has(dir, script), `${stack}: missing ${script}`);
+      const skill = reads(dir, ".claude/skills/debug/SKILL.md");
+      assert.match(skill, /debug[-_]regression/, `${stack}: /debug skill never invokes the regression recorder`);
+      assert.match(skill, /red\b/, `${stack}: /debug skill does not record a RED proof before the fix`);
+      const gate = py ? reads(dir, "scripts/gate.sh") : reads(dir, "package.json");
+      const wired = py
+        ? /debug_regression\.py check/.test(gate)
+        : /debug:regression check/.test(gate) ||
+          /debug:regression check/.test(reads(dir, ".claude/skills/00-infra-setup/SKILL.md"));
+      assert.ok(wired, `${stack}: debug regression check is not wired into the gate`);
+    }
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

@@ -95,6 +95,11 @@ python3 scripts/rigel_knowledge.py || FAIL=1
 # change vs origin/main (oasdiff; git history is the contract registry), and every .oasdiff-ignore
 # exemption carries a reason + an unexpired expiry. LAST because it is the only step that shells
 # out to another binary — it skips the oasdiff half with a notice when oasdiff is absent.
+# 13b. regression tests for recurring failures (PLAN-012) — a signature that has failed twice is
+# a /debug case, and a /debug case that ends without a regression test will come back.
+echo "── debug regressions ──"
+python3 scripts/debug_regression.py check || FAIL=1
+
 echo "── contract gate ──"
 python3 scripts/contract_gate.py || FAIL=1
 

@@ -281,12 +281,13 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "typecheck": "tsc --noEmit",
 "test:arch": "jest tests/architecture/",
 "verify:rigel": "node scripts/rigel-verify.mjs",
+"debug:regression": "node scripts/debug-regression.mjs",
 "knowledge": "node scripts/rigel-knowledge.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
 "ac:vector": "node scripts/ac-vector.mjs",
 "openapi:export": "ts-node scripts/openapi.export.ts",
 "contract:gate": "node scripts/contract-gate.mjs",
-"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run knowledge && npm run contract:gate",
+"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run knowledge && npm run debug:regression check && npm run contract:gate",
 "gate:final": "npm run gate && npm run ac:vector"
 ```
 

@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`/debug` now ends in a regression test, mechanically.** It already forbade guessing, but its
+  output was a fixed bug and a written record — nothing stopped the bug returning. A fix without a
+  test has a shelf life, and prose in a skill cannot enforce that.
+  - New `scripts/debug-regression.mjs` (`debug_regression.py` on FastAPI) with `red` / `green` /
+    `check`. The reproduction from Step 3 becomes a failing test, **proven red before the fix** —
+    a test written afterwards has never been observed failing, so it may assert nothing at all.
+  - `npm run gate` (and `gate.sh`) now fail when a signature that has failed **twice** — exactly
+    /debug's own trigger — has no regression test proven red→green, or when that test is deleted.
+    A *first* failure owes nothing: demanding a test for every transient failure would be noise,
+    and a check that cries wolf gets switched off.
+  - `red` refuses a test that already passes, one that fails to load (syntax error, bad import),
+    and one containing zero tests. Exit code alone can't tell "assertion failed" from "suite
+    wouldn't parse", so it reads the structured report (jest/vitest) or pytest's distinct exit
+    codes — otherwise a file of gibberish would count as proof that a bug reproduces.
+
 ### Changed
 - **`nestjs` is delisted.** It is unmaintained for now, so it no longer appears in the stack picker,
   is rejected by `--template nestjs`, and is undocumented. Its files still **ship** in
@@ -17,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and how to go beyond one repo.
 
 ### Fixed
+- `gitHead()` in the shared eval lib leaked git's `fatal: ambiguous argument 'HEAD'` to the terminal
+  in a repo with no commits — it recovered fine, but the raw error read as a crash.
 - The stack picker's "Enter number (1-4)" prompt was hardcoded; it now derives the range from the
   actual stack list.
 - `create-rigel impact` no longer leaks git's `fatal: bad revision 'HEAD'` to the terminal in a repo
