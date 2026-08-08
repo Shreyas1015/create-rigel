@@ -13,7 +13,9 @@ import { stdin as input, stdout as output } from "node:process";
 import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./lib/manifest.mjs";
 import { parseTemplateSpec, fetchLayer, readLayerConfig, applyLayer, mergeOwnership } from "./lib/layer.mjs";
 import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS_PATH } from "./lib/map.mjs";
-import { planInstall, install, summarizeInstall, coreCollisions } from "./lib/install.mjs";
+import { planInstall, install, summarizeInstall, coreCollisions, staleHarness } from "./lib/install.mjs";
+import { diagnose, countBad, BLIND_SPOTS as DOCTOR_BLIND_SPOTS } from "./lib/doctor.mjs";
+import { candidates } from "./lib/candidates.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
   serviceImpact, touchesContract, BLIND_SPOTS,
@@ -152,6 +154,7 @@ async function cmdAdopt(argv) {
   const root = process.cwd();
   const dryRun = argv.includes("--dry-run");
   const forceCore = argv.includes("--force-core");
+  const takeHarness = argv.includes("--take-harness");
   const state = detectState(root);
 
   if (state === "adopted") {
@@ -201,12 +204,26 @@ async function cmdAdopt(argv) {
     console.log("");
     console.log(summarizeInstall(plan) || "  Nothing to place — already complete.");
 
+    // A repo an OLDER Rigel scaffolded has stale copies of shipped harness scripts. They are
+    // declined like anything else, but silence here would leave NEW scripts importing an OLD shared
+    // library — which fails later, somewhere unrelated, and looks like a Rigel bug.
+    const stale = staleHarness(plan)
+    if (stale.length && !takeHarness) {
+      console.log("");
+      console.log(`  ! ${stale.length} Rigel harness file(s) here are older than this version and were left as-is:`);
+      for (const p of stale.slice(0, 8)) console.log(`      ${p}`);
+      if (stale.length > 8) console.log(`      … and ${stale.length - 8} more`);
+      console.log("    New scripts may expect the newer versions. To take Rigel's copies");
+      console.log("    (yours are saved as <path>.pre-rigel):  npx create-rigel adopt --take-harness");
+    }
+
     if (dryRun) {
       console.log("\n  (--dry-run: nothing was written)\n");
       return;
     }
 
-    for (const p of forceCore ? core : []) {
+    const takeOver = [...(forceCore ? core : []), ...(takeHarness ? stale : [])];
+    for (const p of takeOver) {
       await rename(join(root, p), join(root, `${p}.pre-rigel`));
       console.log(`  · moved yours to ${p}.pre-rigel`);
       plan.added.push(p);
@@ -256,6 +273,98 @@ function printGateWiring(root, stack) {
   console.log('      "contract:gate":    "node scripts/contract-gate.mjs",');
   console.log('      "gate":             "npm run verify:rigel && npm run knowledge && npm run debug:regression check"');
   console.log("\n  Until then the harness is present but nothing runs it. `create-rigel doctor` will say so.\n");
+}
+
+
+
+// ── `create-rigel candidates` — the deterministic half of /backfill-knowledge ──
+// Read-only, exit 0. The skill shells out to this rather than grepping, for the same reason
+// /curate shells out to curate-scan.mjs: derivation in prose gets improvised.
+function cmdCandidates(argv) {
+  const root = process.cwd();
+  const limit = Number(argFor(argv, "--limit") ?? 10);
+  const found = candidates(root, { limit });
+
+  if (argv.includes("--json")) {
+    console.log(JSON.stringify({ candidates: found }, null, 2));
+    return;
+  }
+  console.log("");
+  if (!found.length) {
+    console.log("  No glossary candidates found — no defined types, or they are all documented already.\n");
+    return;
+  }
+  console.log(`  ${found.length} candidate term(s), domain layers first, then by fan-in:\n`);
+  for (const c of found) {
+    console.log(`      ${c.symbol.padEnd(24)} ${c.file}  (${c.fanIn} importer${c.fanIn === 1 ? "" : "s"})`);
+  }
+  console.log("\n  Each is DEFINED where shown, so an anchor on it will resolve.");
+  console.log("  The definition, owner and business meaning are yours to write — run /backfill-knowledge.\n");
+}
+
+// ── `create-rigel doctor` — how far is this repo from a healthy Rigel repo? ──
+//
+// ALWAYS exits 0, like `impact`. A brownfield repo will light up on day one; a red exit there
+// teaches "rigel is broken" and gets it switched off, taking the working gates with it. `--strict`
+// exists for a team that wants it in their OWN ci, and Rigel wires it into nothing.
+//
+// Read-only, and works in a repo with zero Rigel files — so running it BEFORE adopting is the
+// "what would this take" preview. One engine, not two.
+const MARK = { ok: "✓", note: "!", bad: "✗" };
+
+async function cmdDoctor(argv) {
+  const root = process.cwd();
+  const asJson = argv.includes("--json");
+  const strict = argv.includes("--strict");
+  const state = detectState(root);
+
+  // Not adopted yet? Then the most useful thing to show is what adoption WOULD do.
+  let plan = null;
+  let staged = null;
+  if (state !== "adopted") {
+    const stack = argFor(argv, "--template") ?? detectStack(root);
+    if (stack && ADOPTABLE.includes(stack)) {
+      staged = await mkdtemp(join(tmpdir(), "rigel-doctor-"));
+      await materialize(HERE, stack, staged);
+      plan = planInstall(staged, root);
+    }
+  }
+
+  try {
+    const report = diagnose(root, { plan });
+
+    if (asJson) {
+      console.log(JSON.stringify({ ...report, baseline: readManifest(root)?.baseline ?? [] }, null, 2));
+      return;
+    }
+
+    console.log("");
+    console.log(`  DETECTED      ${report.state}${report.template ? ` · ${report.template}` : ""}${report.mode ? ` · ${report.mode}` : ""}`);
+    if (report.state !== "adopted") console.log("                not adopted yet — the sections below are what adoption would give you");
+
+    for (const section of report.sections) {
+      if (!section.findings.length) continue;
+      console.log("");
+      console.log(`  ${section.label}`);
+      for (const f of section.findings) {
+        console.log(`    ${MARK[f.state]} ${f.detail}`);
+        if (f.fix && f.state !== "ok") console.log(`        → ${f.fix}`);
+      }
+    }
+
+    console.log("");
+    console.log("  NOT VISIBLE HERE — check these yourself:");
+    for (const b of DOCTOR_BLIND_SPOTS) console.log(`      · ${b}`);
+
+    const bad = countBad(report);
+    console.log("");
+    console.log(bad ? `  ${bad} thing(s) need attention.` : "  Nothing needs attention.");
+    console.log("  This is a lens, not a gate. The gates are what block.\n");
+
+    if (strict && bad) process.exit(1);
+  } finally {
+    if (staged) await rm(staged, { recursive: true, force: true });
+  }
 }
 
 // ── `create-rigel update` — bring an existing scaffold forward (PLAN-008 AC-3) ──
@@ -496,6 +605,8 @@ async function main() {
   if (sub === "map") return cmdMap(process.argv.slice(3));
   if (sub === "impact") return cmdImpact(process.argv.slice(3));
   if (sub === "adopt") return cmdAdopt(process.argv.slice(3));
+  if (sub === "doctor") return cmdDoctor(process.argv.slice(3));
+  if (sub === "candidates") return cmdCandidates(process.argv.slice(3));
 
   const args = parseArgs(process.argv);
   const rl = createInterface({ input, output });

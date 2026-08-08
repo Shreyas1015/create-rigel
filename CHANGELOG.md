@@ -6,6 +6,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-08-08
+
+> **One repo model.** Greenfield is no longer a better product than an existing repo — it is the
+> point on one scale where the distance is zero. `create-rigel doctor` measures that distance for
+> every repo, and `create-rigel adopt` closes it without touching a byte you wrote.
+
+### Added
+- **`create-rigel adopt`** — add Rigel to a repo it did not create. Detects state
+  (greenfield / never-rigel / stale-rigel / adopted) and stack, **prints** the detection, and never
+  asks "which are you?" — that is a fact about the directory. Additive only: a pre-existing file is
+  *declined*, recorded in `manifest.baseline`, and never owned or rewritten even inside a managed
+  glob. Emits no `.rigel-new` sidecars (a conflict needs a common base; at adoption there is none,
+  and one sidecar is a fatal gate failure). Refuses to baseline the verifier itself. Won't edit
+  `package.json` — it prints the gate block for a human, because silently editing a seed file would
+  break the ownership contract adoption exists to establish.
+- **`create-rigel doctor`** — the same engine as the adoption preview, so running it *before*
+  adopting shows what adoption would do. Sections: PLACEMENT · PROVENANCE · INTEGRITY · WIRING ·
+  KNOWLEDGE · CONVERGENCE. **Always exits 0**, like `impact` — a red build in a repo where a dozen
+  things are unwired teaches "rigel is broken". `--strict` and `--json` for teams that want more.
+  Where it cannot parse a gate chain it says *"could not determine"* rather than guessing ✓.
+- **`create-rigel candidates`** — the deterministic half of `/backfill-knowledge`: glossary terms
+  ranked by domain layer then fan-in, each already resolvable by the anchor checker. Read-only.
+- **`/backfill-knowledge`** (express, fastapi) — derives what an anchor can prove, and *asks* for
+  the definition, `owner`, and every KPI. A machine-written declaration verifies nothing.
+
+### Fixed
+- **Ownership was acquired by proximity.** `rewriteManifest` re-hashed everything matching a managed
+  glob, so a user's own `.github/workflows/deploy.yml` became Rigel-owned and gate-enforced after a
+  single `update` — silently and permanently. It is now a function of what the update actually
+  *wrote*. Measured on a real scaffold: 70 files claimed before, 68 after. It had no test coverage,
+  which is how it survived. **This was a greenfield bug**, not an adoption one.
+- **Shipped CI never ran the gate it claimed to mirror.** express ran 4 of 9 steps and nextjs 4 of 8;
+  `verify:rigel`, `test:arch`, `assert:tests`, `knowledge`, `debug:regression` and
+  `contract:freshness` ran nowhere in CI. Both workflows now **invoke** `npm run gate` rather than
+  re-listing it, so drift is impossible rather than merely detectable, and
+  `scripts/check-ci-mirrors-gate.mjs` enforces that. (LSN-0015)
+- **The verifiers fail loud instead of green**, in both languages: `files: {}` exits 2 ("this check
+  would verify nothing"), and a manifest with a newer `schemaVersion` exits 2 rather than silently
+  downgrading adopted files to harmless notes.
+- `docs/company-level.md` claimed a manifest "cannot be added retroactively" — adoption makes that
+  false.
+
+### Changed
+- Manifest `schemaVersion` 1 → 2 (both JS and Python): adds `mode`, `adoptedAt`, `baseline`.
+  v1 manifests keep loading.
+
 ## [0.15.1] - 2026-08-08
 
 ### Fixed

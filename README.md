@@ -174,21 +174,34 @@ prose is deleted. Memory is a staging area for gate rules, not a library of advi
 ## Beyond one repo
 
 ```bash
-npx create-rigel impact    # what does my change touch — here and across services?
-npx create-rigel facts     # what this service provides, consumes, and runs on
-npx create-rigel map       # the company service map
-npx create-rigel update    # pull template improvements into an existing repo
+npx create-rigel adopt      # add Rigel to a repo it didn't create — additive, nothing overwritten
+npx create-rigel doctor     # how far is this repo from a healthy one?
+npx create-rigel impact     # what does my change touch — here and across services?
+npx create-rigel update     # pull template improvements into an existing repo
+npx create-rigel facts      # what this service provides, consumes, and runs on
+npx create-rigel map        # the company service map
 ```
+
+There is one model of a healthy Rigel repo and every repo has a distance from it — a fresh scaffold
+is simply the point where that distance is zero, not a better product. `doctor` measures it, and
+because it is read-only and works in a repo with no Rigel files, running it *before* adopting is
+also the preview of what adoption would do. It **always exits 0**: a repo where a dozen things are
+unwired should get a report, not a red build.
+
+`adopt` never writes over a file it did not write. Anything already there is left alone, recorded in
+the manifest as yours, and never gate-enforced — even inside a directory Rigel otherwise manages.
+Your existing code stays where it is: Rigel's layer rules and coverage thresholds are scoped to its
+own directories, so they apply to new work and tighten as you adopt more structure, never
+retroactively.
 
 `impact` joins the in-repo import graph with the company service map and the owning business
 capability, so you can see what a change reaches without cloning other repos. It prints what it
-*can't* see too — queues, feature flags, string-keyed routing — and **always exits 0**. It informs;
-the contract gate is what blocks.
+*can't* see too — queues, feature flags, string-keyed routing — and never blocks; the contract gate
+does that.
 
-`update` is a three-hash merge (original / current / incoming) against the provenance manifest
-Rigel wrote at scaffold time: untouched files update silently, your edits are left alone and
-reported. No patch reconstruction, no `.rej` files. Teams can pin a shared company layer of rules
-and knowledge by SHA — see [`docs/company-level.md`](./docs/company-level.md).
+`update` is a three-hash merge (original / current / incoming): untouched files update silently,
+your edits are left alone and reported. No patch reconstruction, no `.rej` files. Teams can pin a
+shared company layer of rules and knowledge by SHA — see [`docs/company-level.md`](./docs/company-level.md).
 
 ## Requirements
 
