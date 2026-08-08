@@ -25,7 +25,7 @@
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "check:circular": "madge --circular src/ --extensions ts",
-    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run check:circular && npm run test:arch && npm run assert:tests && npm run mcp:check && npm run knowledge && npm run debug:regression check && npm run contract:gate",
+    "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run check:circular && npm run test:arch && npm run assert:tests && npm run mcp:check && npm run silent:check && npm run knowledge && npm run debug:regression check && npm run contract:gate",
     "redgreen:record": "node scripts/redgreen-record.mjs",
     "ac:vector": "node scripts/ac-vector.mjs",
     "gate:final": "npm run gate && npm run ac:vector",
@@ -38,7 +38,8 @@
     "knowledge": "node scripts/rigel-knowledge.mjs",
     "contract:gate": "node scripts/contract-gate.mjs",
     "debug:regression": "node scripts/debug-regression.mjs",
-    "mcp:check": "node scripts/check-mcp.mjs"
+    "mcp:check": "node scripts/check-mcp.mjs",
+    "silent:check": "node scripts/check-silent-failures.mjs"
   },
   "keywords": [
     "express",

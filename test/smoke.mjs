@@ -232,6 +232,19 @@ for (const stack of STACKS) {
       assert.ok(wired, `${stack}: mcp:check is not wired into the gate`);
     }
 
+    // PLAN-016: the swallowed-error check must ship AND be invoked. Shipped-but-unwired is the
+    // exact failure this project keeps rediscovering (LSN-0015) — a script in scripts/ that no
+    // gate ever calls reads as a capability the repo does not actually have.
+    {
+      assert.ok(has(dir, "scripts/check-silent-failures.mjs"), `${stack}: missing scripts/check-silent-failures.mjs`);
+      assert.ok(has(dir, "scripts/lib/rigel-silent.mjs"), `${stack}: silent-failure lib was not stamped in`);
+      const gate = stack === "fastapi" ? reads(dir, "scripts/gate.sh") : reads(dir, "package.json");
+      const wired =
+        /check-silent-failures\.mjs|silent:check/.test(gate) ||
+        /silent:check/.test(reads(dir, ".claude/skills/00-infra-setup/SKILL.md"));
+      assert.ok(wired, `${stack}: silent:check is not wired into the gate`);
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

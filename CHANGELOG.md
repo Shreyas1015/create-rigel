@@ -6,6 +6,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-08
+
+> **A caught error that goes nowhere is a false green.** The gate already refuses a test runner that
+> executes zero tests. This applies the same rule one level down — to the code the gate protects.
+
+### Added
+- **`scripts/check-silent-failures.mjs`** — a new gate step, in every template. `catch {}` is a check
+  that verifies nothing: the request returns 200, the log stays clean, and the bug surfaces hours
+  later somewhere unrelated with no stack trace to follow back. It flags handlers that provably
+  discard the error and nothing else — `catch {}`, `catch (e) {}`, `.catch(() => [])`, `except: pass`
+  — across TypeScript, JavaScript and Python from one implementation, so there is no second port to
+  drift. A handler that logs, rethrows, or returns a typed result is never reported.
+
+  **The exemption is a comment.** When the swallow is deliberate, say why in the code:
+
+  ```ts
+  try { statSync(p) } catch { /* unreadable — treat as absent */ }
+  ```
+  ```py
+  except ConnectionError:  # best-effort — absence is not an error
+      pass
+  ```
+
+  No waiver file and no annotation to learn. The reason lands where the next reader is already
+  looking, and it costs less than adding an entry to a list — which is the only reason anyone
+  actually writes it down. A gate that cries wolf gets switched off, and it takes the working gates
+  with it, so this one is narrow on purpose.
+
+### Credit
+- The idea is [everything-claude-code](https://github.com/affanuu/everything-claude-code)'s
+  `silent-failure-hunter` agent, adapted rather than copied. Theirs finds swallowed errors when you
+  ask it to; this one refuses the build. That difference is the whole point — an agent describes a
+  discipline, an exit code enforces one.
+
+
 ## [0.18.0] - 2026-08-08
 
 ### Added

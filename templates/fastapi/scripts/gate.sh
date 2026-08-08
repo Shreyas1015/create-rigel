@@ -102,6 +102,10 @@ python3 scripts/rigel_knowledge.py || FAIL=1
 echo "── mcp declarations ──"
 node scripts/check-mcp.mjs || FAIL=1
 
+# Swallowed errors in src/ — `except: pass` is a check that verifies nothing (LSN-0004).
+echo "── silent failures ──"
+node scripts/check-silent-failures.mjs || FAIL=1
+
 echo "── debug regressions ──"
 python3 scripts/debug_regression.py check || FAIL=1
 
