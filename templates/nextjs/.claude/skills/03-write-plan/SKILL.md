@@ -44,6 +44,24 @@ Declaring is cheap and over-declaring is free. This app consumes contracts rathe
 one, so there is no oasdiff cross-check here — the declaration is a written record of intent, and
 `breaking: true` means the PROVIDER repo owes a contract change before this ships.
 
+### Step 1d — A declared migration becomes Layer 0
+
+If the spec's `impact` block lists files under `migrate:`, they become the plan's **first** layer —
+before any feature work, so the feature is built on code Rigel already governs rather than adding to
+the ungoverned pile:
+
+```markdown
+- [ ] Layer 0: Migrate — move <file> under the owning layer, update imports, add the missing tests
+```
+
+Move the file into the layer its role implies (a route handler → `app/api/`, shared UI → `components/`,
+data access → `lib/`) and bring it up to that area's coverage threshold. That threshold is why this is
+real work and not a `git mv`.
+
+If `migrate:` is empty, add nothing. Declining is a normal answer and `docs/exec-plans/tech-debt-tracker.md`
+is where those files wait — the point is that the choice was made deliberately, at the moment someone
+was already in that code.
+
 ## Step 2 — Get Next Plan Number
 ```bash
 ls docs/exec-plans/{active,completed}/ 2>/dev/null | grep "PLAN-" | sort | tail -1

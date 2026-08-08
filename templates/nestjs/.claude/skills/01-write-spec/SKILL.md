@@ -24,6 +24,7 @@ impact:
   touches: [Order, orders-api]   # entities / APIs this feature changes
   breaking: false                # do you intend to break an existing consumer?
   consumers_notified: []         # required when breaking: true — name them
+  migrate: []                    # files this touches that sit outside Rigel's layers
 ```
 
 - `breaking: false` and the contract gate finds a breaking change → **the build fails.** An
@@ -32,6 +33,16 @@ impact:
   under-declaring fails. Caution costs nothing.
 - `breaking: true` also requires an authorized exemption at gate time (see `.oasdiff-ignore`),
   which is where you name who you're breaking it for and by when.
+
+`create-rigel impact` ends with a MIGRATION section naming the files this feature touches that
+Rigel's layer rules and coverage thresholds do **not** govern. Listing one in `migrate:` makes moving
+it part of this plan — Layer 0, before the feature work.
+
+This is the only migration mechanism Rigel offers, and deliberately so. A "restructure the repo"
+project does not get funded: teams already spend the bulk of their time on maintenance, and debt
+accrues faster than it is paid down. A ground-up rewrite is worse still. Migrating a file *you are
+already editing* is the one version that reliably happens — so the prompt appears exactly there, and
+nowhere else. Leaving `migrate: []` is a normal answer; it goes to the tech-debt tracker.
 
 Do not guess the entities — read them off `create-rigel impact` and the endpoints above.
 

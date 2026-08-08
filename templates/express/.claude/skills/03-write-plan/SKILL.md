@@ -49,6 +49,25 @@ Declaring is cheap and over-declaring is free; the only thing that costs you is 
 the contract gate catches later. A spec that never states its intent gives the gate nothing to
 verify against.
 
+### Step 1d — A declared migration becomes Layer 0
+
+If the spec's `impact` block lists files under `migrate:`, they become the plan's **first** layer —
+before any feature work, so the feature is built on code Rigel already governs rather than adding to
+the ungoverned pile:
+
+```markdown
+- [ ] Layer 0: Migrate — move <file> under the owning layer, update imports, add the missing tests
+```
+
+Move the file into the layer its role implies (a route → `src/runtime/routes/`, a data accessor →
+`src/repo/`, business logic → `src/services/`) and bring it up to that layer's coverage threshold.
+That threshold is why this is real work and not a `git mv`.
+
+If `migrate:` is empty, add nothing. Declining is a normal answer and `docs/exec-plans/tech-debt-tracker.md`
+is where those files wait — the point is that the choice was made deliberately, at the moment
+someone was already in that code.
+
+
 If either is missing, **stop** and tell the human the spec is not eligible: its acceptance
 tests / red-green proof must be created by `/write-spec` first (the `tests/architecture/`
 traceability test would otherwise fail the very first gate). Do not hand-create these here —

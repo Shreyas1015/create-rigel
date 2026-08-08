@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-08
+
+> **Convergence you can finish.** v0.16.0 made the distance between an adopted repo and a healthy
+> one measurable. This shrinks it — as a side effect of feature work, which is the only budget that
+> reliably exists.
+
+### Added
+- **A MIGRATION section in `create-rigel impact`.** Rigel's layer rules and coverage thresholds are
+  path-scoped, so code outside them is simply ungoverned. `impact` now names the ungoverned files
+  *this change touches* — while the author is already in them — and shows the `migrate:` line to
+  paste. It never nags about the rest of the repo; `doctor` reports that total, separately.
+- **`migrate: []` in the spec's impact block**, and **Layer 0: Migrate** in `/write-plan`. A declared
+  file becomes the plan's first layer: move it under the owning layer, update imports, and meet that
+  layer's coverage threshold — which is why it is real work and not a `git mv`. All four templates.
+
+  This is deliberately the *only* migration mechanism. A "restructure the repo" project does not get
+  funded — teams already spend the bulk of their time on maintenance and debt accrues faster than it
+  is paid down — and a ground-up rewrite is worse. Migrating a file you are already editing is the
+  version that reliably happens, so the prompt appears exactly there. `migrate: []` is a normal
+  answer; those files wait in `docs/exec-plans/tech-debt-tracker.md`.
+
+### Changed
+- The enforced-layer list now lives once, in `lib/impact.mjs`, and `doctor` imports it. Two copies of
+  that list is how a check and its report end up reporting different numbers — drift this repo has
+  been bitten by twice already.
+
 ## [0.16.0] - 2026-08-08
 
 > **One repo model.** Greenfield is no longer a better product than an existing repo — it is the

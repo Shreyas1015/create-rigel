@@ -18,7 +18,7 @@ import { diagnose, countBad, BLIND_SPOTS as DOCTOR_BLIND_SPOTS } from "./lib/doc
 import { candidates } from "./lib/candidates.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
-  serviceImpact, touchesContract, BLIND_SPOTS,
+  serviceImpact, touchesContract, unenforced, BLIND_SPOTS,
 } from "./lib/impact.mjs";
 import {
   materialize,
@@ -544,7 +544,7 @@ async function cmdImpact(argv) {
   const contractTouched = touchesContract(changed);
 
   if (asJson) {
-    console.log(JSON.stringify({ changed, dependents: levels, service: svc, contractTouched, blindSpots: BLIND_SPOTS }, null, 2));
+    console.log(JSON.stringify({ changed, dependents: levels, service: svc, contractTouched, migratable: unenforced([...changed, ...levels.flat()]), blindSpots: BLIND_SPOTS }, null, 2));
     return;
   }
 
@@ -589,6 +589,32 @@ async function cmdImpact(argv) {
   for (const c of svc?.capabilities ?? []) {
     const kpi = c.kpi ? `  KPI ${c.kpi}${c.owner ? ` (${c.owner})` : ""}` : "";
     console.log(`  BUSINESS      ${c.name}${kpi}`);
+  }
+
+  // PLAN-014 — the migration prompt, at the ONE moment it can be acted on cheaply.
+  //
+  // Rigel's rules are path-scoped, so code outside its layers is simply ungoverned. Closing that gap
+  // as a planned "restructure the repo" project does not happen: developers already spend ~84% of
+  // their time on maintenance and debt outpaces paydown, so the budget never arrives. A ground-up
+  // rewrite is worse — the single worst strategic mistake a software team can make.
+  //
+  // What DOES happen is migrating a file you are already editing. So this names the ungoverned files
+  // THIS change touches, while the author is in them. It never nags about the rest of the repo —
+  // `doctor` reports that total, deliberately somewhere else.
+  const migratable = unenforced([...changed, ...levels.flat()]);
+  console.log("");
+  if (migratable.length === 0) {
+    console.log("  MIGRATION     nothing here is outside Rigel's enforced layers");
+  } else {
+    console.log(`  MIGRATION     ${migratable.length} file(s) this change touches are NOT governed by`);
+    console.log("                Rigel's layer rules or coverage thresholds:");
+    for (const f of migratable.slice(0, 8)) console.log(`      ${f}`);
+    if (migratable.length > 8) console.log(`      … and ${migratable.length - 8} more`);
+    console.log("");
+    console.log("    You are already in this code — moving it under a layer now costs a fraction of");
+    console.log("    a separate migration project. Declare it in the spec's impact block:");
+    console.log(`        migrate: [${migratable.slice(0, 2).map((f) => `"${f}"`).join(", ")}${migratable.length > 2 ? ", …" : ""}]`);
+    console.log("    Not now? docs/exec-plans/tech-debt-tracker.md is where it waits.");
   }
 
   console.log("\n  NOT VISIBLE HERE — check these yourself:");

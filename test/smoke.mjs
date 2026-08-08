@@ -198,6 +198,25 @@ for (const stack of STACKS) {
           /debug:regression check/.test(reads(dir, ".claude/skills/00-infra-setup/SKILL.md"));
       assert.ok(wired, `${stack}: debug regression check is not wired into the gate`);
     }
+    // PLAN-014: the migration prompt only works if the spec can declare it and the plan can act
+    // on it. A skill that mentions `migrate:` with no Layer 0 to receive it is a dead end.
+    {
+      const skills = readdirSync(join(dir, ".claude/skills"));
+      const specSkill = skills.find((s) => /write-spec$/.test(s));
+      const planSkill = skills.find((s) => /write-plan$/.test(s));
+      assert.ok(specSkill && planSkill, `${stack}: missing write-spec/write-plan skills`);
+      assert.match(
+        reads(dir, `.claude/skills/${specSkill}/SKILL.md`),
+        /migrate: \[\]/,
+        `${stack}: /write-spec's impact block cannot declare a migration`,
+      );
+      assert.match(
+        reads(dir, `.claude/skills/${planSkill}/SKILL.md`),
+        /Layer 0: Migrate/,
+        `${stack}: /write-plan has nowhere to put a declared migration`,
+      );
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);
