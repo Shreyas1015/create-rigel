@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`nestjs` is delisted.** It is unmaintained for now, so it no longer appears in the stack picker,
+  is rejected by `--template nestjs`, and is undocumented. Its files still **ship** in
+  `templates/nestjs` deliberately: `create-rigel update` resolves the template from
+  `.rigel/manifest.json`, not from the picker, so anyone already on nestjs keeps a working day-2
+  path. Re-listing it in `cli.js`'s `STACKS` is all it takes to bring it back — and a smoke-test
+  assertion now fails if that list and the test's list ever drift apart.
+- README trimmed back toward a README: the deep mechanics moved out, leaving what the gate enforces
+  and how to go beyond one repo.
+
+### Fixed
+- The stack picker's "Enter number (1-4)" prompt was hardcoded; it now derives the range from the
+  actual stack list.
+- `create-rigel impact` no longer leaks git's `fatal: bad revision 'HEAD'` to the terminal in a repo
+  with no commits — it recovered fine, but the raw error read as a crash.
+- Removed `npx create-rigel verify` from the README. It never existed; it falls through to the
+  scaffolder and would try to create a project named `verify`. The real command is
+  `npm run verify:rigel`, inside the project.
+
 ## [0.14.0] - 2026-08-07
 
 > Ships **PLAN-011 — blast radius**. The rule: the lens never blocks, the contract gate does.

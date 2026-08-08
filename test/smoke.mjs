@@ -9,7 +9,29 @@ import assert from "node:assert/strict";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = join(HERE, "..", "cli.js");
-const STACKS = ["nextjs", "express", "nestjs", "fastapi"];
+// The SCAFFOLDABLE stacks — must stay in sync with cli.js's STACKS. `nestjs` is delisted (its
+// files still ship so `update` keeps working for repos already on it), so it can't be scaffolded
+// and isn't smoke-tested. The assertion below is what stops the two lists drifting apart.
+const STACKS = ["nextjs", "express", "fastapi"];
+
+// The list above and cli.js's STACKS must agree — otherwise a stack silently stops being tested
+// (or a delisted one gets scaffolded in CI and never in reality). Assert it rather than trust it.
+{
+  const cli = readFileSync(CLI, "utf8");
+  const block = /const STACKS = \{([\s\S]*?)\};/.exec(cli);
+  assert.ok(block, "cli.js: could not find the STACKS table");
+  const cliStacks = [...block[1].matchAll(/^\s*(\w+):/gm)].map((m) => m[1]);
+  assert.deepEqual(
+    [...STACKS].sort(),
+    cliStacks.sort(),
+    "smoke.mjs STACKS and cli.js STACKS have drifted — one of them is wrong",
+  );
+  assert.ok(!cliStacks.includes("nestjs"), "nestjs is delisted and must not be scaffoldable");
+  assert.ok(
+    existsSync(join(HERE, "..", "templates", "nestjs")),
+    "templates/nestjs must still SHIP — `update` resolves it from the manifest for existing repos",
+  );
+}
 
 const has = (dir, rel) => existsSync(join(dir, rel));
 const reads = (dir, rel) => (has(dir, rel) ? readFileSync(join(dir, rel), "utf8") : "");

@@ -31,10 +31,13 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = join(HERE, "templates");
 
+// Scaffoldable stacks. `nestjs` is deliberately ABSENT: it is unmaintained for now and stays
+// undocumented and unselectable. Its files still ship in `templates/nestjs` on purpose — `update`
+// resolves the template from `.rigel/manifest.json`, not from this table, so anyone who already
+// scaffolded nestjs keeps a working day-2 path. Re-listing it here is all it takes to bring back.
 const STACKS = {
   nextjs: "Next.js + React + TypeScript (frontend)",
   express: "Express + TypeScript + Sequelize (backend)",
-  nestjs: "NestJS + TypeScript (backend)",
   fastapi: "FastAPI + Python (backend)",
 };
 
@@ -66,11 +69,12 @@ async function chooseStack(rl, preset) {
   const keys = Object.keys(STACKS);
   keys.forEach((k, i) => console.log(`    ${i + 1}) ${k.padEnd(11)} ${STACKS[k]}`));
   console.log("");
+  // Derived from `keys`, never hardcoded — the range drifts the moment a stack is added or delisted.
   while (true) {
-    const raw = await prompt(rl, "  Enter number (1-4): ");
+    const raw = await prompt(rl, `  Enter number (1-${keys.length}): `);
     const idx = Number(raw) - 1;
     if (Number.isInteger(idx) && keys[idx]) return keys[idx];
-    console.log("  Please enter a number between 1 and 4.");
+    console.log(`  Please enter a number between 1 and ${keys.length}.`);
   }
 }
 
