@@ -50,21 +50,15 @@ jobs:
         if: steps.app.outputs.exists == 'true'
         run: npm ci
 
-      - name: Type-check
+      # THE gate, invoked as one command rather than re-listed step by step. This file used to run
+      # typecheck/lint/format/coverage only — verify:rigel, knowledge, debug:regression and
+      # contract:freshness were never run in CI at all, so provenance, the memory loop and the
+      # generated-types freshness check were enforced only on someone's laptop. Re-listing the
+      # steps here is what let them drift; calling the gate makes drift impossible.
+      # Guarded by scripts/check-ci-mirrors-gate.mjs.
+      - name: Gate (verify:rigel · typecheck · lint · format · coverage · knowledge · regressions · contract)
         if: steps.app.outputs.exists == 'true'
-        run: npm run typecheck
-
-      - name: Lint
-        if: steps.app.outputs.exists == 'true'
-        run: npm run lint
-
-      - name: Format check
-        if: steps.app.outputs.exists == 'true'
-        run: npm run format:check
-
-      - name: Test (coverage)
-        if: steps.app.outputs.exists == 'true'
-        run: npm run test:coverage
+        run: npm run gate
 
       - name: Build
         if: steps.app.outputs.exists == 'true'

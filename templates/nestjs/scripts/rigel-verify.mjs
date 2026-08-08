@@ -16,7 +16,7 @@
 // Exit 0 = clean, 1 = violations, 2 = cannot run.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readManifest, classify, walkFiles, hashFile, MANIFEST_PATH } from './lib/rigel-manifest.mjs'
+import { readManifest, classify, walkFiles, hashFile, MANIFEST_PATH, SCHEMA_VERSION } from './lib/rigel-manifest.mjs'
 
 const root = process.cwd()
 const problems = []
@@ -37,8 +37,32 @@ if (!manifest) {
   process.exit(2)
 }
 
+// ── the record must be something this verifier can actually check ───────────────
+// Two ways to pass while verifying nothing, both reachable and both worse than a red:
+//
+//   1. `files: {}` → "✓ 0 managed files intact". A textbook false green. It was unreachable while
+//      the manifest was always built by hashing a full scaffold; adoption makes it reachable, and a
+//      hand-edited manifest always could.
+//   2. A NEWER schema than this script understands. A v1 verifier reading a v2 manifest would not
+//      know about `baseline` and would report adopted files as harmless untracked notes — silently
+//      downgrading real checks. Refuse rather than guess.
+if (manifest.schemaVersion > SCHEMA_VERSION) {
+  console.error(`✗ ${MANIFEST_PATH} is schemaVersion ${manifest.schemaVersion}; this verifier understands ${SCHEMA_VERSION}.`)
+  console.error('  A newer manifest may record things this script would silently ignore, so it refuses')
+  console.error('  to report a pass. Update the harness: `npx create-rigel update`.')
+  process.exit(2)
+}
+
 const ownership = manifest.ownership ?? { managed: [], seed: [], user: [] }
 const recorded = manifest.files ?? {}
+
+if (Object.keys(recorded).length === 0) {
+  console.error(`✗ ${MANIFEST_PATH} records ZERO managed files — this check would verify nothing.`)
+  console.error('  A pass here would be meaningless, so it is a failure instead (LSN-0004).')
+  console.error('  If this repo was adopted, re-run `npx create-rigel adopt`; if the manifest was')
+  console.error('  hand-edited, restore it from git history.')
+  process.exit(2)
+}
 
 // ── waivers: path → { sha256, expires } ─────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10)

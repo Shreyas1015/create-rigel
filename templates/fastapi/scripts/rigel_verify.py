@@ -27,6 +27,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from rigel_manifest import (  # noqa: E402
     MANIFEST_PATH,
+    SCHEMA_VERSION,
     classify,
     hash_file,
     read_manifest,
@@ -50,8 +51,34 @@ if manifest is None:
     print("  Restore it from git history; it cannot be regenerated.", file=sys.stderr)
     sys.exit(2)
 
+# ── the record must be something this verifier can actually check ───────────────
+# Two ways to pass while verifying nothing, both reachable and both worse than a red:
+#
+#   1. `files: {}` -> "0 managed files intact". A textbook false green. It was unreachable while the
+#      manifest was always built by hashing a full scaffold; adoption makes it reachable, and a
+#      hand-edited manifest always could.
+#   2. A NEWER schema than this script understands. A v1 verifier reading a v2 manifest would not
+#      know about `baseline` and would report adopted files as harmless untracked notes — silently
+#      downgrading real checks. Refuse rather than guess.
+if (manifest.get("schemaVersion") or 0) > SCHEMA_VERSION:
+    print(
+        f"✗ {MANIFEST_PATH} is schemaVersion {manifest.get('schemaVersion')}; "
+        f"this verifier understands {SCHEMA_VERSION}.",
+        file=sys.stderr,
+    )
+    print("  A newer manifest may record things this script would silently ignore, so it refuses", file=sys.stderr)
+    print("  to report a pass. Update the harness: `npx create-rigel update`.", file=sys.stderr)
+    sys.exit(2)
+
 ownership = manifest.get("ownership") or {"managed": [], "seed": [], "user": []}
 recorded = manifest.get("files") or {}
+
+if not recorded:
+    print(f"✗ {MANIFEST_PATH} records ZERO managed files — this check would verify nothing.", file=sys.stderr)
+    print("  A pass here would be meaningless, so it is a failure instead (LSN-0004).", file=sys.stderr)
+    print("  If this repo was adopted, re-run `npx create-rigel adopt`; if the manifest was", file=sys.stderr)
+    print("  hand-edited, restore it from git history.", file=sys.stderr)
+    sys.exit(2)
 
 # ── waivers ──────────────────────────────────────────────────────────────────────
 today = datetime.date.today().isoformat()
