@@ -37,30 +37,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authorized, nor "AUTHORIZED" when the authorizing exemption has expired.
 
 ## [0.13.0] - 2026-08
-- Knowledge anchors are blocking, gated by `owner:` so a distributed glossary can't red-light
-  every consumer repo.
+
+### Changed
+- **Knowledge anchors are now blocking.** They shipped advisory-by-design for one release; a claim
+  nothing enforces decays. Gated by `owner:` so that a glossary distributed company-wide can't
+  red-light every consumer repo — you are only blocked on the anchors your repo owns.
 
 ## [0.12.0] - 2026-08
-- PLAN-010 — the contract gate (freshness, oasdiff breaking changes, exemption expiry) and
-  `/postmortem`.
+
+### Added
+- **PLAN-010 — the contract gate.** Three checks: spec freshness (blocking, first — a stale
+  contract makes everything below it a lie), `oasdiff` breaking changes against `origin/main`, and
+  exemption expiry. Git history is the contract registry, so there is no broker and no cross-repo
+  CI. Escape hatches in order of preference: `x-stability-level: draft` → `deprecated` + `x-sunset`
+  → an expiring `.oasdiff-ignore` line. Never a PR label — a skipped required check is a silently
+  disabled gate.
+- `/postmortem` — after an incident, name what broke and which check would have caught it.
+- `nextjs` gets `contract:freshness` instead: it consumes a contract rather than publishing one, so
+  a breaking-change gate there would verify nothing.
 
 ## [0.11.0] - 2026-08
-- PLAN-009 — the company knowledge layer: anchored knowledge and the service map.
+
+### Added
+- **PLAN-009 — the company knowledge layer.** `knowledge/` carries business capabilities (with KPI
+  and owner), a domain glossary, and bounded contexts. Anchored to code so the facts can be checked
+  rather than trusted.
+- The **service map** (`knowledge/map/`) — a facts-up / index-down build: each repo declares what it
+  provides and consumes, and the map is derived. `create-rigel facts` and `create-rigel map` read it.
 
 ## [0.10.0] - 2026-07
-- PLAN-008 — the day-2 loop: provenance manifest, `verify:rigel`, 3-hash update, company layers.
+
+### Added
+- **PLAN-008 — the day-2 loop.** A provenance manifest (`.rigel/manifest.json`) records the sha256
+  of exactly what Rigel wrote, which makes two things possible: `verify:rigel` (is the output still
+  intact?) and `create-rigel update` — a **three-hash** merge (original / current / incoming) that
+  updates untouched files silently and leaves your edits alone. No patch reconstruction, no `.rej`.
+- **Company layers** — shared rules, seeds, and knowledge pinned by SHA via git, so every repo in an
+  org inherits the same standards.
 
 ## [0.9.0] - 2026-07
-- Phase-3 completion: `/debug`, `STATE.md`, the promotion gate, stale-curation.
+
+### Added
+- `/debug` — a hypothesis-driven loop that terminates in a regression test rather than a guess.
+- `STATE.md` — an ephemeral "where the last session stopped" hint. The plan always wins if they disagree.
+- The **promotion gate**: a lesson marked `ENFORCED` must name the check enforcing it, and that
+  check must exist. Stale-curation sweeps lessons that never got promoted.
 
 ## [0.8.1] - 2026-07
-- Strip generated artifacts from the published package (LSN-0008).
+
+### Fixed
+- Strip generated artifacts from the published package (LSN-0008). The path-scoped ignore negations
+  stopped covering newly added directories; the rule was sharpened to be pattern-scoped.
 
 ## [0.8.0] - 2026-07
-- PLAN-007 — memory and self-improvement: lessons promoted to mechanical enforcement.
+
+### Added
+- **PLAN-007 — memory and self-improvement.** Lessons live one-per-file on a five-stage ladder
+  (OBSERVED → INVESTIGATED → VERIFIED → DISTILLED → ENFORCED). Promotion is manual and terminates in
+  a *mechanical check*, after which the prose is deleted. Memory is a staging area for gate rules,
+  not a library of advice.
 
 ## [0.7.1] - 2026-07
-- PLAN-006 close-out: dogfood DF-1..48 plus the golden trials.
+
+### Fixed
+- PLAN-006 close-out: dogfood findings DF-1..48 plus the golden trials.
 
 ## [0.7.0] - 2026-07-20
 
@@ -229,6 +269,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Removed the nextjs template's `.husky/` directory and its `prepare: husky` script; the
   fastapi template drives its existing `pre-commit` toolchain from `.githooks/pre-commit`
   rather than `pre-commit install`. Each template's `/infra-setup` was rewired accordingly.
+
+## [0.3.0] - 2026-07-18
+
+### Added
+
+- **An enforced (not remembered) git workflow inside every template.** One source of truth per
+  project — `.rigel/git-policy.json`, byte-identical across all four templates — encodes the branch
+  model, branch-name and Conventional-Commit patterns, and per-branch merge strategy. Every hook,
+  skill, script, and CI job reads from it rather than restating it.
+- **Toolchain-free local enforcement:** `.githooks/commit-msg` and `.githooks/pre-push` are POSIX
+  shell (no husky, no Node or Python required), so the policy holds before dependencies are
+  installed. Activated at `/infra-setup` via `git config core.hooksPath .githooks`; a
+  stack-specific `.githooks/pre-commit` runs each template's own linters.
 
 ## [0.2.0] - 2026-07-15
 

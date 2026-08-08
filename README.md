@@ -29,8 +29,12 @@ npm create rigel@latest my-app
 - [Quick start](#quick-start)
 - [Templates](#templates)
 - [Inside a scaffolded project](#inside-a-scaffolded-project)
-- [CLI commands, after scaffolding](#cli-commands-after-scaffolding)
 - [The workflow it enables](#the-workflow-it-enables)
+- [Proof, not claims](#proof-not-claims)
+- [Memory that becomes enforcement](#memory-that-becomes-enforcement)
+- [The contract gate](#the-contract-gate)
+- [Company knowledge and blast radius](#company-knowledge-and-blast-radius)
+- [Day 2: updating a scaffolded repo](#day-2-updating-a-scaffolded-repo)
 - [Requirements](#requirements)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -53,6 +57,11 @@ Coding agents are great at *writing* code and bad at *stopping themselves from d
 - 📐 **Spec-driven delivery** — a `docs/` taxonomy (product-specs → exec-plans → design-docs/ADRs) so intent lives in the repo and drives the build.
 - 🔒 **Security & correctness defaults** — validate-at-the-boundary, OWASP handler ordering, a mandatory cross-user isolation test (404, not 403), and a pre-write hook that blocks secrets and edits to generated contracts.
 - 🚦 **CI-ready** — pre-commit hooks and CI workflows so the gate runs on every push, not just locally.
+- 🧪 **Proof instead of claims** — acceptance tests must be proven *red* before a spec can be planned, and a runner that executes zero tests fails the gate rather than reporting green.
+- 🧠 **Memory that becomes enforcement** — repeated failures get promoted from a written lesson into an actual check, then the prose is deleted.
+- 📜 **A contract gate** — `oasdiff` against `origin/main` catches breaking API changes; a deliberate break needs a named owner, an expiry, and the consumers you're breaking it for.
+- 🌐 **Company knowledge + blast radius** — a shared service map and glossary, and `create-rigel impact` to see what a change touches across repos without cloning them.
+- 🔄 **A day-2 story** — a provenance manifest means `create-rigel update` can pull template improvements into an existing repo without clobbering your edits.
 
 ## Quick start
 
@@ -103,35 +112,18 @@ my-app/
 ├── docs/
 │   ├── product-specs/  # ROADMAP + one spec per feature (draft → ready)
 │   ├── exec-plans/     # layered execution plans (active → completed) + tech-debt tracker
-│   └── design-docs/    # core-beliefs (the constitution) + ADRs (decisions/)
+│   └── design-docs/    # core-beliefs (the constitution), ADRs (decisions/), lessons/ (the memory ladder)
+├── knowledge/          # business capabilities, domain glossary + contexts, and the company service map
+├── scripts/            # the enforcement scripts: gate steps, contract gate, red-green recorder, curate-scan
+├── .rigel/
+│   ├── manifest.json   # provenance — the sha256 of exactly what Rigel wrote (powers verify + update)
+│   └── git-policy.json # protected trunk + branch-name policy, read by the committed git hooks
 ├── ARCHITECTURE.md     # the layer diagram + import matrix
 ├── AGENTS.md           # navigation map + non-negotiable invariants
 └── src/                # generated on first run by /infra-setup
 ```
 
 The **gate** (`npm run gate` / `scripts/gate.sh`) is the enforcement core: type-clean, lint-clean (zero warnings), no circular deps, no cross-layer imports, no files over the size limit, coverage above per-layer thresholds, and the cross-user isolation test present. It runs after every build layer and in CI.
-
-## CLI commands, after scaffolding
-
-Beyond `create-rigel <name>`, the same binary answers questions about a repo it generated:
-
-```bash
-npx create-rigel verify           # is what Rigel wrote still what's on disk? (provenance manifest)
-npx create-rigel update           # 3-hash update — no patch reconstruction, no .rej files
-npx create-rigel impact           # blast radius of your current change — a LENS, never a gate
-```
-
-`impact` answers *"if I change this, what else is involved?"* by joining three things the repo
-already knows: which files import the ones you touched, which services consume the API you
-publish (`knowledge/map/`), and which business capability owns it. It defaults to your working
-diff, is depth-limited, prints the blind spots it cannot see (queues, feature flags, string-keyed
-routing, DI, ORM magic), and **always exits 0**.
-
-Impact analysis over-reports by construction, and a gate that cries wolf gets disabled — taking
-the gates that work down with it. So the lens informs; the **contract gate** blocks, exactly, on
-`oasdiff`. Your spec declares `breaking: true|false`; the gate proves the declaration honest, and
-a deliberate break needs an exemption naming an owner, an expiry, and the consumers you're
-breaking it for.
 
 ## The workflow it enables
 
@@ -143,10 +135,113 @@ After scaffolding, open the project in Claude Code and drive the pipeline:
 /write-spec       # write ONE feature spec — you review it and mark it READY
 /write-plan       # derive a layered, checkboxed execution plan from the spec
 /build-layer      # build ONE layer → gate → auto-fix (max 3) → commit → you confirm → next
+/validate-layer   # run the gate on demand
+/open-pr          # land the feature branch on the protected trunk
 /garbage-collect  # end-of-feature cleanup + quality score update
 ```
 
+And when things go wrong, or you learn something:
+
+```text
+/debug            # a hypothesis-driven loop that ends in a regression test, not a guess
+/curate           # turn a repeated gate failure into a written lesson
+/postmortem       # after an incident: what broke, and which check would have caught it
+```
+
 The agent does the typing; **you own the specs and the merges**; the gate catches mistakes mechanically. You review *decisions*, not lint errors.
+
+## Proof, not claims
+
+"It works" is not evidence. Before a spec can be planned, its acceptance tests must exist **and
+have been proven red**:
+
+```bash
+npm run redgreen:record -- SPEC-001   # records the pre-implementation failure
+npm run ac:vector                     # per-AC pass/fail vector, machine-readable
+```
+
+`/write-plan` refuses a spec with no `tests/acceptance/SPEC-XXX/` and no `.rigel/redgreen/SPEC-XXX.json`.
+A test that never failed proves nothing — it may be asserting `true === true`. Recording the red
+state first is what makes the later green mean something, and `assert:tests` fails the gate if a
+test runner exits 0 having executed **zero** tests.
+
+## Memory that becomes enforcement
+
+Lessons live in `docs/design-docs/lessons/`, one file each, on a five-stage ladder:
+
+```text
+OBSERVED → INVESTIGATED → VERIFIED → DISTILLED → ENFORCED
+```
+
+The point is the last stage. A lesson is only finished when it terminates in a **mechanical
+check** — an eslint rule, a grep in the post-write hook, a new gate step — and then the prose is
+deleted. Memory here is a staging area for gate rules, not a library of advice. `verify-promotion.mjs`
+enforces that: a lesson marked `ENFORCED` must name the check that enforces it, and that check
+must exist.
+
+> The rule the whole repo is built on: **if it can't fail a build or drive a mechanical loop, it's
+> a doc, not an agent.**
+
+## The contract gate
+
+Backend templates publish an OpenAPI contract, so they owe their consumers stability. `npm run contract:gate`
+(`make contract` on FastAPI) runs four checks, in the order that makes them meaningful:
+
+1. **Freshness** — re-export the spec; a drifted contract makes every check below it a lie.
+2. **Exemptions** — each `.oasdiff-ignore` entry needs a reason, an owner (a person), an expiry, and
+   the consumers it breaks. **An expired entry fails the build**, so "temporary" can't become permanent.
+3. **Breaking changes** — `oasdiff` against `origin/main`. Git history *is* the contract registry:
+   `origin/main:openapi.json` is the previous version, for free. No broker, no cross-repo CI.
+4. **Declaration vs reality** — your spec declares `breaking: true|false`; this proves you were honest.
+
+Asymmetric on purpose: over-declaring is free, under-declaring fails.
+
+> ⚠️ `oasdiff` has **no comment syntax** — every line of `.oasdiff-ignore` is matched as a substring,
+> so a "commented-out" example is a live rule that silently suppresses a real break. The gate
+> detects and rejects that.
+
+`nextjs` *consumes* a contract rather than publishing one, so it ships no breaking-change gate —
+adding one would be a check that verifies nothing. It gets `contract:freshness` instead, which
+fails if the generated types drift from `openapi.json`.
+
+## Company knowledge and blast radius
+
+A repo can carry business and architectural context, not just code:
+
+```bash
+npx create-rigel facts     # what this service provides, consumes, and runs on
+npx create-rigel map       # the company service map — who calls whom
+npx create-rigel impact    # blast radius of your current change
+```
+
+`impact` answers *"if I change this, what else is involved?"* by joining three things the repo
+already knows: which files import the ones you touched, which services consume the API you publish
+(`knowledge/map/`), and which business capability owns it — with its KPI and owner. It defaults to
+your working diff, is depth-limited, and **always exits 0**.
+
+It also prints what it *cannot* see — queues, feature flags, string-keyed routing, DI containers,
+ORM magic. A report that implies completeness is worse than one that admits its edges.
+
+**It never blocks, deliberately.** Impact analysis over-reports by construction, and a gate that
+cries wolf gets switched off — taking the gates that work down with it. So the lens informs; the
+contract gate blocks, exactly.
+
+## Day 2: updating a scaffolded repo
+
+Scaffolders usually abandon you after the first commit. Rigel records a **provenance manifest**
+(`.rigel/manifest.json`) of the sha256 of exactly what it wrote, so it can tell your edits from its own:
+
+```bash
+npm run verify:rigel              # inside the project — is Rigel's output still intact?
+npx create-rigel update           # pull template improvements into an existing repo
+```
+
+`update` is a **three-hash** merge — original, current, incoming. Untouched files update silently;
+files you edited are left alone and reported. No patch reconstruction, no `.rej` files to resolve.
+
+Teams can also pin a **company layer** (shared rules, seeds, and knowledge) by SHA via git, so every
+repo in the org inherits the same standards and the same glossary. See [`examples/company-layer/`](./examples/company-layer)
+and [`docs/company-level.md`](./docs/company-level.md).
 
 ## Requirements
 
