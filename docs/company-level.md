@@ -9,8 +9,11 @@ things, and this is how they work.
 | **A manifest** | `.rigel/manifest.json` in every service — the return address |
 | **`update` + `verify`** | how the layer reaches those services, and how CI proves it stuck |
 
-Without the manifest, a scaffolded repo is unreachable forever: no updates, no verification. It is
-written at scaffold time and **cannot be added retroactively**.
+Without the manifest, a repo is unreachable: no updates, no verification. A scaffold writes it on
+day 0. An existing repo gets one from `npx create-rigel adopt`, which places the harness **additively**
+— any file that was already there is declined, recorded in `manifest.baseline`, and never owned or
+rewritten. What adoption cannot give you retroactively is history: Rigel knows what it wrote from the
+moment it arrived, not before.
 
 ---
 

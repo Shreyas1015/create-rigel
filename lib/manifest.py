@@ -17,7 +17,7 @@ import os
 import re
 
 MANIFEST_PATH = ".rigel/manifest.json"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SKIP_DIRS = {"node_modules", ".git", ".next", "dist", "coverage", "__pycache__"}
 _REGEX_SPECIAL = "\\^$.|?+()[]{}"

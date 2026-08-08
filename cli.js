@@ -2,8 +2,8 @@
 // create-rigel — scaffold an agent-first, gate-enforced starter project.
 // Zero runtime dependencies (Node builtins only), so it publishes with no build step.
 
-import { readdir, mkdir, writeFile, mkdtemp, rm } from "node:fs/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { readdir, mkdir, writeFile, mkdtemp, rm, rename } from "node:fs/promises";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve, basename } from "node:path";
@@ -13,7 +13,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./lib/manifest.mjs";
 import { parseTemplateSpec, fetchLayer, readLayerConfig, applyLayer, mergeOwnership } from "./lib/layer.mjs";
 import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS_PATH } from "./lib/map.mjs";
-import { planInstall, install, summarizeInstall } from "./lib/install.mjs";
+import { planInstall, install, summarizeInstall, coreCollisions } from "./lib/install.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
   serviceImpact, touchesContract, BLIND_SPOTS,
@@ -41,6 +41,10 @@ const STACKS = {
   express: "Express + TypeScript + Sequelize (backend)",
   fastapi: "FastAPI + Python (backend)",
 };
+
+// Adoption is NARROWER than scaffolding. nextjs is scaffoldable but not adoptable — see the
+// explanation at the refusal site in cmdAdopt.
+const ADOPTABLE = ["express", "fastapi"];
 
 function parseArgs(argv) {
   const args = { name: undefined, template: undefined, context: undefined };
@@ -86,7 +90,7 @@ async function isNonEmptyDir(dir) {
 }
 
 // Write `.rigel/manifest.json` — the provenance record `rigel verify` and `rigel update` read.
-async function writeManifest(target, stack, { layer = null, extraOwnership = {} } = {}) {
+async function writeManifest(target, stack, { layer = null, extraOwnership = {}, owned = null, baseline = [], mode = "greenfield" } = {}) {
   const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
   const table = JSON.parse(readFileSync(join(HERE, "ownership.json"), "utf8"));
   const manifest = buildManifest({
@@ -98,9 +102,160 @@ async function writeManifest(target, stack, { layer = null, extraOwnership = {} 
     answers: {},
     ownership: mergeOwnership(resolveOwnership(table, stack), extraOwnership),
     now: new Date().toISOString(),
+    owned,
+    baseline,
+    mode,
+    adoptedAt: mode === "brownfield" ? new Date().toISOString() : null,
   });
   await mkdir(join(target, ".rigel"), { recursive: true });
   await writeFile(join(target, MANIFEST_PATH), JSON.stringify(manifest, null, 2) + "\n");
+  return Object.keys(manifest.files).length; // how many files Rigel actually owns and will verify
+}
+
+// ── `create-rigel adopt` — add Rigel to a repo it did not create (PLAN-013 AC-1) ──
+//
+// There is ONE model of a healthy Rigel repo and every repo has a distance from it; greenfield is
+// simply the point where that distance is zero. So this shares `materialize` + the `install()`
+// placement policy with the scaffold path rather than forking, and it NEVER asks "greenfield or
+// brownfield?" — that is a fact about the directory, not a question for a human.
+
+/** What state is this directory in? A fact, derived, then printed. */
+function detectState(root) {
+  if (!existsSync(root)) return "greenfield";
+  if (readdirSync(root).length === 0) return "greenfield";
+  if (existsSync(join(root, MANIFEST_PATH))) return "adopted";
+  if (existsSync(join(root, ".rigel"))) return "stale-rigel"; // an older Rigel, drifted
+  return "never-rigel";
+}
+
+/** Guess the stack from what's already here. Overridable with --template; never silently wrong. */
+function detectStack(root) {
+  const pkgPath = join(root, "package.json");
+  if (existsSync(pkgPath)) {
+    let deps = {};
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+      deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    } catch {
+      /* unparseable package.json — fall through to "unknown" */
+    }
+    if (deps.next) return "nextjs";
+    if (deps["@nestjs/core"]) return "nestjs";
+    if (deps.express) return "express";
+    return null;
+  }
+  if (existsSync(join(root, "pyproject.toml")) || existsSync(join(root, "requirements.txt"))) return "fastapi";
+  return null;
+}
+
+async function cmdAdopt(argv) {
+  const root = process.cwd();
+  const dryRun = argv.includes("--dry-run");
+  const forceCore = argv.includes("--force-core");
+  const state = detectState(root);
+
+  if (state === "adopted") {
+    console.error(`\n  This repo already has ${MANIFEST_PATH}.`);
+    console.error("  To bring it up to the current template:  npx create-rigel update\n");
+    process.exit(2);
+  }
+
+  const stack = argFor(argv, "--template") ?? detectStack(root);
+  if (!stack) {
+    console.error("\n  Could not tell which stack this repo is.");
+    console.error(`  Pass one explicitly:  npx create-rigel adopt --template <${ADOPTABLE.join("|")}>\n`);
+    process.exit(2);
+  }
+  if (!ADOPTABLE.includes(stack)) {
+    console.error(`\n  Cannot adopt into a "${stack}" repo yet.`);
+    if (stack === "nextjs") {
+      // A GENERATED template: its arch tests and acceptance holdout are written by infra-setup.sh,
+      // not shipped in the tree (test/smoke.mjs already encodes this). materialize() therefore
+      // produces an INCOMPLETE nextjs repo, so adopting one would install a harness that claims
+      // checks it does not actually have — a false green by construction.
+      console.error("  nextjs's harness is partly generated by /infra-setup rather than shipped, so");
+      console.error("  adopting it would install checks that do not exist yet.");
+    }
+    console.error(`  Adoption supports: ${ADOPTABLE.join(", ")}\n`);
+    process.exit(2);
+  }
+
+  console.log(`\n  Detected: ${state} · ${stack}${argFor(argv, "--template") ? " (you specified the stack)" : " (from this repo)"}`);
+
+  const staged = await mkdtemp(join(tmpdir(), "rigel-adopt-"));
+  try {
+    await materialize(HERE, stack, staged);
+    const plan = planInstall(staged, root);
+
+    const core = coreCollisions(plan);
+    if (core.length && !forceCore) {
+      console.error("\n  ✗ Cannot adopt: these files decide whether Rigel's own checks mean anything,");
+      console.error("    and yours differ from Rigel's:\n");
+      for (const p of core) console.error(`      ${p}`);
+      console.error("\n    Leaving yours in place would make `verify:rigel` report on something other than");
+      console.error("    Rigel's contract — every green after that would be meaningless. Nothing was written.");
+      console.error("\n    To move yours aside and take Rigel's:  npx create-rigel adopt --force-core\n");
+      process.exit(2);
+    }
+
+    console.log("");
+    console.log(summarizeInstall(plan) || "  Nothing to place — already complete.");
+
+    if (dryRun) {
+      console.log("\n  (--dry-run: nothing was written)\n");
+      return;
+    }
+
+    for (const p of forceCore ? core : []) {
+      await rename(join(root, p), join(root, `${p}.pre-rigel`));
+      console.log(`  · moved yours to ${p}.pre-rigel`);
+      plan.added.push(p);
+      plan.declined = plan.declined.filter((x) => x !== p);
+    }
+
+    const placed = await install(staged, root, plan);
+    const owned = await writeManifest(root, stack, { owned: placed, baseline: plan.declined, mode: "brownfield" });
+
+    // "placed" and "owned" are different numbers and conflating them would overstate what Rigel
+    // enforces: only `managed` files land in manifest.files: seed files (README, configs) become the
+    // team's the moment they're written, and user paths were never Rigel's.
+    console.log(`\n  ✓ Adopted. ${placed.length} file(s) placed, of which Rigel owns and verifies ${owned}.`);
+    console.log(`    ${plan.declined.length} pre-existing file(s) are yours and stay that way.`);
+    console.log("  Review with `git diff` / `git status` — nothing you had was rewritten.\n");
+    printGateWiring(root, stack);
+  } finally {
+    await rm(staged, { recursive: true, force: true });
+  }
+}
+
+/**
+ * `package.json` is class `seed` — the team owns it — so adoption declines it, which means an
+ * adopted repo has no `gate` script and nothing enforcing anything. Print the block and let a human
+ * paste it: silently editing a seed file would break the very ownership contract adoption
+ * establishes. If they skip it, `doctor` says the harness is present but not wired, in those words.
+ */
+function printGateWiring(root, stack) {
+  if (stack === "fastapi") {
+    console.log("  One more step — the gate is not wired yet. Run it with:");
+    console.log("      bash scripts/gate.sh\n");
+    return;
+  }
+  const pkgPath = join(root, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let scripts = {};
+  try {
+    scripts = JSON.parse(readFileSync(pkgPath, "utf8")).scripts ?? {};
+  } catch {
+    return;
+  }
+  if (scripts.gate) return;
+  console.log("  One more step. Rigel will not edit your package.json — it's yours. Add:\n");
+  console.log('      "verify:rigel":     "node scripts/rigel-verify.mjs",');
+  console.log('      "knowledge":        "node scripts/rigel-knowledge.mjs",');
+  console.log('      "debug:regression": "node scripts/debug-regression.mjs",');
+  console.log('      "contract:gate":    "node scripts/contract-gate.mjs",');
+  console.log('      "gate":             "npm run verify:rigel && npm run knowledge && npm run debug:regression check"');
+  console.log("\n  Until then the harness is present but nothing runs it. `create-rigel doctor` will say so.\n");
 }
 
 // ── `create-rigel update` — bring an existing scaffold forward (PLAN-008 AC-3) ──
@@ -160,7 +315,10 @@ async function cmdUpdate(argv) {
     if (total === 0) return;
 
     await applyUpdate({ root, theirsDir, plan, conflictMode });
-    const next = rewriteManifest({ manifest, version: pkg.version, root, ownership });
+    // `written` is what this update actually placed. Without it the manifest would re-claim
+    // everything matching a managed glob, including files the user wrote themselves.
+    const written = [...plan.overwrite, ...plan.added];
+    const next = rewriteManifest({ manifest, version: pkg.version, root, ownership, written });
     next.deletedByUser = [...new Set([...(manifest.deletedByUser ?? []), ...plan.skippedDeleted])].sort();
     await writeJson(join(root, MANIFEST_PATH), next);
 
@@ -337,6 +495,7 @@ async function main() {
   if (sub === "map:build") return cmdMapBuild(process.argv.slice(3));
   if (sub === "map") return cmdMap(process.argv.slice(3));
   if (sub === "impact") return cmdImpact(process.argv.slice(3));
+  if (sub === "adopt") return cmdAdopt(process.argv.slice(3));
 
   const args = parseArgs(process.argv);
   const rl = createInterface({ input, output });
@@ -357,7 +516,8 @@ async function main() {
       const where = name === "." ? "The current directory" : `Target "${name}"`;
       console.error(`\n  ${where} is not empty.`);
       console.error("  `create-rigel` scaffolds into an empty directory and will not write over your files.");
-      console.error("  Adding Rigel to an existing repo is not supported yet — scaffold elsewhere for now.\n");
+      console.error("\n  To add Rigel to an existing repo:  npx create-rigel adopt");
+      console.error("  See what it would do first:         npx create-rigel adopt --dry-run\n");
       process.exit(1);
     }
 
