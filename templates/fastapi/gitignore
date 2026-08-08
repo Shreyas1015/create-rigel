@@ -32,6 +32,7 @@ htmlcov/
 # NOTE: .rigel/redgreen/ and .rigel/ac-results/ ARE committed (traceability proof);
 # only the transient run outputs below are ignored.
 .rigel/acceptance.unlock
+.rigel/blast/
 .rigel/.junit-*.xml
 .rigel/mutation/
 reports/mutation/

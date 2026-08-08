@@ -6,6 +6,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-08
+
+> **The blast radius arrives before the edit, not after.** `impact` has always been a lens that
+> never blocks — correct for a build-time tool, but the fact lands once changing course is expensive.
+
+### Added
+- **`.claude/hooks/pre-edit-blast.mjs`** — a `PreToolUse` hook, registered in every template. The
+  first time a session edits a file a large share of the repo depends on, it denies the call and
+  spends the denial listing the importers. The retry goes through.
+
+  **This is not a gate and does not claim to be.** It cannot stop a determined edit. What it makes
+  impossible is changing a load-bearing file *without having been shown what depends on it*.
+  `npm run gate` is still where enforcement lives — a `PreToolUse` deny binds this agent in this
+  session; the gate binds any author, including a human and CI. Two layers, different jobs.
+
+  **Bounded noise by construction.** At most **15% of a repo's source files** can ever qualify — a
+  ceiling, not a tuned constant. An absolute cutoff does not transfer: measured on two real repos,
+  "≥ 8 dependents" would have denied 48% of edits in a densely-coupled service and 8% in a library.
+  Combined with once-per-file-per-session, a hook that fires constantly gets deleted, and it takes
+  the useful hooks with it.
+
+  **It fails open, deliberately** — any error exits 0 and lets the edit through with a note on
+  stderr. That inverts this project's usual rule (LSN-0004), because the cost of failure inverts
+  too: a broken gate lets one commit through, while a `PreToolUse` hook that failed closed would
+  block every edit and brick the session. Measured cost: ~50 ms on an 801-file repo.
+
+### Changed
+- The import graph (`sourceFiles`, `importsOf`, `buildGraph`, `reverseGraph`, `dependents`) moved
+  from `lib/impact.mjs` into `lib/blast.mjs`; `impact.mjs` re-exports it, so every existing import
+  path still works. Stamped libs land flat in `scripts/lib/` with no siblings to import, so the
+  shared half has to live in the stamped leaf and the CLI lens depends on it, not the reverse.
+
+### Credit
+- The idea is [everything-claude-code](https://github.com/affanuu/everything-claude-code)'s
+  `PreToolUse` gates. Their write-up also records the failure mode — repeated denials drove sessions
+  into a *"degenerate repetition loop"* — and that warning shaped the two limits above more than the
+  feature itself did.
+
+
 ## [0.19.0] - 2026-08-08
 
 > **A caught error that goes nowhere is a false green.** The gate already refuses a test runner that

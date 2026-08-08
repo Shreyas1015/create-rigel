@@ -245,6 +245,26 @@ for (const stack of STACKS) {
       assert.ok(wired, `${stack}: silent:check is not wired into the gate`);
     }
 
+    // PLAN-017: the blast-radius hook must ship AND be registered as a PreToolUse hook. A hook file
+    // that settings.json never references is inert — it looks like a capability and is not one.
+    {
+      assert.ok(has(dir, ".claude/hooks/pre-edit-blast.mjs"), `${stack}: missing the blast-radius hook`);
+      assert.ok(has(dir, "scripts/lib/rigel-blast.mjs"), `${stack}: blast lib was not stamped in`);
+      const settings = JSON.parse(reads(dir, ".claude/settings.json"));
+      const pre = settings.hooks?.PreToolUse ?? [];
+      const registered = pre.some(
+        (e) =>
+          /Write|Edit/.test(e.matcher ?? "") &&
+          (e.hooks ?? []).some((h) => /pre-edit-blast\.mjs/.test(h.command ?? "")),
+      );
+      assert.ok(registered, `${stack}: pre-edit-blast.mjs ships but no PreToolUse entry runs it`);
+      // It must fail OPEN. A PreToolUse hook that fails closed blocks every edit and bricks the
+      // session — the one place in this repo where failing loud is the wrong call.
+      const hook = reads(dir, ".claude/hooks/pre-edit-blast.mjs");
+      assert.match(hook, /catch \(e\)/, `${stack}: blast hook has no error path`);
+      assert.match(hook, /edit allowed/, `${stack}: blast hook does not fail open`);
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

@@ -11,6 +11,7 @@ coverage/
 # .rigel/ac-results/ — is committed; these are throwaway.
 reports/
 .rigel/acceptance.unlock
+.rigel/blast/
 .rigel/.jest-*.json
 .rigel/mutation/
 

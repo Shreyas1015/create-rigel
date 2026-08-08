@@ -41,6 +41,7 @@ Thumbs.db
 # (.rigel/redgreen/, .rigel/ac-results/) and the judge review queue
 # (.rigel/judge-review-queue/) are committed; everything below is throwaway.
 .rigel/acceptance.unlock
+.rigel/blast/
 .rigel/.vitest-*.json
 .rigel/.jest-*.json
 .rigel/mutation/
