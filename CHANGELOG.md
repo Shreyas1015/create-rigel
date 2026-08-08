@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-08-08
+
+### Fixed
+- **Scaffolding into a non-empty directory destroyed files.** `create-rigel .` skipped the
+  emptiness guard entirely (the check was `name !== "."`), and `materialize()` copied the template
+  with `fs.cp({recursive:true})` — whose `force` option defaults to **`true`**. Every collision was a
+  silent overwrite with no prompt, no backup and no report. `.gitignore` was the guaranteed
+  casualty: every template ships one, and it is class `seed`, so it was never hashed, never
+  verified, and never restorable by `update`. Reproduced before fixing: a repo's
+  `node_modules\nMY-SECRET-IGNORE` became the template's file.
+
+  Two independent fixes, because the guard alone would not have been enough:
+  - Scaffolding now materialises to a temp directory (exactly as `update` already did) and places
+    files through a new `lib/install.mjs`, which **declines** any pre-existing file that differs —
+    never writes it, never claims to own it. Byte-identical files are claimed but not rewritten.
+  - The emptiness guard is unconditional; `.` no longer bypasses it.
+
+  Greenfield output is unchanged — verified tarball-to-tarball against 0.15.0: identical trees and
+  an identical `manifest.files`. Recorded as LSN-0014.
+
 ## [0.15.0] - 2026-08-08
 
 ### Added

@@ -13,6 +13,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { buildManifest, resolveOwnership, readManifest, MANIFEST_PATH } from "./lib/manifest.mjs";
 import { parseTemplateSpec, fetchLayer, readLayerConfig, applyLayer, mergeOwnership } from "./lib/layer.mjs";
 import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS_PATH } from "./lib/map.mjs";
+import { planInstall, install, summarizeInstall } from "./lib/install.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
   serviceImpact, touchesContract, BLIND_SPOTS,
@@ -348,8 +349,15 @@ async function main() {
     }
     const target = resolve(process.cwd(), name);
 
-    if (name !== "." && (await isNonEmptyDir(target))) {
-      console.error(`\n  Target "${name}" already exists and is not empty. Aborting.\n`);
+    // The guard is unconditional. It used to skip `.`, which meant `create-rigel .` walked straight
+    // into a populated repo — the path that destroyed people's .gitignore. install() is the real
+    // fix (it declines rather than clobbers); this is the belt to its braces, and it points at the
+    // command that IS meant for an existing repo instead of just refusing.
+    if (await isNonEmptyDir(target)) {
+      const where = name === "." ? "The current directory" : `Target "${name}"`;
+      console.error(`\n  ${where} is not empty.`);
+      console.error("  `create-rigel` scaffolds into an empty directory and will not write over your files.");
+      console.error("  Adding Rigel to an existing repo is not supported yet — scaffold elsewhere for now.\n");
       process.exit(1);
     }
 
@@ -386,7 +394,25 @@ async function main() {
 
     // Scaffold and update share ONE materialisation path (lib/update.mjs). If they diverged, an
     // update would compare against files a scaffold never actually produced.
-    await materialize(HERE, stack, target);
+    //
+    // PLAN-013 AC-0: materialise to a TEMP dir (exactly as `update` does), then place through
+    // `install()`. Copying straight onto `target` meant `fs.cp`'s force:true default silently
+    // overwrote whatever was already there — `create-rigel .` in a real repo destroyed the user's
+    // .gitignore. install() declines any pre-existing file that differs, so nothing is ever
+    // clobbered and Rigel only claims what it actually wrote.
+    const staged = await mkdtemp(join(tmpdir(), "rigel-scaffold-"));
+    let placed;
+    try {
+      await materialize(HERE, stack, staged);
+      const plan = planInstall(staged, target);
+      placed = await install(staged, target, plan);
+      if (plan.declined.length) {
+        console.log("");
+        console.log(summarizeInstall(plan));
+      }
+    } finally {
+      await rm(staged, { recursive: true, force: true });
+    }
 
     if (layerDir) {
       // --context selects which bounded-context doc this service receives; default to its own

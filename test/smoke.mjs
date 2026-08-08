@@ -1,7 +1,7 @@
 // Smoke test: scaffold every template into a temp dir and assert it lands correctly.
 // Zero dependencies — runs on plain Node in CI.
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, existsSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -140,6 +140,32 @@ function assertDesignFiles(dir, stack) {
       assert.ok(!has(dir, f), `${stack}: should NOT ship ${f} (design stack is frontend-only, AC-9)`);
     }
   }
+}
+
+// PLAN-013 AC-0: scaffolding must never write over a file it did not write. `create-rigel .` used
+// to walk straight into a populated repo and `fs.cp`'s force:true default destroyed the user's
+// .gitignore. Both layers of the fix are asserted: the CLI refuses, AND nothing was touched.
+{
+  const dir = mkdtempSync(join(tmpdir(), "create-rigel-nonempty-"));
+  const sentinel = "node_modules\nMY-SECRET-IGNORE\n";
+  writeFileSync(join(dir, ".gitignore"), sentinel);
+  writeFileSync(join(dir, "README.md"), "# My Real Project\n");
+
+  let refused = false;
+  try {
+    execFileSync("node", [CLI, dir, "--template", "express"], { stdio: "pipe" });
+  } catch {
+    refused = true;
+  }
+  assert.ok(refused, "scaffolding into a non-empty directory must fail, not proceed");
+  assert.equal(
+    readFileSync(join(dir, ".gitignore"), "utf8"),
+    sentinel,
+    "the user's .gitignore must be byte-identical — this is the data-loss regression",
+  );
+  assert.equal(readFileSync(join(dir, "README.md"), "utf8"), "# My Real Project\n");
+  rmSync(dir, { recursive: true, force: true });
+  console.log("  \u2713 refuses a non-empty target and preserves existing files");
 }
 
 let failures = 0;
