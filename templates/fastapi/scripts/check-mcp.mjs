@@ -25,5 +25,13 @@ if (r.problems.length) {
 }
 const names = Object.keys(r.servers).filter((k) => k !== '//')
 console.log(`  ✓ ${names.length} MCP server(s) declared and launchable: ${names.join(', ')}`)
-for (const u of r.unverified) console.log(`      · not proven working: ${u}`)
+if (r.unverified.length) {
+  for (const u of r.unverified) console.log(`      · not proven working: ${u}`)
+  // Naming the gap is only half a service; name the command that closes it. `claude mcp list`
+  // performs the real handshake — starts each server and asks what tools it provides — which is
+  // exactly what this check refuses to do, because a gate that needs the network and a registry is
+  // a gate that gets skipped. Deliberately NOT wired into the gate: it is the thing to run when the
+  // agent seems to be missing a capability.
+  console.log(`      → \`claude mcp list\` actually starts them and reports health`)
+}
 process.exit(0)

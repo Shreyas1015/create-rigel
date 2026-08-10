@@ -71,6 +71,28 @@ default.
 
 ---
 
+### Proving a server actually works
+
+The MCP check is deliberately offline: it proves the declaration is well-formed and every launcher
+exists on `PATH`, and it says plainly what it did **not** prove. It never starts a server, because a
+gate that fails when a registry is slow is a gate people learn to skip.
+
+The other half is one command:
+
+```bash
+claude mcp list      # starts each server, performs the handshake, reports health
+```
+
+Run it when the agent seems to be missing a capability it was told it had. It is **not** part of the
+gate, on purpose — it needs the network, and it can prompt for approval on project-scoped servers.
+
+> **Why there is no check *before* each MCP tool call.** It would not work. A server's tools only
+> exist after a successful handshake, so a server that never started — the exact failure worth
+> catching — contributes no tools, and a hook watching for those tool calls never fires. The two
+> layers above are the ones that can actually observe the problem.
+
+---
+
 ## Adding your own
 
 ```bash

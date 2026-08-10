@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-08-10
+
+### Changed
+- `mcp:check` now names the command that closes the gap it reports. It has always said which servers
+  it could not prove working; it now adds `→ \`claude mcp list\` actually starts them and reports
+  health`. Naming a gap is half a service — naming the fix is the other half.
+- `docs/mcp.md` gains a **"Proving a server actually works"** section: the offline check and the
+  runtime probe are two layers, and only the second can tell you a declared server really runs.
+
+### Not built, with the reason
+- **A health check before each MCP tool call** (ECC gates this; it was the last open item from the
+  ecosystem review). It cannot work. A server's tools only exist after a successful handshake, so a
+  server that never started — precisely the failure worth catching — contributes no tools at all,
+  and a `PreToolUse` hook watching for those tool calls never fires. Confirmed against a real
+  project-scoped server, which sits *"Pending approval"* and is never even launched.
+
+  The gap it was meant to close is real, and `claude mcp list` already closes it by doing the actual
+  handshake. That is deliberately **not** wired into the gate: it needs the network and can prompt
+  for approval, and a gate that fails on a slow registry is one people learn to skip.
+
+
 ## [0.23.0] - 2026-08-10
 
 > **Does everything this turn wrote still parse?** The per-layer gate is unchanged; this shortens
