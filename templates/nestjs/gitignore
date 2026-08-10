@@ -12,6 +12,7 @@ coverage/
 reports/
 .rigel/acceptance.unlock
 .rigel/blast/
+.rigel/turn/
 .rigel/.jest-*.json
 .rigel/mutation/
 

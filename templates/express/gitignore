@@ -37,6 +37,7 @@ k6-results/
 # .rigel/ac-results/ — is committed; these are throwaway and must not be.
 .rigel/acceptance.unlock
 .rigel/blast/
+.rigel/turn/
 .rigel/.jest-*.json
 .rigel/mutation/
 reports/mutation/

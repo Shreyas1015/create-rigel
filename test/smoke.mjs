@@ -299,6 +299,30 @@ for (const stack of STACKS) {
       );
     }
 
+    // PLAN-020: the turn check is a two-part mechanism — a PostToolUse recorder and a Stop
+    // consumer. Either one alone is inert, and the failure is silent: the recorder writes a ledger
+    // nothing reads, or the checker reads a ledger nothing writes and every turn looks clean.
+    {
+      assert.ok(has(dir, ".claude/hooks/record-edit.mjs"), `${stack}: missing the edit recorder`);
+      assert.ok(has(dir, ".claude/hooks/turn-check.mjs"), `${stack}: missing the turn check`);
+      assert.ok(has(dir, "scripts/lib/rigel-syntax.mjs"), `${stack}: syntax lib was not stamped in`);
+      const settings = JSON.parse(reads(dir, ".claude/settings.json"));
+      const records = (settings.hooks?.PostToolUse ?? []).some((e) =>
+        (e.hooks ?? []).some((h) => /record-edit\.mjs/.test(h.command ?? "")),
+      );
+      const consumes = (settings.hooks?.Stop ?? []).some((e) =>
+        (e.hooks ?? []).some((h) => /turn-check\.mjs/.test(h.command ?? "")),
+      );
+      assert.ok(records, `${stack}: nothing records edits, so turn-check sees an empty ledger every turn`);
+      assert.ok(consumes, `${stack}: edits are recorded but no Stop hook ever reads them`);
+      // A Stop hook that ignores stop_hook_active can block forever with no way out.
+      assert.match(
+        reads(dir, ".claude/hooks/turn-check.mjs"),
+        /stop_hook_active/,
+        `${stack}: turn-check has no loop guard`,
+      );
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

@@ -42,6 +42,7 @@ Thumbs.db
 # (.rigel/judge-review-queue/) are committed; everything below is throwaway.
 .rigel/acceptance.unlock
 .rigel/blast/
+.rigel/turn/
 .rigel/.vitest-*.json
 .rigel/.jest-*.json
 .rigel/mutation/

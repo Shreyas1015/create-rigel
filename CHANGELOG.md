@@ -6,6 +6,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-08-10
+
+> **Does everything this turn wrote still parse?** The per-layer gate is unchanged; this shortens
+> the loop on the one class of mistake that is unambiguous the moment it is made.
+
+### Added
+- **`.claude/hooks/turn-check.mjs`** (Stop) + **`.claude/hooks/record-edit.mjs`** (PostToolUse) —
+  the recorder notes which files a turn touched, and the Stop hook parses each one before the turn
+  is allowed to end. A broken file blocks the turn and the errors are handed back.
+
+  **It parses; it does not typecheck — and that line is the whole design.** A typecheck mid-layer is
+  *expected* to fail: Layer 5 legitimately imports the service Layer 6 has not written yet. Running
+  one every turn would fire on ordinary correct work, and cost ~1 s on a 78-file repo, growing with
+  the repo, forever. A parse error has no such excuse — there is no point in the layer sequence
+  where unbalanced braces are the intended state. Measured at **84 ms** on a clean turn.
+
+  ```
+  1 file(s) you just wrote do not parse:
+
+    src/services/bad.service.ts:1  ',' expected.
+
+  A file that does not parse is broken regardless of how incomplete the layer is.
+  ```
+
+- Both halves are asserted wired, separately. Either alone is inert **and silent**: a recorder
+  nothing reads, or a checker reading a ledger nothing writes — in which case every turn looks clean.
+
+### Notes
+- `node --check` is **not** used for TypeScript. It is worse than nothing there: it rejects valid
+  files (`interface` is a SyntaxError to it) *and* exits 0 on genuinely broken ones — a false red and
+  a false green from one tool. The repo's own `typescript` does the parsing; before `/infra-setup`
+  installs it, files are reported as **not checked** rather than passed.
+- The Stop hook honours `stop_hook_active`, clears its ledger *before* reporting, and never blocks
+  twice. A Stop hook that can block forever is worse than no Stop hook.
+
+
 ## [0.22.0] - 2026-08-10
 
 ### Added

@@ -33,6 +33,7 @@ htmlcov/
 # only the transient run outputs below are ignored.
 .rigel/acceptance.unlock
 .rigel/blast/
+.rigel/turn/
 .rigel/.junit-*.xml
 .rigel/mutation/
 reports/mutation/
