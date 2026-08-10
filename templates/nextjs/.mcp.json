@@ -1,5 +1,5 @@
 {
-  "//": "MCP servers this template ships. Deliberately SHORT. Claude Code already has file, bash, git and web tools, so Filesystem/Git/Fetch MCP servers would only duplicate them and spend context. A server earns a line here by doing something the built-ins cannot. Add your own with `claude mcp add`; `npm run mcp:check` verifies whatever is declared.",
+  "//": "MCP servers this template ships. Deliberately SHORT. Claude Code already has file, bash, git and web tools, so Filesystem/Git/Fetch MCP servers would only duplicate them and spend context. A server earns a line here by doing something the built-ins cannot. Add your own with `claude mcp add`; the MCP check verifies whatever is declared. See docs/mcp.md for the opt-in list, what each one costs, and what is deliberately not shipped.",
   "mcpServers": {
     "context7": {
       "//": "Live, version-correct library docs. This is the one server the harness genuinely needs: every skill with a non-empty `libraries:` list owes a Skill Freshness Check, and answering 'what changed in v6?' from training data is exactly the stale-knowledge failure that check exists to catch.",

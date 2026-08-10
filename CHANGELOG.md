@@ -6,6 +6,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-10
+
+### Added
+- **`docs/mcp.md`** in every template — what ships, what is worth adding, and what is deliberately
+  refused, with the real cost of each. Every package name and endpoint was verified against the npm
+  registry and the GitHub API on 2026-08-10, and the page says so, because MCP moves fast enough
+  that an unverified install command is a fact with a shelf life.
+- A repo-integrity check: every server declared in `.mcp.json` must appear in `docs/mcp.md`. A page
+  listing servers the repo does not declare — or omitting ones it does — is the only way this doc
+  can actually mislead, and it would happen silently.
+
+### Fixed
+- **The credit link in the v0.19.0 and v0.20.0 entries was dead.** They pointed at
+  `affanuu/everything-claude-code`, which 404s. The project is
+  [affaan-m/ECC](https://github.com/affaan-m/ECC). Crediting someone's work with a broken link is
+  worse than not crediting it, and this is exactly the kind of claim that needs checking rather than
+  recalling.
+
+### Changed
+- `.mcp.json`'s `"//"` note now points at `docs/mcp.md`.
+
+### Not recommended
+- **`@modelcontextprotocol/server-github` is deprecated** on npm ("Package no longer supported"), so
+  `docs/mcp.md` points at GitHub's official remote endpoint instead, and a check forbids the dead
+  package ever appearing as an install command. It was a standard recommendation until it wasn't —
+  which is the argument for the freshness note rather than against the table.
+
+
 ## [0.21.0] - 2026-08-10
 
 > **"Where was I" as a derived fact, not a remembered one.** `STATE.md` is hand-written, so it is
@@ -90,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shared half has to live in the stamped leaf and the CLI lens depends on it, not the reverse.
 
 ### Credit
-- The idea is [everything-claude-code](https://github.com/affanuu/everything-claude-code)'s
+- The idea is [ECC](https://github.com/affaan-m/ECC)'s
   `PreToolUse` gates. Their write-up also records the failure mode — repeated denials drove sessions
   into a *"degenerate repetition loop"* — and that warning shaped the two limits above more than the
   feature itself did.
@@ -125,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with it, so this one is narrow on purpose.
 
 ### Credit
-- The idea is [everything-claude-code](https://github.com/affanuu/everything-claude-code)'s
+- The idea is [ECC](https://github.com/affaan-m/ECC)'s
   `silent-failure-hunter` agent, adapted rather than copied. Theirs finds swallowed errors when you
   ask it to; this one refuses the build. That difference is the whole point — an agent describes a
   discipline, an exit code enforces one.

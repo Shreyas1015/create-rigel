@@ -282,6 +282,23 @@ for (const stack of STACKS) {
       assert.ok(!/writeFile|appendFile|mkdirSync/.test(hook), `${stack}: session-start hook writes to disk`);
     }
 
+    // PLAN-019: docs/mcp.md must agree with .mcp.json. A page that lists servers the repo does not
+    // declare — or omits ones it does — is the only way this doc can actually mislead, and MCP moves
+    // fast enough that it would happen silently.
+    {
+      assert.ok(has(dir, "docs/mcp.md"), `${stack}: missing docs/mcp.md`);
+      const doc = reads(dir, "docs/mcp.md");
+      const declared = Object.keys(JSON.parse(reads(dir, ".mcp.json")).mcpServers ?? {}).filter((k) => k !== "//");
+      for (const name of declared) {
+        assert.ok(doc.includes(name), `${stack}: ${name} is declared in .mcp.json but absent from docs/mcp.md`);
+      }
+      // The deprecated GitHub package must never be recommended as an install command.
+      assert.ok(
+        !/claude mcp add[^\n]*@modelcontextprotocol\/server-github/.test(doc),
+        `${stack}: docs/mcp.md recommends the deprecated github MCP package`,
+      );
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);
