@@ -6,6 +6,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-10
+
+> **"Where was I" as a derived fact, not a remembered one.** `STATE.md` is hand-written, so it is
+> right only if the last session remembered to update it — and git-ignored, so a fresh clone starts
+> with nothing.
+
+### Added
+- **`.claude/hooks/session-start.mjs`** — a `SessionStart` hook, registered in every template. It
+  prints a short `<session-resume>` block derived entirely from artifacts already on disk:
+
+  ```
+  Active plan: PLAN-001 — 3/5 layers done
+    next: Layer 4: Repo — src/repo/user.repo.ts
+  Branch: main — 2 uncommitted file(s)
+  Recurring gate failures (recorded, not necessarily still open):
+    tsc:TS2345 ×2
+    → /curate turns a repeat offender into a lesson
+  ```
+
+  The progress line is not an estimate: `/build-layer` already ticks `- [ ]` → `- [x]` in the plan
+  when a layer's gate passes, so the plan file is where progress is recorded **mechanically**. This
+  just reads it back.
+
+  **Why a hook and not the checklist.** `.claude/CLAUDE.md` has always said to read `STATE.md` at
+  session start. Prose guidance is followed most of the time; a hook's stdout is in context every
+  time. That is the same difference as between an agent and a gate.
+
+  It **writes nothing** and always exits 0 — a session-start side effect is the kind of surprise
+  that gets a hook deleted. ~40 ms.
+
+- Failures are reported as **recurring**, never as *open*. Nothing in `gate-failures.jsonl` records
+  a fix, so calling one unresolved would be an inference the data does not support.
+
+### Changed
+- The Session Start Checklist now distinguishes the **derived** half (`0b`, supplied automatically)
+  from the **prose** half (`0c`, `STATE.md` — notes a human left, absent on a fresh clone).
+
+### Fixed
+- `gitState` shifted the **first** uncommitted path by one character. The shared `git()` helper
+  trimmed its output, which ate the leading space of `git status --porcelain`'s fixed-width status
+  column — and only on the first line, since every later line keeps its space after the newline. It
+  read as a typo (`ib/update.mjs`) rather than a parse bug. Pinned by a regression test.
+
+### Not taken
+- ECC's `Stop` hook also **mines the session transcript for extractable patterns**. Deliberately not
+  copied. `/curate` already derives lessons — from *recorded failures* rather than inferred from a
+  conversation — and makes them climb OBSERVED → ENFORCED before anything treats them as fact. A
+  transcript-mined "pattern" written straight to the knowledge base is an assertion nobody verified,
+  and this project's whole claim is that its assertions terminate in an exit code.
+
+
 ## [0.20.0] - 2026-08-08
 
 > **The blast radius arrives before the edit, not after.** `impact` has always been a lens that

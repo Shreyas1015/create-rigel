@@ -21,8 +21,13 @@ Read this file first on every session. Then read the active execution plan befor
 ```
 0. Scan docs/design-docs/lessons/ → past failures to avoid (read frontmatter `summary`;
                                      open a body only when it applies). See docs/design-docs/memory.md.
-0b. cat STATE.md (if present)     → where the last session stopped + open failures.
-                                     Ephemeral hint only — if it disagrees with the plan, the PLAN wins.
+0b. The <session-resume> block above  → ALREADY IN CONTEXT. The SessionStart hook derived it
+                                     from the plan's checkboxes, git and recorded failures,
+                                     so steps 1-2 are answered before you start. Don't re-derive it.
+0c. cat STATE.md (if present)     → the PROSE half: notes the last session left for you.
+                                     Ephemeral and git-ignored — if it disagrees with the plan,
+                                     the PLAN wins. Absent on a fresh clone, which is why 0b is
+                                     derived and not remembered.
 1. ls docs/exec-plans/active/     → active plan?
 2. If yes  → read it, find first [ ] layer, run /build-layer
 3. If no   → ask human: whole product or one feature?

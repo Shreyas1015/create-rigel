@@ -265,6 +265,23 @@ for (const stack of STACKS) {
       assert.match(hook, /edit allowed/, `${stack}: blast hook does not fail open`);
     }
 
+    // PLAN-018: the resume block must ship AND be registered on SessionStart. Its whole value is
+    // that it runs every time — a prose checklist is followed most of the time, which is the gap
+    // it exists to close, so an unregistered hook is worth nothing at all.
+    {
+      assert.ok(has(dir, ".claude/hooks/session-start.mjs"), `${stack}: missing the session-start hook`);
+      assert.ok(has(dir, "scripts/lib/rigel-resume.mjs"), `${stack}: resume lib was not stamped in`);
+      const settings = JSON.parse(reads(dir, ".claude/settings.json"));
+      const registered = (settings.hooks?.SessionStart ?? []).some((e) =>
+        (e.hooks ?? []).some((h) => /session-start\.mjs/.test(h.command ?? "")),
+      );
+      assert.ok(registered, `${stack}: session-start.mjs ships but no SessionStart entry runs it`);
+      // It must not write. A side effect at session start is the kind of surprise that gets a hook
+      // deleted, and every input it reads is already on disk.
+      const hook = reads(dir, ".claude/hooks/session-start.mjs");
+      assert.ok(!/writeFile|appendFile|mkdirSync/.test(hook), `${stack}: session-start hook writes to disk`);
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);
