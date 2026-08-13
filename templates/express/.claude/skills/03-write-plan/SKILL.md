@@ -63,6 +63,19 @@ test -f .rigel/grill/SPEC-XXX.json || \
 remains, so its presence is the proof. If it is missing, go back to `/write-spec`'s grill step —
 answering the questions is cheap; discovering the wrong requirement after three layers is not.
 
+### Step 1e — Enforce the design decisions
+
+A spec may not be planned while the decisions it owes are unrecorded. They get made either way —
+inside `/build-layer`, by whoever writes that layer, with nothing to review:
+
+```bash
+npm run design:check || \
+  { echo "BLOCK: SPEC-XXX has unrecorded design decisions — run /write-design"; exit 1; }
+```
+
+The required list is derived from the spec's own endpoints and entities, so this is not a matter of
+taste: an endpoint with no authorization decision is a fact about the spec.
+
 ### Step 1d — A declared migration becomes Layer 0
 
 If the spec's `impact` block lists files under `migrate:`, they become the plan's **first** layer —

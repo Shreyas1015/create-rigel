@@ -283,6 +283,7 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "verify:rigel": "node scripts/rigel-verify.mjs",
 "mcp:check": "node scripts/check-mcp.mjs",
 "silent:check": "node scripts/check-silent-failures.mjs",
+"design:check": "node scripts/check-design.mjs",
 "debug:regression": "node scripts/debug-regression.mjs",
 "knowledge": "node scripts/rigel-knowledge.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
@@ -290,7 +291,7 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "ac:vector": "node scripts/ac-vector.mjs",
 "openapi:export": "ts-node scripts/openapi.export.ts",
 "contract:gate": "node scripts/contract-gate.mjs",
-"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run mcp:check && npm run silent:check && npm run knowledge && npm run debug:regression check && npm run contract:gate",
+"gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run test:arch && npm run mcp:check && npm run silent:check && npm run design:check && npm run knowledge && npm run debug:regression check && npm run contract:gate",
 "gate:final": "npm run gate && npm run ac:vector"
 ```
 

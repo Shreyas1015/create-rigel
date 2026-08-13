@@ -6,6 +6,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-08-13
+
+> **A spec may not ship with decisions nobody made.** Second half of
+> [PLAN-023](docs/exec-plans/PLAN-023-design-stage.md).
+
+### Added
+- **`/write-design`**, between `/write-spec` and `/write-plan`, plus **`design:check`** as a gate
+  step in all four templates and a precondition in `/write-plan`.
+
+  The spec says *what*; the plan says *in what order*. Neither recorded **which engineering
+  decisions were made or why** — so they got made inside `/build-layer`, by whoever wrote that
+  layer, with no record and nothing to review. A spec could pass every other gate here and still
+  ship an endpoint whose authorization model nobody chose.
+
+- **The required decisions are derived from the spec**, which is what makes this a gate rather than
+  a template. From its own endpoints and entities: any endpoint owes an **authorization** model and
+  a **rate-limiting** posture; a non-GET endpoint owes **idempotency** and **failure handling**; a
+  persisted entity owes **retention**. *"This spec has a POST endpoint and no idempotency decision"*
+  is a mechanical fact, not a matter of taste.
+
+  **Triggers are categories, not items** — ten endpoints owe *one* authorization decision, not ten.
+  A read-only spec owes two decisions; a full CRUD spec owes five. That is the whole list, and it is
+  five rules rather than eight on purpose: this fires on every spec, and an over-eager checklist is
+  the cry-wolf failure that gets a gate switched off.
+
+- **`rejected:` must be non-empty.** A decision with nothing rejected is a default nobody chose, and
+  on the page it reads exactly like one that was considered. This is the cheapest real quality
+  signal available and the field a reviewer actually reads.
+
+- **Brownfield uses the same stage**, separated by one field: `status: observed` records what the
+  code already does and nobody has reviewed. It needs no rationale — you may not know why — but it
+  still needs alternatives, so the gap stays visible. The gate reports *"N of M decisions are
+  observed, not decided"*: a convergence number that shrinks as feature work touches those areas,
+  the same shape as `doctor`'s. No second pipeline, no second-class mode.
+
+### Notes
+- Citations are checked only when a reference corpus is configured, and **skipping is reported**,
+  never silently passed.
+- The design file gets a deliberately strict parser: anything it cannot parse is an error naming the
+  line. A lenient one would drop a `rejected:` block and pass the decision — a false green from the
+  component whose entire job is refusing them.
+- Failure output names the actual defect. A broken citation is not "decisions nobody recorded", and
+  a summary saying so sends the reader hunting for the wrong thing.
+
+
 ## [0.26.0] - 2026-08-13
 
 > **A design decision without a citation is an opinion.** First half of the design stage

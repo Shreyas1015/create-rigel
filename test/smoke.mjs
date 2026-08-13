@@ -354,6 +354,33 @@ for (const stack of STACKS) {
       );
     }
 
+    // PLAN-023: the design stage is a four-part chain — the skill, the gate script, the stamped
+    // libs, and the /write-plan block. The gate must also be IN the gate chain: a check-design.mjs
+    // that no gate invokes is the shipped-but-unwired failure (LSN-0015) in a new costume.
+    {
+      assert.ok(has(dir, ".claude/skills/03-write-design/SKILL.md"), `${stack}: missing /write-design`);
+      assert.ok(has(dir, "scripts/check-design.mjs"), `${stack}: missing scripts/check-design.mjs`);
+      assert.ok(has(dir, "scripts/lib/rigel-decisions.mjs"), `${stack}: decisions lib was not stamped`);
+      assert.ok(has(dir, "scripts/lib/rigel-design.mjs"), `${stack}: design lib was not stamped`);
+
+      const gate = stack === "fastapi" ? reads(dir, "scripts/gate.sh") : reads(dir, "package.json");
+      const wired =
+        /check-design\.mjs|design:check/.test(gate) ||
+        /design:check/.test(reads(dir, ".claude/skills/00-infra-setup/SKILL.md"));
+      assert.ok(wired, `${stack}: design:check is not wired into the gate`);
+
+      // The design stage must sit BETWEEN spec and plan. Running it after planning would mean the
+      // plan was built from decisions nobody had made yet, which is the whole failure it prevents.
+      const planSkill = ["\.claude/skills/03-write-plan", "\.claude/skills/02-write-plan"]
+        .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
+        .find((f) => has(dir, f));
+      assert.match(
+        reads(dir, planSkill),
+        /Enforce the design decisions/,
+        `${stack}: /write-plan does not require the design decisions`,
+      );
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

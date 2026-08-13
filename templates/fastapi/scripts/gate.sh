@@ -106,6 +106,10 @@ node scripts/check-mcp.mjs || FAIL=1
 echo "── silent failures ──"
 node scripts/check-silent-failures.mjs || FAIL=1
 
+# Design decisions the spec owes — derived from its endpoints and entities.
+echo "── design decisions ──"
+node scripts/check-design.mjs || FAIL=1
+
 echo "── debug regressions ──"
 python3 scripts/debug_regression.py check || FAIL=1
 
