@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-08-13
+
+### Added
+- **code-review-graph documented as an opt-in MCP server** in `docs/mcp.md`, with a straight
+  comparison against `create-rigel impact` rather than a recommendation.
+
+  It is a real upgrade in *precision*: tree-sitter parses to a symbol graph, so it resolves which
+  **function** changed and who calls it, where `impact` works at file level and therefore
+  over-reports. It also returns a minimal review set, which is where its token savings come from.
+
+  It is **opt-in, not shipped**, for reasons now measured rather than assumed: it needs Python 3.10+
+  and `uv`, and a first `uvx code-review-graph index .` **had not completed after 20 minutes** on a
+  2026 laptop — dependency resolution plus native tree-sitter builds. A Node project should not be
+  made to install a Python toolchain to scaffold.
+
+  `create-rigel impact` stays exactly as it is: the floor. Zero dependencies, ~18 ms on a 78-file
+  repo, always present, and wired into the `impact:` declaration the contract gate enforces. Neither
+  tool fails a build — so precision you have to install is a preference, not a guarantee, and that
+  is the line between shipped and opt-in.
+
+
 ## [0.27.0] - 2026-08-13
 
 > **A spec may not ship with decisions nobody made.** Second half of

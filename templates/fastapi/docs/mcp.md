@@ -82,6 +82,30 @@ Add only what you will use. Each line states the real cost.
 | **sequential-thinking** | `claude mcp add sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking` | none | Structured multi-step reasoning for genuinely branchy problems |
 | **Chrome DevTools** | `claude mcp add chrome-devtools -- npx -y chrome-devtools-mcp` | a local Chrome | Live page debugging — network, console, DOM against a running browser |
 | **Exa** | `claude mcp add exa -- npx -y exa-mcp-server` | API key | Web research meaningfully better than raw fetch |
+| **code-review-graph** | `claude mcp add code-review-graph -- uvx code-review-graph serve` | Python 3.10+, `uv`, and a genuinely slow first install | Real AST blast radius. Parses with tree-sitter into a symbol graph, so it resolves *which function* changed and who calls it — where `create-rigel impact` works at file level. Also returns a minimal review set, which is where the token savings come from |
+
+#### On code-review-graph vs `create-rigel impact`
+
+Both answer "if I change this, what else is involved?", and they are not competing — they sit at
+different points on a cost curve, so keep both:
+
+| | `create-rigel impact` | code-review-graph |
+| --- | --- | --- |
+| Parsing | regex over import statements | tree-sitter AST → symbol graph |
+| Granularity | file level | function/symbol level |
+| Install | none — ships with the scaffolder | Python 3.10+, `uv`. On a 2026 laptop the first `uvx code-review-graph index .` **had not finished after 20 minutes** — dependency resolution plus native tree-sitter builds. Budget for it once, on a good connection |
+| Speed once ready | ~18 ms on a 78-file repo | indexes to a SQLite graph, then queries are fast |
+| Blocks a build? | no — it is a lens | no — also a lens |
+
+`impact` is the **floor**: zero dependencies, always present, and wired into `/write-spec`'s
+`impact:` declaration which the contract gate does enforce. That is why it stays as-is.
+
+code-review-graph is a genuine upgrade in *precision* — file-level blast radius over-reports, and
+symbol-level does not. Worth adding on a large codebase or when review context cost is real. It is
+opt-in rather than shipped because a Node project should not be made to install a Python toolchain
+to scaffold, and because neither tool fails a build: precision you have to install is a preference,
+not a guarantee.
+
 
 **Do not use `@modelcontextprotocol/server-github`.** It is deprecated on npm ("Package no longer
 supported"). GitHub's official server is the remote endpoint in the table above; the source lives at

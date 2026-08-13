@@ -1,6 +1,6 @@
 {
   "name": "create-rigel",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "description": "Scaffold a Next.js, Express, or FastAPI project where an AI coding agent's work is constrained by rules and checked by a gate that fails the build. Wired for Claude Code.",
   "type": "module",
   "bin": {
