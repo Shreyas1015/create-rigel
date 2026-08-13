@@ -286,6 +286,7 @@ which is legitimately **red mid-build** — the gate is `test:arch`, not `test`.
 "debug:regression": "node scripts/debug-regression.mjs",
 "knowledge": "node scripts/rigel-knowledge.mjs",
 "redgreen:record": "node scripts/redgreen-record.mjs",
+"grill:record": "node scripts/grill-record.mjs",
 "ac:vector": "node scripts/ac-vector.mjs",
 "openapi:export": "ts-node scripts/openapi.export.ts",
 "contract:gate": "node scripts/contract-gate.mjs",

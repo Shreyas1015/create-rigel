@@ -6,6 +6,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-08-13
+
+> **A spec may not lock its holdout while it is still guessing.**
+
+### Added
+- **`/grill`, as a step inside `/write-spec`** (`scripts/grill-record.mjs` + `npm run grill:record`).
+
+  `/write-spec` asked the human *"ONE question if their description is too vague"*, then wrote the
+  entities, endpoints, business rules, NFRs and acceptance criteria. Those ACs immediately became
+  `tests/acceptance/SPEC-XXX/` — a **holdout** the post-write hook refuses to let anyone edit, with a
+  recorded red-green proof. So an invented requirement never stayed a paragraph: within one skill
+  run it was a locked test, a plan, and a sprint of work.
+
+  The grill runs in the gap between writing the spec and locking the holdout — the last moment where
+  being wrong is still free. It requires an `## Open Questions` table with every question answered,
+  and every guess marked `[ASSUMED]` and then resolved. `grill:record` **refuses** while either is
+  outstanding, and parked answers do not count: `TBD`, `?`, `-` and `N/A` are open questions wearing
+  a hat.
+
+  It prompts for what is expensive to get wrong rather than what is easy to ask — edge behaviour,
+  **authorization** (guess it and you get a security bug that passes every test, because you wrote
+  the tests from the same wrong assumption), invented numbers, irreversible actions, scope
+  boundaries.
+
+- **`/write-plan` Step 1d refuses a spec with no `.rigel/grill/SPEC-XXX.json`**, alongside the
+  existing red-green and impact preconditions. The proof is committed, like the other traceability
+  artifacts.
+
+### Notes
+- What this can and cannot do, stated plainly: no script can check whether the questions were
+  *good*. What it can do is stop a guess passing **silently** — which is the whole difference
+  between a convention and a rule. Same contract as `redgreen:record`, which refuses a proof in
+  which a test already passed.
+- Ordering is asserted, not just presence. A grill step that runs *after* the holdout is scaffolded
+  is worth nothing, and that is the easy way to break this without noticing — so `test/smoke.mjs`
+  checks the step precedes the scaffolding, in every template.
+
+
 ## [0.24.0] - 2026-08-10
 
 ### Changed

@@ -442,6 +442,7 @@ is the single command `/push-layer` and `/validate-layer` run.
     "format:check": "prettier --check .",
     "gate": "npm run verify:rigel && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run mcp:check && npm run silent:check && npm run knowledge && npm run debug:regression check && npm run contract:freshness",
     "redgreen:record": "node scripts/redgreen-record.mjs",
+"grill:record": "node scripts/grill-record.mjs",
     "ac:vector": "node scripts/ac-vector.mjs",
     "gate:final": "npm run gate && npm run ac:vector",
     "analyze": "ANALYZE=true next build"

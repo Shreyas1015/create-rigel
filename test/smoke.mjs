@@ -323,6 +323,37 @@ for (const stack of STACKS) {
       );
     }
 
+    // PLAN-022: the grill is a three-part chain — the script, the /write-spec step that runs it
+    // BEFORE the holdout locks, and the /write-plan block that refuses a spec without the proof.
+    // Break any link and specs go on being built from guesses, with nothing to show it happened.
+    {
+      assert.ok(has(dir, "scripts/grill-record.mjs"), `${stack}: missing scripts/grill-record.mjs`);
+      assert.ok(has(dir, "scripts/lib/rigel-grill.mjs"), `${stack}: grill lib was not stamped in`);
+
+      const specSkill = ["\.claude/skills/02-write-spec", "\.claude/skills/01-write-spec"]
+        .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
+        .find((f) => has(dir, f));
+      assert.ok(specSkill, `${stack}: no write-spec skill`);
+      const spec = reads(dir, specSkill);
+      assert.match(spec, /Grill the spec BEFORE the holdout closes/, `${stack}: /write-spec has no grill step`);
+      // Order matters more than presence: grilling AFTER the holdout locks is worth nothing.
+      assert.ok(
+        spec.indexOf("Grill the spec BEFORE") < spec.indexOf("Scaffold Failing Acceptance Tests"),
+        `${stack}: the grill step comes after the holdout is scaffolded — too late to be free`,
+      );
+      assert.match(spec, /grill-record\.mjs|grill:record/, `${stack}: the grill step never runs the recorder`);
+
+      const planSkill = ["\.claude/skills/03-write-plan", "\.claude/skills/02-write-plan"]
+        .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
+        .find((f) => has(dir, f));
+      assert.ok(planSkill, `${stack}: no write-plan skill`);
+      assert.match(
+        reads(dir, planSkill),
+        /\.rigel\/grill\/SPEC-XXX\.json/,
+        `${stack}: /write-plan does not require the grill proof`,
+      );
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

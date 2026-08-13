@@ -39,7 +39,8 @@
     "contract:gate": "node scripts/contract-gate.mjs",
     "debug:regression": "node scripts/debug-regression.mjs",
     "mcp:check": "node scripts/check-mcp.mjs",
-    "silent:check": "node scripts/check-silent-failures.mjs"
+    "silent:check": "node scripts/check-silent-failures.mjs",
+    "grill:record": "node scripts/grill-record.mjs"
   },
   "keywords": [
     "express",

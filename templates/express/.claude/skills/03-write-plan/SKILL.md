@@ -49,6 +49,20 @@ Declaring is cheap and over-declaring is free; the only thing that costs you is 
 the contract gate catches later. A spec that never states its intent gives the gate nothing to
 verify against.
 
+### Step 1d — Enforce the grill
+
+A spec may not be planned while it is still guessing. The acceptance tests are already locked by
+this point, so an unresolved assumption here is one that will be *built*:
+
+```bash
+test -f .rigel/grill/SPEC-XXX.json || \
+  { echo "BLOCK: SPEC-XXX was never grilled — run: npm run grill:record -- SPEC-XXX"; exit 1; }
+```
+
+`grill:record` only writes that file once every open question is answered and no `[ASSUMED]` marker
+remains, so its presence is the proof. If it is missing, go back to `/write-spec`'s grill step —
+answering the questions is cheap; discovering the wrong requirement after three layers is not.
+
 ### Step 1d — A declared migration becomes Layer 0
 
 If the spec's `impact` block lists files under `migrate:`, they become the plan's **first** layer —
