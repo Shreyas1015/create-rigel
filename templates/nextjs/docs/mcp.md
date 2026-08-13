@@ -31,6 +31,38 @@ npm run mcp:check
 It validates the file, every entry, and that every launcher exists on `PATH`. It does **not** launch
 the servers or reach the network — a gate that fails because a registry was slow teaches people to
 skip the gate. It prints what it did not prove, so a pass is never mistaken for "the servers work".
+| **design-notes** — `npx -y create-rigel mcp-design-notes` | Gives the agent a reference corpus to ground design decisions in, instead of whatever it remembered. Ships with notes on authorization, idempotency, failure handling, data retention and rate limiting, each citing the public standard that settles it. `/write-design` cites these refs and the gate verifies they resolve. |
+
+### Using your own notes instead
+
+The corpus is a plug, not a fixture. Point it at any directory of markdown — your own notes, a team
+handbook, an internal standards repo:
+
+```bash
+export RIGEL_NOTES_PATH=~/notes/my-system-design-notes
+```
+
+Headings become citable anchors (`note.md#some-heading`), so well-structured markdown works with no
+conversion. Yours takes precedence; the shipped notes stay as the fallback for anything yours does
+not cover.
+
+Then record the index so the gate can verify citations **offline** — on CI, and on a machine that
+has never seen your notes:
+
+```bash
+npx create-rigel design-index          # or: design-index /path/to/notes
+```
+
+That writes `.rigel/design-refs.json` — headings only, no content — which you commit. A 358-note
+corpus indexes to roughly 300 KB.
+
+If a big notes repo is mostly images, clone just the markdown:
+
+```bash
+git clone --filter=blob:none --sparse --depth 1 <repo> notes
+cd notes && git sparse-checkout set --no-cone '**/*.md'
+```
+
 
 ---
 

@@ -3,7 +3,7 @@
 // Zero runtime dependencies (Node builtins only), so it publishes with no build step.
 
 import { readdir, mkdir, writeFile, mkdtemp, rm, rename } from "node:fs/promises";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, dirname, resolve, basename } from "node:path";
@@ -16,6 +16,7 @@ import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS
 import { planInstall, install, summarizeInstall, coreCollisions, staleHarness } from "./lib/install.mjs";
 import { diagnose, countBad, BLIND_SPOTS as DOCTOR_BLIND_SPOTS } from "./lib/doctor.mjs";
 import { candidates } from "./lib/candidates.mjs";
+import { buildIndex, resolveCorpus, REFS_PATH } from "./lib/design.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
   serviceImpact, touchesContract, unenforced, BLIND_SPOTS,
@@ -622,6 +623,54 @@ async function cmdImpact(argv) {
   console.log("\n  This is a lens, not a gate. Breaking changes are enforced by the contract gate.\n");
 }
 
+// ── `create-rigel design-index [path]` — PLAN-023 AC-2 ──────────────────────────
+// Walks a markdown corpus and records every note's headings as citable anchors. Committing that
+// index is what makes citation checking OFFLINE: the gate then verifies a design decision's
+// reference without the corpus being present, so CI and a teammate who has never cloned the
+// reference library both stay green.
+//
+// Headings only — never body text. That keeps the index small enough to commit and means it carries
+// no content from whatever corpus produced it.
+function cmdDesignIndex(argv) {
+  const root = process.cwd();
+  const given = argv.find((a) => !a.startsWith("-"));
+  const bundled = join(HERE, "reference");
+
+  const corpus = given
+    ? { path: resolve(given), source: "argument" }
+    : resolveCorpus(root, { bundled });
+
+  if (!corpus.path || !existsSync(corpus.path)) {
+    console.error(`  No corpus found${given ? `: ${given}` : ""}.`);
+    console.error(`
+    Point at one explicitly:      npx create-rigel design-index ~/notes/my-notes
+    or set it for every project:  export RIGEL_NOTES_PATH=~/notes/my-notes
+    or pin it for this project:   ${REFS_PATH}  →  { "corpus": "/abs/path" }
+`);
+    process.exit(1);
+  }
+
+  const idx = buildIndex(corpus.path);
+  if (!idx.count) {
+    console.error(`  ${corpus.path} contains no .md files — nothing to index.`);
+    process.exit(1);
+  }
+
+  const out = join(root, REFS_PATH);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify({ corpus: corpus.path, generatedFrom: idx.count, files: idx.files }, null, 0) + "\n");
+
+  const kb = (statSync(out).size / 1024).toFixed(0);
+  console.log(`  ✓ indexed ${idx.count} note(s), ${idx.anchors} citable section(s)  (source: ${corpus.source})`);
+  console.log(`    ${corpus.path}`);
+  console.log(`    → ${REFS_PATH}  (${kb} KB — commit this)`);
+  console.log(`
+    Design decisions can now cite  note.md#section  and the gate will verify it.
+    Re-run this after the corpus changes.
+`);
+  process.exit(0);
+}
+
 async function main() {
   // Subcommands run inside an existing project; anything else scaffolds a new one.
   const sub = process.argv[2];
@@ -633,6 +682,10 @@ async function main() {
   if (sub === "adopt") return cmdAdopt(process.argv.slice(3));
   if (sub === "doctor") return cmdDoctor(process.argv.slice(3));
   if (sub === "candidates") return cmdCandidates(process.argv.slice(3));
+  if (sub === "design-index") return cmdDesignIndex(process.argv.slice(3));
+  // The MCP server is launched by .mcp.json as `npx -y create-rigel mcp-design-notes`, so the
+  // scaffolder itself is the entry point — one package to install, nothing extra to publish.
+  if (sub === "mcp-design-notes") return import(join(HERE, "mcp", "design-notes.mjs"));
 
   const args = parseArgs(process.argv);
   const rl = createInterface({ input, output });

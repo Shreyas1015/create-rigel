@@ -16,6 +16,15 @@
         "-y",
         "@playwright/mcp@latest"
       ]
+    },
+    "design-notes": {
+      "//": "Design reference corpus. Grounds /write-design decisions in something citable instead of whatever the author remembered. Ships with a default corpus covering authorization, idempotency, failure handling, data retention and rate limiting; point RIGEL_NOTES_PATH at your own markdown notes to use those instead. Needs no key, no account and no network.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "create-rigel",
+        "mcp-design-notes"
+      ]
     }
   }
 }

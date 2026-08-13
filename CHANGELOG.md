@@ -6,6 +6,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-13
+
+> **A design decision without a citation is an opinion.** First half of the design stage
+> ([PLAN-023](docs/exec-plans/PLAN-023-design-stage.md)): something to cite, and a way to check the
+> citation. `/write-design` and its gate follow in v0.27.0.
+
+### Added
+- **`design-notes` MCP server**, declared in every template's `.mcp.json` and configured on install
+  — no key, no account, no network. Three tools: `list_topics`, `search_notes` (returns citable
+  `path#anchor` refs), `read_note` (whole note or one section).
+
+  Search is **lexical over heading anchors, not embeddings** — it has to run offline, start
+  instantly, and give the same answer twice, and a gate cannot depend on a model being reachable.
+  A few hundred notes index in ~30 ms.
+
+- **A bundled reference corpus** covering the decisions `/write-design` will require: authorization,
+  idempotency, failure handling, data retention, rate limiting. Original writing that *cites* the
+  public standard settling each (OWASP ASVS, Google SRE Book, RFC 9110, AWS Well-Architected) rather
+  than reproducing it. Each note says what must be chosen, what the options cost, and how the choice
+  is usually got wrong.
+
+- **`create-rigel design-index [path]`** — walks any markdown corpus and writes
+  `.rigel/design-refs.json`: headings only, never body text. Commit it, and citation checking is
+  thereafter **offline** — it works on CI and on a machine that has never seen the corpus. Measured
+  on a 358-note corpus: 307 KB, 8683 citable anchors.
+
+- **Bring your own corpus.** Resolution order is `RIGEL_NOTES_PATH` → `.rigel/design-refs.json` →
+  the bundled notes. Point it at your own notes, a team handbook, an internal standards repo; any
+  well-structured markdown works, because headings are the anchors. Documented in `docs/mcp.md`,
+  including the `--filter=blob:none --sparse` clone that pulls only the markdown out of an
+  image-heavy notes repo (measured: 554 MB → 13 MB, under 3 s).
+
+### Notes
+- **No corpus configured is not an error, anywhere.** The MCP server still starts and says how to
+  configure one; citation checks are skipped and *reported as skipped*. A gate that hard-failed over
+  an absent optional reference library would be a liability on every machine that never opted in —
+  and a feature people have to disable is worse than one that does less.
+- `read_note` refuses paths that escape the corpus, and clips long notes with the path kept, so the
+  agent can re-read a section rather than silently working from half a page.
+
+
 ## [0.25.0] - 2026-08-13
 
 > **A spec may not lock its holdout while it is still guessing.**
