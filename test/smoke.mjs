@@ -343,7 +343,7 @@ for (const stack of STACKS) {
       );
       assert.match(spec, /grill-record\.mjs|grill:record/, `${stack}: the grill step never runs the recorder`);
 
-      const planSkill = ["\.claude/skills/03-write-plan", "\.claude/skills/02-write-plan"]
+      const planSkill = ["\.claude/skills/04-write-plan", "\.claude/skills/03-write-plan"]
         .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
         .find((f) => has(dir, f));
       assert.ok(planSkill, `${stack}: no write-plan skill`);
@@ -358,7 +358,10 @@ for (const stack of STACKS) {
     // libs, and the /write-plan block. The gate must also be IN the gate chain: a check-design.mjs
     // that no gate invokes is the shipped-but-unwired failure (LSN-0015) in a new costume.
     {
-      assert.ok(has(dir, ".claude/skills/03-write-design/SKILL.md"), `${stack}: missing /write-design`);
+      const designSkill = ["\\.claude/skills/03-write-design", "\\.claude/skills/02-write-design"]
+        .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
+        .find((f) => has(dir, f));
+      assert.ok(designSkill, `${stack}: missing /write-design`);
       assert.ok(has(dir, "scripts/check-design.mjs"), `${stack}: missing scripts/check-design.mjs`);
       assert.ok(has(dir, "scripts/lib/rigel-decisions.mjs"), `${stack}: decisions lib was not stamped`);
       assert.ok(has(dir, "scripts/lib/rigel-design.mjs"), `${stack}: design lib was not stamped`);
@@ -371,7 +374,7 @@ for (const stack of STACKS) {
 
       // The design stage must sit BETWEEN spec and plan. Running it after planning would mean the
       // plan was built from decisions nobody had made yet, which is the whole failure it prevents.
-      const planSkill = ["\.claude/skills/03-write-plan", "\.claude/skills/02-write-plan"]
+      const planSkill = ["\.claude/skills/04-write-plan", "\.claude/skills/03-write-plan"]
         .map((d) => d.replace(/\\/g, "") + "/SKILL.md")
         .find((f) => has(dir, f));
       assert.match(

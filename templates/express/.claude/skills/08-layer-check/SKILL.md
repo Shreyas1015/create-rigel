@@ -1,5 +1,5 @@
 ---
-name: 07-layer-check
+name: 08-layer-check
 description: /layer-check — Ad-hoc Architecture Violation Scan
 verified: 2026-06-04
 libraries: []

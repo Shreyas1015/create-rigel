@@ -1,5 +1,5 @@
 ---
-name: 11-load-test
+name: 12-load-test
 description: /load-test — k6 Performance Testing
 verified: 2026-06-04
 libraries: [k6]

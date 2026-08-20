@@ -1,5 +1,5 @@
 ---
-name: 03-write-plan
+name: 04-write-plan
 description: /write-plan — Write an Execution Plan
 verified: 2026-06-19
 libraries: []

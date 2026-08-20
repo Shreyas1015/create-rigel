@@ -136,7 +136,7 @@ All OPEN (candidate fix batch before F2). CLASS unless noted.
   the exporter); jest `globalSetup` `provision-schema.mjs` runs migrations (guarded — DB-free arch
   gate + red-green recording unaffected); coverage excludes unexercised scaffold (rbac/featureFlags)
   without weakening feature thresholds; rate-limit test-env skip; `forceExit` + `maxWorkers:1`.
-  Consistency edits across `database.md`, `03-write-plan`, `04-build-layer`, `10-db-optimize`
+  Consistency edits across `database.md`, `04-write-plan`, `05-build-layer`, `11-db-optimize`
   (migrations are `.cjs`; index CONCURRENTLY only on populated tables).
 - **New residuals (logged):** **DF-32** — jest `coverageThreshold` with a zero-file path glob throws
   "coverage data not found" (latent; a pre-feature / provider-only commit could trip it). **DF-24-residual**
@@ -167,7 +167,7 @@ on branch `chore/PLAN-001-pipeline-sync`:
 
 - **Ported:** `db/config.cjs` + `.sequelizerc`, `.js`→`.cjs` migration, `provision-schema.mjs`
   globalSetup, jest config (DF-20/22/24); solo-friendly `git-policy.json` + `protect-branch.sh` +
-  `check-protection-drift.sh` (DF-29); `03-write-plan`/`04-build-layer` branch-cut + push-current
+  `check-protection-drift.sh` (DF-29); `04-write-plan`/`05-build-layer` branch-cut + push-current
   (DF-17/18); `.cjs` skill/rule guidance.
 - **DF-29 — LIVE-VERIFIED:** re-ran `protect-branch.sh` → main + staging synced to solo-friendly;
   `check-protection-drift.sh` ✓ on **both** branches; **PR #2 opened and squash-merged solo** with no

@@ -111,5 +111,5 @@ Curated N failure signature(s):
   ⚑ promotion-ready:        [LSN-… (seen>=3, DISTILLED)]  → hand to a human to enforce
   ⌫ stale candidates:       [LSN-… (OBSERVED, N plans cold)] → human deletes
   ⏰ OVERDUE promotion:     [LSN-… (promote_by <date> has passed)] → from /postmortem; build the check
-  ↳ skills updated:         [03-build-layer ← LSN-…]
+  ↳ skills updated:         [04-build-layer ← LSN-…]
 ```

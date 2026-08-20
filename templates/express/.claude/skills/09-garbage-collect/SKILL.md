@@ -1,5 +1,5 @@
 ---
-name: 08-garbage-collect
+name: 09-garbage-collect
 description: /garbage-collect — End-of-Feature Cleanup
 verified: 2026-06-04
 libraries: []

@@ -1,5 +1,5 @@
 ---
-name: 10-db-optimize
+name: 11-db-optimize
 description: /db-optimize — Query Optimization Workflow
 verified: 2026-06-04
 libraries: [sequelize, pg]

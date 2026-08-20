@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-08-20
+
+### Fixed
+- **The skill pipeline had two `03`s.** v0.27.0 added `03-write-design` beside the existing
+  `03-write-plan`, so the numbering — which is the only thing communicating the order of the
+  pipeline — stopped communicating it. Everything from `/write-plan` onward shifts up one:
+
+  ```
+  00-infra-setup  01-write-roadmap  02-write-spec  03-write-design  04-write-plan
+  05-build-layer  06-validate-layer 07-push-layer  08-layer-check   09-garbage-collect
+  10-doc-garden   11-db-optimize    12-load-test
+  ```
+
+  `nestjs` had it worse — `03-write-design` collided with `03-build-layer` **and** sat after
+  `02-write-plan`, so the numbers said to design *after* planning. It now runs `01-write-spec →
+  02-write-design → 03-write-plan → 04-build-layer`.
+
+- `test/smoke.mjs` looked for the design skill at a hardcoded `03-`, and still listed nestjs's plan
+  skill at its old `02-`. Both now resolve the same way the spec and plan lookups already did.
+
+
 ## [0.28.0] - 2026-08-13
 
 ### Added

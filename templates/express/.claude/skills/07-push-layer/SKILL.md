@@ -1,5 +1,5 @@
 ---
-name: 06-push-layer
+name: 07-push-layer
 description: /push-layer — Commit and Push Current Layer
 verified: 2026-06-04
 libraries: []

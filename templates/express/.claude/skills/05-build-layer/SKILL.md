@@ -1,5 +1,5 @@
 ---
-name: 04-build-layer
+name: 05-build-layer
 description: /build-layer — Build Next Layer from Active Plan
 verified: 2026-06-04
 libraries: [express, sequelize, sequelize-typescript, zod, jose, bullmq, pino]

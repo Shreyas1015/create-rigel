@@ -1,5 +1,5 @@
 ---
-name: 03-write-design
+name: 02-write-design
 description: /write-design — Record the engineering decisions this spec owes
 verified: 2026-08-13
 libraries: []

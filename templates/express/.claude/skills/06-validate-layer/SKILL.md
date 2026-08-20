@@ -1,5 +1,5 @@
 ---
-name: 05-validate-layer
+name: 06-validate-layer
 description: /validate-layer — Run Gate Check Without Building
 verified: 2026-06-04
 libraries: []

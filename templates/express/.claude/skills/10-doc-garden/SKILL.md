@@ -1,5 +1,5 @@
 ---
-name: 09-doc-garden
+name: 10-doc-garden
 description: /doc-garden — Scan and Fix Stale Documentation
 verified: 2026-06-04
 libraries: []
