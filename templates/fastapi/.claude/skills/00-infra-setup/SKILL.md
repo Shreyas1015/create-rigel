@@ -314,28 +314,17 @@ Create `docker-compose.yml` — app + postgres:16 + redis:7 + pgbouncer (comment
 Create `infra/monitoring/docker-compose.lgtm.yml` — local LGTM stack (Grafana + Loki + Tempo + Prometheus) wired to the app's OTLP endpoint, so "observability is not optional" is true locally too.
 
 ## Step 11 — GitHub Actions + supply chain
-Create `.github/workflows/ci.yml` with INDEPENDENT parallel jobs (security must not be gated behind lint):
-- `quality`: ruff check + ruff format --check + mypy
-- `test`: `pytest --cov=src --cov-report=term-missing --cov-fail-under=70` (coverage is explicit here — NOT in addopts) + schemathesis contract tests (`--experimental=openapi-3.1`)
-- `security`: bandit -ll + pip-audit + gitleaks (secret scan) — runs even if `quality` fails
-- `image`: build Dockerfile → Trivy scan (fail on HIGH/CRITICAL) → generate SBOM (Syft, CycloneDX) → upload artifact
+**`.github/workflows/ci.yml` ships with the template — do not create, regenerate or rewrite it.**
+Its required job runs `make gate` as one command, so every check the gate has (provenance,
+knowledge, design decisions, MCP, silent failures, regressions, the contract gate) runs in CI
+automatically, and a check added to `scripts/gate.sh` later is picked up with no CI change. It also
+runs, as separate jobs, only what the gate does not: coverage (`--cov-fail-under=70`), pip-audit,
+gitleaks, and image build + Trivy + SBOM.
 
-**The `contract` job is required** — without it `scripts/contract_gate.py` fails loud, because a
-gate nothing enforces is worse than no gate (LSN-0004):
-```yaml
-  contract:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }        # or origin/main won't resolve
-      - uses: astral-sh/setup-uv@v5
-      - name: Install oasdiff
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - run: make contract-gate
-```
-Use `actions/cache` / `astral-sh/setup-uv` cache. Pin action SHAs.
+An earlier version of this skill described a CI that re-listed individual gate steps instead. The
+gate then grew and CI did not, so most of it was enforced only on a laptop (LSN-0015). If your tests
+need a database, add a `services:` block to the `test` job — that is the only edit it should need.
+
 Create `.github/workflows/load-test.yml` — k6 smoke on PR against ephemeral env + on staging deploy (P95/error budgets fail the job, not just report).
 Create `.github/dependabot.yml` — weekly `uv`/pip + GitHub Actions + Docker update PRs.
 Create `.gitleaks.toml` and add `gitleaks` + `trivy` notes; wire gitleaks as a pre-commit hook too (Step 12).

@@ -1,0 +1,150 @@
+name: CI
+
+# The PR gate. Runs `make gate` itself — not a copy of its steps — plus only the work the gate does
+# not do: the coverage run, dependency and secret scanning, and the image scan + SBOM.
+#
+# This file used to be DESCRIBED in /infra-setup rather than shipped, and the description had CI
+# copy individual gate steps (ruff, mypy, pytest). The gate then grew — provenance, knowledge,
+# design decisions, MCP declarations, silent failures, debug regressions — and none of it ever ran
+# in CI, so all of it was enforced only on someone's laptop (LSN-0015). Calling the gate as one
+# command makes that drift impossible; create-rigel's check-ci-mirrors-gate keeps it that way.
+#
+# Template-aware: a fresh scaffold has no pyproject.toml or src/ until /infra-setup. The gate handles
+# that itself (it verifies provenance and exits), and source-dependent jobs skip on `has_src`.
+# Action versions are pinned; Dependabot keeps them current (.github/dependabot.yml).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write # upload Trivy SARIF to GitHub code scanning
+
+jobs:
+  guard:
+    name: Detect project state
+    runs-on: ubuntu-latest
+    outputs:
+      has_src: ${{ steps.detect.outputs.has_src }}
+      # Detected here because hashFiles() is not allowed in a job-level `if:` — only in steps.
+      has_dockerfile: ${{ steps.detect.outputs.has_dockerfile }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f pyproject.toml ] && [ -n "$(find src -name '*.py' 2>/dev/null | head -1)" ]; then
+            echo "has_src=true" >> "$GITHUB_OUTPUT"
+            echo "Application code detected — running the full pipeline."
+          else
+            echo "has_src=false" >> "$GITHUB_OUTPUT"
+            echo "No src/ yet (template state) — source-dependent jobs will skip."
+          fi
+          if [ -f Dockerfile ]; then echo "has_dockerfile=true" >> "$GITHUB_OUTPUT"; else echo "has_dockerfile=false" >> "$GITHUB_OUTPUT"; fi
+
+  # THE gate. Runs on every push, template state included: with no src/ it still verifies provenance.
+  gate:
+    name: Gate (make gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the contract gate diffs against origin/main
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # The MCP, silent-failure and design checks are Node scripts: .mcp.json is Claude Code's file,
+      # and one implementation of each check is kept rather than a Python port to drift.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install oasdiff (breaking-change half of the contract gate)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh -s -- -b "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        if: hashFiles('pyproject.toml') != ''
+        run: uv sync
+      - name: Gate (verify · ruff · mypy · bandit · arch · zero-tests · knowledge · mcp · silent · design · regressions · contract)
+        run: make gate
+
+  # Coverage is NOT part of the gate (the gate runs architecture tests and the zero-tests guard).
+  # If your tests need a database, add a `services:` block here — the gate itself needs none.
+  test:
+    name: Tests with coverage
+    needs: guard
+    if: needs.guard.outputs.has_src == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=70
+
+  # Runs even if everything else fails: a secret in history is urgent regardless of lint.
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so every commit is scanned
+      # The CLI from its official image, not the marketplace action: the action calls the GitHub API
+      # and crashes on any non-2xx response. The binary just scans history and exits non-zero.
+      - name: gitleaks
+        run: |
+          args=(git --redact --exit-code 1)
+          [ -f .gitleaks.toml ] && args+=(--config .gitleaks.toml)
+          docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:latest "${args[@]}" .
+
+  dependencies:
+    name: Dependency audit (pip-audit)
+    needs: guard
+    if: needs.guard.outputs.has_src == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: pip-audit against the locked dependency set
+        run: |
+          uv export --no-hashes --format requirements-txt > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit -r "$RUNNER_TEMP/requirements.txt"
+
+  image:
+    name: Image build · Trivy · SBOM
+    needs: guard
+    if: needs.guard.outputs.has_src == 'true' && needs.guard.outputs.has_dockerfile == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t app:ci .
+      - name: Trivy (fail on HIGH/CRITICAL)
+        run: |
+          mkdir -p out
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/out:/out" \
+            aquasec/trivy:latest image --severity CRITICAL,HIGH --ignore-unfixed \
+            --format sarif --output /out/trivy-results.sarif --exit-code 1 app:ci
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: out/trivy-results.sarif
+      - name: Generate SBOM (SPDX) with Syft
+        if: always()
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/out:/out" \
+            anchore/syft:latest scan app:ci -o spdx-json=/out/sbom.spdx.json
+      - name: Upload SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: out/sbom.spdx.json

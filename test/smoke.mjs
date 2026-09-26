@@ -384,6 +384,27 @@ for (const stack of STACKS) {
       );
     }
 
+    // PLAN-024 AC-4: the gate must REMEMBER what failed, or /curate has nothing to learn from.
+    {
+      if (stack === "fastapi") {
+        const gate = reads(dir, "scripts/gate.sh");
+        assert.match(gate, /record_failure\.py/, "fastapi: gate.sh never records a failure");
+        assert.ok(!/\|\| FAIL=1/.test(gate), "fastapi: a gate step still fails without recording");
+      } else {
+        assert.ok(has(dir, "scripts/gate.mjs"), `${stack}: missing the recording gate runner`);
+        const pkgText = has(dir, "package.json") ? reads(dir, "package.json") : reads(dir, ".claude/skills/00-infra-setup/SKILL.md");
+        assert.match(pkgText, /"gate":\s*"node scripts\/gate\.mjs"/, `${stack}: "gate" does not run the recording runner`);
+        assert.match(pkgText, /"gate:chain":\s*"npm run verify:rigel/, `${stack}: the gate chain is missing from "gate:chain"`);
+      }
+    }
+
+    // PLAN-024 AC-2: every scaffoldable stack SHIPS a CI that invokes the gate — never a copy of it.
+    {
+      assert.ok(has(dir, ".github/workflows/ci.yml"), `${stack}: ships no CI — it would be written from prose`);
+      const ci = reads(dir, ".github/workflows/ci.yml");
+      assert.match(ci, stack === "fastapi" ? /run:\s*make gate/ : /run:\s*npm run gate/, `${stack}: CI never invokes the gate`);
+    }
+
     assertEvalFiles(dir, stack);
     assertDesignFiles(dir, stack);
     console.log(`  ✓ ${stack} scaffolded (${entries.length} top-level entries)`);

@@ -16,7 +16,8 @@ import { extractFacts, aggregate, readCapabilities, queryMap, formatSlice, FACTS
 import { planInstall, install, summarizeInstall, coreCollisions, staleHarness } from "./lib/install.mjs";
 import { diagnose, countBad, BLIND_SPOTS as DOCTOR_BLIND_SPOTS } from "./lib/doctor.mjs";
 import { candidates } from "./lib/candidates.mjs";
-import { buildIndex, resolveCorpus, REFS_PATH } from "./lib/design.mjs";
+import { pipelineLine } from "./lib/pipeline.mjs";
+import { buildIndex, resolveCorpus, REFS_PATH, corpusVersion, fingerprint } from "./lib/design.mjs";
 import {
   buildGraph, reverseGraph, dependents, changedFiles, sourceFiles,
   serviceImpact, touchesContract, unenforced, BLIND_SPOTS,
@@ -272,7 +273,9 @@ function printGateWiring(root, stack) {
   console.log('      "knowledge":        "node scripts/rigel-knowledge.mjs",');
   console.log('      "debug:regression": "node scripts/debug-regression.mjs",');
   console.log('      "contract:gate":    "node scripts/contract-gate.mjs",');
-  console.log('      "gate":             "npm run verify:rigel && npm run knowledge && npm run debug:regression check"');
+  console.log('      "gate":             "node scripts/gate.mjs",');
+  console.log('      "gate:chain":       "npm run verify:rigel && npm run knowledge && npm run debug:regression check"');
+  console.log("\n  (`gate` runs the chain and records any failing step, so /curate has something to learn from.)");
   console.log("\n  Until then the harness is present but nothing runs it. `create-rigel doctor` will say so.\n");
 }
 
@@ -658,10 +661,18 @@ function cmdDesignIndex(argv) {
 
   const out = join(root, REFS_PATH);
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, JSON.stringify({ corpus: corpus.path, generatedFrom: idx.count, files: idx.files }, null, 0) + "\n");
+  // Record WHICH corpus this describes, so design:check can tell when the notes have moved on.
+  const ver = corpusVersion(corpus.path);
+  writeFileSync(out, JSON.stringify({
+    corpus: corpus.path, generatedFrom: idx.count,
+    corpusCommit: ver?.commit ?? null, corpusDirty: ver?.dirty ?? null,
+    fingerprint: fingerprint(idx.files), generatedAt: new Date().toISOString(),
+    files: idx.files,
+  }, null, 0) + "\n");
 
   const kb = (statSync(out).size / 1024).toFixed(0);
   console.log(`  ✓ indexed ${idx.count} note(s), ${idx.anchors} citable section(s)  (source: ${corpus.source})`);
+  if (ver) console.log(`    corpus at ${ver.commit}${ver.dirty ? ' — WITH UNCOMMITTED CHANGES (the index will not match a clean checkout)' : ''}`);
   console.log(`    ${corpus.path}`);
   console.log(`    → ${REFS_PATH}  (${kb} KB — commit this)`);
   console.log(`
@@ -791,7 +802,9 @@ async function main() {
     console.log("    git init");
     console.log("    # open in Claude Code, then run the harness setup skill:");
     console.log("    #   /infra-setup      (generates src/ and installs deps)");
-    console.log("    #   /write-roadmap → /write-spec → /write-plan → /build-layer\n");
+    // Read from the skills just written, so this line can only be wrong if the skills are.
+    const line = pipelineLine(target);
+    if (line) console.log(`    #   ${line}\n`);
   } finally {
     rl.close();
   }

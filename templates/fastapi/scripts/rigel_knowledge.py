@@ -22,7 +22,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
-from rigel_knowledge_lib import check_knowledge  # noqa: E402
+from rigel_knowledge_lib import check_knowledge, empty_layer_verdict  # noqa: E402
 
 
 def main(argv: "list[str]") -> int:
@@ -39,7 +39,23 @@ def main(argv: "list[str]") -> int:
     )
 
     if r["checked"] == 0:
-        print(f"· rigel knowledge: no anchored entries to verify here{owned}")
+        # Empty is only a pass while it is too early to expect otherwise (PLAN-024 AC-5).
+        v = empty_layer_verdict(root, r)
+        if v["verdict"] == "empty-after-work" and not advisory:
+            hint = "\n        (the existing opt-out has no real reason in it — say why)" if v.get("reasonTooShort") else ""
+            print(
+                f"✗ rigel knowledge: {v['shipped']} plan(s) shipped and knowledge/ is still empty — "
+                "nothing is checked against the code\n\n"
+                "    The domain terms this code depends on are defined nowhere, so two parts of the system can drift\n"
+                "    on what a word means and no check will notice. Fix one of:\n"
+                "      · /backfill-knowledge — anchor the domain's terms to the code that implements them\n"
+                f'      · or record the decision: echo "<why this repo needs no knowledge layer>" > .rigel/knowledge-optout{hint}\n',
+                file=sys.stderr,
+            )
+            return 1
+        why = (f" — opted out: {v['reason'].splitlines()[0][:80]}" if v["verdict"] == "opted-out"
+               else " (nothing shipped yet)" if v["verdict"] == "too-early" else "")
+        print(f"· rigel knowledge: no anchored entries to verify here{owned}{why}")
         return 0
 
     if not r["problems"]:

@@ -22,7 +22,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { requiredDecisions, parseDesign, checkDesign } from './lib/rigel-decisions.mjs'
-import { loadIndex, resolveRef } from './lib/rigel-design.mjs'
+import { citationBasis, resolveRef } from './lib/rigel-design.mjs'
 
 const SPEC_DIRS = ['docs/product-specs/ready', 'docs/product-specs/draft']
 const DESIGN_DIR = 'docs/product-specs/design'
@@ -41,7 +41,9 @@ if (!specs.length) {
   process.exit(0)
 }
 
-const index = loadIndex(process.cwd())
+// Verify against the LIVE notes when they are on disk, so a citation to a section that has since been
+// renamed or deleted fails rather than resolving against a stale index (PLAN-024 AC-6).
+const { index, basis, stale } = citationBasis(process.cwd())
 const resolver = index ? (ref) => resolveRef(index, ref) : null
 
 let failed = 0
@@ -94,6 +96,14 @@ for (const spec of specs) {
 if (!index) {
   console.log(`      · citations not checked — no reference corpus configured`)
   console.log(`        set RIGEL_NOTES_PATH, or run: npx create-rigel design-index`)
+} else {
+  console.log(`      · citations checked against ${basis}`)
+}
+if (stale) {
+  const move = stale.from && stale.to ? ` (notes@${stale.from} → notes@${stale.to})` : ''
+  console.log(`      ! the committed design index is STALE${move}: ${stale.notesAdded} note(s) added, ${stale.notesRemoved} removed, ${stale.sectionsRemoved} section(s) gone`)
+  console.log(`        on CI this repo would still check against the old index — refresh and commit it:`)
+  console.log(`        npx create-rigel design-index && git add .rigel/design-refs.json`)
 }
 
 if (failed) {

@@ -11,7 +11,7 @@
 // in a different file counts as one lesson. Examples:
 //   tsc:TS2345 · eslint:no-restricted-imports · arch:paranoid-missing ·
 //   arch:injectmodel-in-service · arch:file-too-long · assert:zero-tests · ac-vector:AC-fail
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
 const [signature, message, location] = process.argv.slice(2)
@@ -28,14 +28,33 @@ try {
   if (f) plan = (f.match(/PLAN-\d{3}/) || [null])[0]
 } catch {}
 
+// One record per signature per commit (PLAN-024 AC-4). The gate now records its own failures, and
+// re-running a red gate while fixing it would otherwise log the same failure ten times — inflating
+// the recurrence count /curate promotes lessons on. A new commit is a new chance to fail.
+let commit = null
+try {
+  commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null
+} catch {} // not a repo yet: record, just without the dedupe key
+const LOG = '.rigel/gate-failures.jsonl'
+if (commit && existsSync(LOG)) {
+  const dup = readFileSync(LOG, 'utf8').split('\n').some((l) => {
+    try { const r = JSON.parse(l); return r.signature === signature && r.commit === commit } catch { return false }
+  })
+  if (dup) {
+    console.log(`already recorded at ${commit}: ${signature}`)
+    process.exit(0)
+  }
+}
+
 const [file = null, lineStr] = (location || '').split(':')
 const rec = {
   ts: new Date().toISOString(),
   plan,
+  commit,
   signature,
   message,
   file: file || null,
   line: lineStr ? Number(lineStr) : null,
 }
-appendFileSync('.rigel/gate-failures.jsonl', JSON.stringify(rec) + '\n')
+appendFileSync(LOG, JSON.stringify(rec) + '\n')
 console.log(`recorded gate failure: ${signature}`)

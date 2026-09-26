@@ -276,10 +276,14 @@ jobs:
           # --no-deps so the lgtm/alloy observability backend is NOT started in CI.
           docker compose up -d --no-deps --build app
           # Wait for the app health endpoint.
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:3000/health >/dev/null 2>&1; then echo "app up"; break; fi
+          # Fail HERE if it never comes up — otherwise k6 fails next with connection errors and the
+          # report points at the load test instead of at the app that never started.
+          up=false
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/health >/dev/null 2>&1; then up=true; echo "app up"; break; fi
             sleep 2
           done
+          [ "$up" = true ] || { echo "::error::app never became healthy on :3000/health within 60s"; exit 1; }
       - uses: grafana/setup-k6-action@v1
       - name: k6 smoke (enforces thresholds)
         env:

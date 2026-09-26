@@ -6,6 +6,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-09-27
+
+> **Everything advisory never ran.** An audit of a real two-repo project on Rigel (17 plans shipped)
+> found every refuse-chain artifact 1:1 — grill, design, red-green, 263 acceptance tests — and every
+> advisory one untouched: zero lessons, an empty knowledge layer, no recorded failures, and a CI that
+> never ran the gate. Each was a place Rigel relied on someone remembering.
+> [PLAN-024](docs/exec-plans/PLAN-024-close-the-audit-gaps.md).
+
+### Fixed
+- **fastapi shipped a CI that enforced a fraction of its gate.** `/infra-setup` *described* a CI that
+  copied individual gate steps (ruff, mypy, pytest) and never ran `make gate`, so provenance,
+  knowledge, design, MCP, silent-failure and regression checks ran only on a laptop — LSN-0015,
+  broken by the template itself. fastapi now **ships** `.github/workflows/ci.yml` whose required job
+  runs `make gate`, with separate jobs only for what the gate does not do (coverage, pip-audit,
+  gitleaks, image + Trivy + SBOM). Existing repos receive it through `update` as a `.rigel-new`
+  sidecar beside the CI they wrote — never an overwrite.
+- **The CI-mirror check skipped exactly that gap.** It reported "ships no ci.yml — nothing to check"
+  for fastapi. A scaffoldable stack with no shipped CI now **fails** the check; only delisted stacks
+  may skip, and they say why.
+- **The gate forgot its failures.** Only the gate-checker agent ever called `record-failure`, so a
+  failure fixed at the terminal was never recorded and `/curate` had nothing to learn from.
+  - Node stacks: `scripts/gate.mjs` runs the chain with `&&` semantics and records the failing step
+    as `gate:<script>`. The chain stays in `package.json` as `gate:chain`.
+  - fastapi: every step in `gate.sh` records `gate:<step>`, named from the header already above it.
+  - One record per signature per commit, so re-running a red gate while fixing it does not inflate
+    the count `/curate` promotes lessons on.
+  - `package.json` is seed and Rigel never edits it: existing repos keep a working, non-recording gate,
+    and `doctor` prints the exact two-line change.
+- **An empty knowledge layer passed silently.** It printed "no anchored entries to verify here" and
+  exited 0 — a check that verified nothing, reported as a pass (LSN-0004). It now **fails once a plan
+  has shipped**, unless `.rigel/knowledge-optout` states why the repo needs none. Fresh scaffolds are
+  unaffected. JS and Python held to the same verdict by the parity test.
+- **A stale design index was a false green.** `design-index` now records the corpus's commit and a
+  content fingerprint. When the notes are on disk, `design:check` verifies citations against the
+  **live** notes — a citation to a renamed or deleted section fails — and warns that the committed
+  index is stale, naming both commits. On CI it uses the committed index and says which commit.
+- **Doctor gave a Python repo Node advice.** It said `add a step: run: npm run gate` to a fastapi repo
+  and reported its zero-tests guard missing because the guard lives inside `gate.sh`. It now accepts
+  `make gate`, gives fixes in the stack's own command, and finds the guard. It also reports whether the
+  gate records failures, the knowledge verdict, and whether the design index is stale.
+- **The post-scaffold message described a pipeline that no longer existed** —
+  `/write-spec → /write-plan → /build-layer`, missing `/write-design` three releases after it shipped.
+  It is now read from the scaffolded skills themselves.
+- express CI's health-wait loop fell through silently if the app never started, so k6 failed next
+  and the report blamed the load test. It now fails where it broke.
+
+### Notes
+- Every shipped workflow is now `actionlint`-clean. Running it caught a real bug before release:
+  `hashFiles()` in a job-level `if:`, which GitHub rejects — the fastapi image job would have errored
+  on the first PR after `/infra-setup` added a Dockerfile.
+- **Heads-up for existing repos:** after `update`, a repo that has shipped plans with an empty
+  `knowledge/` will see the knowledge step fail. That is the fix working — run `/backfill-knowledge`
+  or record a reason in `.rigel/knowledge-optout`.
+
+
 ## [0.29.0] - 2026-08-20
 
 ### Fixed

@@ -19,7 +19,7 @@
 //   node scripts/rigel-knowledge.mjs              # blocking
 //   node scripts/rigel-knowledge.mjs --advisory   # report only (exit 0) — for a migration window
 import { basename } from 'node:path'
-import { checkKnowledge } from './lib/rigel-knowledge-lib.mjs'
+import { checkKnowledge, emptyLayerVerdict } from './lib/rigel-knowledge-lib.mjs'
 
 const advisory = process.argv.includes('--advisory')
 const root = process.cwd()
@@ -32,7 +32,20 @@ const owned = r.skippedNotOwner
   : ''
 
 if (r.checked === 0) {
-  console.log(`· rigel knowledge: no anchored entries to verify here${owned}`)
+  // Empty is only a pass while it is too early to expect otherwise (PLAN-024 AC-5).
+  const v = emptyLayerVerdict(root, r)
+  if (v.verdict === 'empty-after-work' && !advisory) {
+    console.error(`✗ rigel knowledge: ${v.shipped} plan(s) shipped and knowledge/ is still empty — nothing is checked against the code`)
+    console.error(`
+    The domain terms this code depends on are defined nowhere, so two parts of the system can drift
+    on what a word means and no check will notice. Fix one of:
+      · /backfill-knowledge — anchor the domain's terms to the code that implements them
+      · or record the decision: echo "<why this repo needs no knowledge layer>" > .rigel/knowledge-optout${v.reasonTooShort ? '\n        (the existing opt-out has no real reason in it — say why)' : ''}
+`)
+    process.exit(1)
+  }
+  const why = v.verdict === 'opted-out' ? ` — opted out: ${v.reason.split('\n')[0].slice(0, 80)}` : v.verdict === 'too-early' ? ' (nothing shipped yet)' : ''
+  console.log(`· rigel knowledge: no anchored entries to verify here${owned}${why}`)
   process.exit(0)
 }
 

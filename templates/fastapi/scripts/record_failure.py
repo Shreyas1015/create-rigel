@@ -17,6 +17,7 @@
 
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,15 @@ def active_plan_id() -> str | None:
     return m.group(0) if m else None
 
 
+def head_commit() -> str | None:
+    """Short HEAD, or None outside a repo — then records simply lack the dedupe key."""
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False)
+        return out.stdout.strip() or None
+    except OSError:
+        return None
+
+
 def main() -> None:
     args = sys.argv[1:]
     if len(args) < 2 or not args[0] or not args[1]:
@@ -51,9 +61,23 @@ def main() -> None:
 
     Path(".rigel").mkdir(parents=True, exist_ok=True)
 
+    # One record per signature per commit (PLAN-024 AC-4): the gate records its own failures now, and
+    # re-running a red gate while fixing it must not inflate the recurrence /curate promotes on.
+    commit = head_commit()
+    log = Path(".rigel/gate-failures.jsonl")
+    if commit and log.exists():
+        for line in log.read_text(encoding="utf-8").splitlines():
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if r.get("signature") == signature and r.get("commit") == commit:
+                print(f"already recorded at {commit}: {signature}")
+                return
     rec = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "plan": active_plan_id(),
+        "commit": commit,
         "signature": signature,
         "message": message,
         "file": file_part or None,

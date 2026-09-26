@@ -1,7 +1,7 @@
 # PLAN-023 — The design stage: decisions that must be made, grounded in a reference corpus
 
 **Target:** v0.26.0 (corpus + index + MCP) → v0.27.0 (`/write-design` + gate)
-**Status:** DRAFT
+**Status:** SHIPPED in v0.26.0 + v0.27.0
 
 ---
 

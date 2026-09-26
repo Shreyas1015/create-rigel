@@ -183,3 +183,21 @@ def check_knowledge(root: str, knowledge_dir: str = KNOWLEDGE_DIR, service: str 
     return result
 
 
+
+
+# ── PLAN-024 AC-5: an empty knowledge layer is not a pass — mirrors emptyLayerVerdict ──
+OPTOUT_PATH = ".rigel/knowledge-optout"
+
+
+def empty_layer_verdict(root: str, result: dict) -> dict:
+    if result.get("checked", 0) > 0 or result.get("skippedNotOwner", 0) > 0:
+        return {"verdict": "populated"}
+    done = os.path.join(root, "docs", "exec-plans", "completed")
+    shipped = len([f for f in os.listdir(done) if f.endswith(".md")]) if os.path.isdir(done) else 0
+    optout = os.path.join(root, OPTOUT_PATH)
+    reason = open(optout, encoding="utf-8").read().strip() if os.path.exists(optout) else ""
+    if len(reason) >= 10:
+        return {"verdict": "opted-out", "shipped": shipped, "reason": reason}
+    if shipped == 0:
+        return {"verdict": "too-early", "shipped": shipped}
+    return {"verdict": "empty-after-work", "shipped": shipped, "reasonTooShort": os.path.exists(optout)}

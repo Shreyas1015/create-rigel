@@ -20,6 +20,13 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const TEMPLATES = 'templates'
+
+// The stacks a user can actually scaffold, read from cli.js's own table — the same source smoke uses,
+// so this check and the CLI cannot disagree about which templates must ship a CI.
+const SCAFFOLDABLE = (() => {
+  const block = /const STACKS = \{([\s\S]*?)\};/.exec(readFileSync('cli.js', 'utf8'))
+  return new Set(block ? [...block[1].matchAll(/^\s*(\w+):/gm)].map((m) => m[1]) : [])
+})()
 let failed = false
 const bad = (m) => {
   console.error(`  ✗ ${m}`)
@@ -56,14 +63,17 @@ function gateEntry(stack) {
   const pkgPath = join(TEMPLATES, stack, 'package.json')
   if (existsSync(pkgPath)) {
     const scripts = JSON.parse(readFileSync(pkgPath, 'utf8')).scripts ?? {}
-    return scripts.gate ? { kind: 'npm', chain: scripts.gate } : null
+    if (!scripts.gate) return null
+    // PLAN-024: `gate` is the recording runner; the steps themselves live in `gate:chain`.
+    return { kind: 'npm', chain: /scripts\/gate\.mjs/.test(scripts.gate) ? (scripts['gate:chain'] ?? '') : scripts.gate }
   }
   // No shipped package.json. Either the gate is a shell script (fastapi), or package.json is
   // GENERATED at /infra-setup and the chain lives in the skill (nextjs, nestjs).
   if (existsSync(join(TEMPLATES, stack, 'scripts/gate.sh'))) return { kind: 'sh', chain: null }
   const skill = join(TEMPLATES, stack, '.claude/skills/00-infra-setup/SKILL.md')
   if (existsSync(skill)) {
-    const m = /"gate":\s*"([^"]+)"/.exec(readFileSync(skill, 'utf8'))
+    const text = readFileSync(skill, 'utf8')
+    const m = /"gate:chain":\s*"([^"]+)"/.exec(text) ?? /"gate":\s*"(npm run[^"]+)"/.exec(text)
     if (m) return { kind: 'npm', chain: m[1], generated: true }
   }
   return null
@@ -72,7 +82,12 @@ function gateEntry(stack) {
 for (const stack of readdirSync(TEMPLATES).sort()) {
   const ciPath = join(TEMPLATES, stack, '.github/workflows/ci.yml')
   if (!existsSync(ciPath)) {
-    console.log(`  · ${stack}: ships no ci.yml (generated at /infra-setup) — nothing to check`)
+    // PLAN-024 AC-2: "generated at /infra-setup" was a CI described in prose, which no check can
+    // verify — and fastapi's description copied gate steps instead of running the gate, so every
+    // fastapi repo shipped a CI that enforced a fraction of it. A stack users can scaffold must SHIP
+    // its CI. Only delisted stacks may skip, and they say why.
+    if (SCAFFOLDABLE.has(stack)) bad(`${stack}: is scaffoldable but ships no .github/workflows/ci.yml — its CI would be written from prose, unverifiable`)
+    else console.log(`  · ${stack}: not scaffoldable (delisted) — no shipped CI required`)
     continue
   }
 
@@ -85,9 +100,9 @@ for (const stack of readdirSync(TEMPLATES).sort()) {
   const cmds = runCommands(readFileSync(ciPath, 'utf8'))
   const invokes =
     entry.kind === 'sh'
-      ? cmds.some((c) => /scripts\/gate\.sh/.test(c))
+      ? cmds.some((c) => /scripts\/gate\.sh|\bmake gate\b/.test(c))
       : cmds.some((c) => /\bnpm run gate\b/.test(c))
-  const want = entry.kind === 'sh' ? 'scripts/gate.sh' : 'npm run gate'
+  const want = entry.kind === 'sh' ? 'make gate' : 'npm run gate'
 
   if (!invokes) {
     const steps = (entry.chain ?? '').split('&&').map((s) => s.trim()).filter(Boolean)
